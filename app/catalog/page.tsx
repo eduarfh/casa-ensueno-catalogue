@@ -3,16 +3,16 @@ import { ProductCard } from "@/components/product-card";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { CatalogFilters } from "@/components/catalog-filters";
-import { createServerClient } from "@/lib/supabase/server";
+import { createPublicServerClient } from "@/lib/supabase/server";
 import { ThemeToggle } from "@/components/theme-toggle";
 
 export default async function CatalogPage({
   searchParams,
 }: {
-  searchParams: { category?: string; search?: string };
+  searchParams?: { category?: string; search?: string };
 }) {
   const params = searchParams || {};
-  const supabase = await createServerClient();
+  const supabase = createPublicServerClient();
 
   // Fetch categories
   const { data: categories } = await supabase.from("categories").select("id, name").order("name");
