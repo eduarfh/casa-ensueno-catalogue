@@ -17,13 +17,14 @@ export function createBrowserSupabase() {
     return null;
   }
 
+  // IMPORTANTE: desactivamos persistSession/autoRefreshToken porque el servidor
+  // ya gestiona sesión por cookies (SSR flow). Esto evita doble-rotación.
   browserClient = createSupabaseClient(url, anon, {
     auth: {
-      // COMO el servidor persiste sesión en cookies (SSR), desactivamos la persistencia/auto-rotación en cliente
       persistSession: false,
       autoRefreshToken: false,
-      detectSessionInUrl: false
-    }
+      detectSessionInUrl: false,
+    },
   });
 
   return browserClient;
