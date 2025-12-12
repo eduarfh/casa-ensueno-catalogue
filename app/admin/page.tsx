@@ -1,4 +1,6 @@
 // app/admin/page.tsx
+export const dynamic = "force-dynamic";
+
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { AdminProductList } from "@/components/admin-product-list";
