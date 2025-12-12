@@ -2,8 +2,6 @@
 /**
  * Server-side helper. Intenta usar @supabase/ssr (si está disponible)
  * para respetar cookies de sesión en SSR; si no está disponible, devuelve un fallback.
- *
- * Exporta createServerSupabase() y un alias createServerClient para compatibilidad.
  */
 
 let serverClient: any = null;
@@ -28,7 +26,9 @@ export async function createServerSupabase() {
           },
           setAll(cookiesToSet: any) {
             try {
-              cookiesToSet.forEach(({ name, value, options }: any) => cookieStore.set(name, value, options));
+              cookiesToSet.forEach(({ name, value, options }: any) =>
+                cookieStore.set(name, value, options),
+              );
             } catch {
               // entornos donde la store sea readonly
             }
@@ -41,7 +41,11 @@ export async function createServerSupabase() {
     console.warn("[Supabase][server] SSR helper not available, using fallback client", error);
     serverClient = {
       from: () => ({
-        select: () => ({ eq: () => Promise.resolve({ data: [], error: null }), ilike: () => Promise.resolve({ data: [], error: null }), order: () => Promise.resolve({ data: [], error: null }) }),
+        select: () => ({
+          eq: () => Promise.resolve({ data: [], error: null }),
+          ilike: () => Promise.resolve({ data: [], error: null }),
+          order: () => Promise.resolve({ data: [], error: null }),
+        }),
       }),
       auth: {
         getUser: async () => ({ data: { user: null }, error: null }),
@@ -52,5 +56,8 @@ export async function createServerSupabase() {
   return serverClient;
 }
 
-// Alias por compatibilidad con tu código existente
+// Export canónico para uso en server-side code (routes, pages server components, generateMetadata...)
 export const createServerClient = createServerSupabase;
+
+// NOTA (intencional): no exportamos "createClient" desde aquí para evitar confundir server/client.
+// Si necesitas un alias por compatibilidad, házmelo saber y lo añadimos explícitamente.
