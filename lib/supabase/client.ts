@@ -1,29 +1,26 @@
-// lib/supabase/admin.ts
+// lib/supabase/client.ts
+"use client";
 
-"use client"
+import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 
-import { createBrowserClient } from "@supabase/ssr"
+/**
+ * Cliente singleton para uso en el navegador.
+ * Importar y usar solo desde componentes client-side.
+ */
+let browserClient: ReturnType<typeof createSupabaseClient> | null = null;
 
-let supabaseClient: ReturnType<typeof createBrowserClient> | null = null
+export function createBrowserSupabase() {
+  if (typeof window === "undefined") return null;
+  if (browserClient) return browserClient;
 
-export function createClient() {
-  if (typeof window === "undefined") {
-    return null
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+  const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+
+  if (!url || !anon) {
+    console.warn("[Supabase][client] NEXT_PUBLIC_SUPABASE_* env vars not set");
+    return null;
   }
 
-  // Only create client once
-  if (supabaseClient) {
-    return supabaseClient
-  }
-
-  try {
-    supabaseClient = createBrowserClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    )
-  } catch (error) {
-    console.warn("[Supabase] Error creating client:", error)
-  }
-
-  return supabaseClient
+  browserClient = createSupabaseClient(url, anon);
+  return browserClient;
 }
