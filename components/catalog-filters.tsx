@@ -28,28 +28,30 @@ export function CatalogFilters({
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  // Local controlled state initialised from server props to avoid hydration mismatch
-  const [search, setSearch] = useState<string>(currentSearch ?? "");
-  const [selectedCategory, setSelectedCategory] = useState<string>(currentCategory ?? "");
+  // Use "all" as the UI sentinel value for no-category selected
+  const initialCategoryUi = currentCategory ? currentCategory : "all";
 
-  // Keep local state in sync if server-provided props change (rare but safe)
+  const [search, setSearch] = useState<string>(currentSearch ?? "");
+  const [selectedCategory, setSelectedCategory] = useState<string>(initialCategoryUi);
+
   useEffect(() => {
     setSearch(currentSearch ?? "");
-    setSelectedCategory(currentCategory ?? "");
+    setSelectedCategory(currentCategory ?? "all");
   }, [currentSearch, currentCategory]);
 
-  // Sync with URL changes (back/forward navigation) — read from searchParams
+  // Keep in sync with back/forward (read from searchParams)
   useEffect(() => {
     try {
       const sp = searchParams?.get?.("search") ?? "";
       const cat = searchParams?.get?.("category") ?? "";
+      const catUi = cat || "all";
       if (sp !== search) setSearch(sp);
-      if (cat !== selectedCategory) setSelectedCategory(cat);
+      if (catUi !== selectedCategory) setSelectedCategory(catUi);
       // eslint-disable-next-line react-hooks/exhaustive-deps
     } catch {
-      // ignore (defensive)
+      // defensive: ignore
     }
-    // depend on the string representation so effect runs when query changes
+    // we depend on string form so we update when query changes
   }, [searchParams?.toString?.()]);
 
   const pushWithParams = (params: URLSearchParams) => {
@@ -60,24 +62,24 @@ export function CatalogFilters({
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    // create params object from current searchParams to keep other params intact
     const params = new URLSearchParams(searchParams?.toString?.() ?? "");
 
     if (search) params.set("search", search);
     else params.delete("search");
 
-    if (selectedCategory) params.set("category", selectedCategory);
+    // if UI is "all", remove category param; otherwise set it
+    if (selectedCategory && selectedCategory !== "all") params.set("category", selectedCategory);
     else params.delete("category");
 
     pushWithParams(params);
   };
 
   const handleCategoryChange = (value: string) => {
-    // `value` will be "" for "Todas las categorías"
+    // value will be "all" or a category id
     setSelectedCategory(value);
 
     const params = new URLSearchParams(searchParams?.toString?.() ?? "");
-    if (value) params.set("category", value);
+    if (value && value !== "all") params.set("category", value);
     else params.delete("category");
 
     if (search) params.set("search", search);
@@ -87,7 +89,7 @@ export function CatalogFilters({
 
   const handleClearFilters = () => {
     setSearch("");
-    setSelectedCategory("");
+    setSelectedCategory("all");
     router.push("/catalog");
   };
 
@@ -122,8 +124,8 @@ export function CatalogFilters({
               <SelectValue placeholder="Todas las categorías" />
             </SelectTrigger>
             <SelectContent>
-              {/* Use empty string "" to represent "all" — keeps URL clean (no 'all' literal) */}
-              <SelectItem value="">Todas las categorías</SelectItem>
+              {/* Use "all" sentinel — not empty string to satisfy Select component */}
+              <SelectItem value="all">Todas las categorías</SelectItem>
               {categories.map((category) => (
                 <SelectItem key={category.id} value={category.id}>
                   {category.name}
@@ -133,7 +135,7 @@ export function CatalogFilters({
           </Select>
         </div>
 
-        {(search || selectedCategory) && (
+        {(search || (selectedCategory && selectedCategory !== "all")) && (
           <Button
             type="button"
             variant="outline"
