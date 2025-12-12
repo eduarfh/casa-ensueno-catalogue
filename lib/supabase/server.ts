@@ -1,56 +1,61 @@
 // lib/supabase/server.ts
-/**
- * Server-side helper para Supabase.
- *
- * - createServerClient(): cliente que intenta usar @supabase/ssr y respeta cookies (ideal para rutas que dependen de sesión).
- * - createPublicServerClient(): cliente "público" que NO usa next/headers y no lee cookies (ideal para metadata / páginas públicas).
- *
- * En el fallback usamos createSupabaseClient (anon key) para mantener la API encadenable.
- */
-
 import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 
-let serverClient: any = null;
-
 export async function createServerSupabase() {
-  if (serverClient) return serverClient;
-
+  // NOTA: no guardamos el cliente en un singleton a nivel módulo en entornos serverless,
+  // porque las instancias pueden persistir y mezclar cookies entre requests.
   try {
-    // Intentamos usar @supabase/ssr (respeta cookies)
     const { createServerClient } = await import("@supabase/ssr");
     const { cookies } = await import("next/headers");
 
     const cookieStore = await cookies();
 
-    serverClient = createServerClient(
+    const supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
       {
         cookies: {
+          // lee las cookies desde next/headers
           getAll() {
-            return cookieStore.getAll();
+            try {
+              return cookieStore.getAll();
+            } catch (err) {
+              console.warn("[Supabase][server] cookieStore.getAll() failed:", err);
+              return [];
+            }
           },
+
+          // intenta escribir, pero no tragues el error: loguea para debug
           setAll(cookiesToSet: any) {
             try {
+              // NO loguees valores de tokens! solo nombres/longitudes para debug seguro
+              const safeSummary = cookiesToSet.map((c: any) => {
+                const val = String(c?.value ?? "");
+                return { name: c?.name, valueLen: val.length, options: c?.options ?? {} };
+              });
+              console.log("[Supabase][server] setAll cookies requested:", safeSummary);
+
               cookiesToSet.forEach(({ name, value, options }: any) =>
                 cookieStore.set(name, value, options),
               );
-            } catch {
-              // entornos donde la cookie store sea readonly
+            } catch (err) {
+              // Logamos el error para que lo veas en Vercel -> Deployments -> Logs
+              console.warn("[Supabase][server] failed to set cookies (readonly?), will not persist session:", err);
             }
           },
         },
       },
     );
+
+    return supabase;
   } catch (error) {
-    // Si no está @supabase/ssr (build env), crear un cliente estándar para preservar API encadenable
     console.warn("[Supabase][server] SSR helper not available, using standard supabase client as fallback", error);
 
     const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
     if (!url || !anon) {
-      // si no hay env, devolvemos un stub encadenable que resuelve con data:[] para no romper builds
+      // stub (same que antes)
       const stubQuery = () => ({
         select: () => ({
           eq: () => ({ order: () => Promise.resolve({ data: [], error: null }) }),
@@ -59,25 +64,20 @@ export async function createServerSupabase() {
         }),
       });
 
-      // NOTE: usar _table (nombre de parámetro válido) para evitar errores de sintaxis en el compilador
-      serverClient = {
+      return {
         from: (_table: string) => stubQuery(),
         auth: { getUser: async () => ({ data: { user: null }, error: null }) },
       } as any;
     } else {
-      serverClient = createSupabaseClient(url, anon);
+      return createSupabaseClient(url, anon);
     }
   }
-
-  return serverClient;
 }
 
-// Export canónico para server-side usage
 export const createServerClient = createServerSupabase;
 
 /* -------------------------
    Cliente público: no usa next/headers (no lee cookies).
-   Útil para metadata y páginas públicas que queremos prerenderizar.
 --------------------------*/
 export function createPublicServerClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -85,7 +85,6 @@ export function createPublicServerClient() {
 
   if (!url || !anon) {
     console.warn("[Supabase][public] NEXT_PUBLIC_SUPABASE_* env vars not set");
-    // devolver stub encadenable
     return {
       from: () => ({
         select: () => ({
