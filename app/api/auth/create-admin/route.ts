@@ -58,6 +58,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ success: true, user: { id: createData.user.id, email: createData.user.email } }, { status: 201 });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Internal server error";
+    console.error("[auth/create-admin] exception:", error);
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
