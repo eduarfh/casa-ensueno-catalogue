@@ -1,16 +1,13 @@
 // app/admin/page.tsx
-import { createClient } from "@/lib/supabase/server"
-import Link from "next/link"
-import { Button } from "@/components/ui/button"
-import { AdminProductList } from "@/components/admin-product-list"
-import AdminGuard from "@/components/admin-guard"
-import { AdminHeader } from "@/components/admin-header"
-import { createServerClient } from "@/lib/supabase/server"
-
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
+import { AdminProductList } from "@/components/admin-product-list";
+import AdminGuard from "@/components/admin-guard";
+import { AdminHeader } from "@/components/admin-header";
+import { createServerClient } from "@/lib/supabase/server";
 
 export default async function AdminDashboard() {
-  // fetch products server-side (no redirect here)
-  const supabase = await createServerClient()
+  const supabase = await createServerClient();
 
   const { data: products } = await supabase
     .from("products")
@@ -27,11 +24,10 @@ export default async function AdminDashboard() {
       product_images(id, image_url)
     `,
     )
-    .order("created_at", { ascending: false })
+    .order("created_at", { ascending: false });
 
   return (
     <div className="min-h-screen bg-background">
-      {/* header rendered client-side to show user email and logout */}
       <AdminHeader />
 
       <main className="container mx-auto px-4 py-8">
@@ -45,11 +41,10 @@ export default async function AdminDashboard() {
           </Button>
         </div>
 
-        {/* Client-side guard: solo cargará el listado si el usuario está autenticado */}
         <AdminGuard>
           <AdminProductList products={products || []} />
         </AdminGuard>
       </main>
     </div>
-  )
+  );
 }
