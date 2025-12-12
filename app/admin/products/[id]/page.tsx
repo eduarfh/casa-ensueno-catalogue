@@ -1,24 +1,23 @@
 // app/admin/products/[id]/page.tsx
-
-import { createClient } from "@/lib/supabase/server"
-import { redirect } from "next/navigation"
-import Link from "next/link"
-import { ProductForm } from "@/components/product-form"
-import { ChevronLeft } from "lucide-react"
-import AdminGuard from "@/components/admin-guard"
-import { AdminHeader } from "@/components/admin-header"
+import { createServerClient } from "@/lib/supabase/server";
+import { redirect } from "next/navigation";
+import Link from "next/link";
+import { ProductForm } from "@/components/product-form";
+import { ChevronLeft } from "lucide-react";
+import AdminGuard from "@/components/admin-guard";
+import { AdminHeader } from "@/components/admin-header";
 
 interface Props {
-  params: Promise<{ id: string }>
+  params: Promise<{ id: string }>;
 }
 
 export default async function EditProductPage({ params }: Props) {
-  const { id } = await params
-  const supabase = await createClient()
+  const { id } = await params;
+  const supabase = await createServerClient(); // <- server client
 
-  const isNewProduct = id === "new"
+  const isNewProduct = id === "new";
 
-  let product = null
+  let product = null;
 
   if (!isNewProduct) {
     const { data } = await supabase
@@ -36,28 +35,22 @@ export default async function EditProductPage({ params }: Props) {
       `,
       )
       .eq("id", id)
-      .single()
+      .single();
 
-    product = data
+    product = data;
 
-    // If product not found, redirect back to admin
     if (!product) {
-      redirect("/admin")
+      redirect("/admin");
     }
   }
 
-  const { data: categories } = await supabase.from("categories").select("id, name").order("name")
+  const { data: categories } = await supabase.from("categories").select("id, name").order("name");
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Client header (shows email, logout) */}
       <AdminHeader />
-
       <main className="container mx-auto px-4 py-8">
-        <Link
-          href="/admin"
-          className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-6 transition-colors"
-        >
+        <Link href="/admin" className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-6 transition-colors">
           <ChevronLeft className="w-4 h-4" />
           Volver al dashboard
         </Link>
@@ -68,12 +61,11 @@ export default async function EditProductPage({ params }: Props) {
             {isNewProduct ? "Agrega un nuevo producto al catálogo" : "Actualiza la información del producto"}
           </p>
 
-          {/* Client-side guard: solo permitirá ver el form si hay sesión */}
           <AdminGuard>
             <ProductForm product={product || undefined} categories={categories || []} />
           </AdminGuard>
         </div>
       </main>
     </div>
-  )
+  );
 }
