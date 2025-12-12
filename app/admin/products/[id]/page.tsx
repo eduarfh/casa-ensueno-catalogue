@@ -16,30 +16,37 @@ export default async function EditProductPage({ params }: Props) {
   const { id } = await params
   const supabase = await createClient()
 
-  // NOTE: removed server-side user check. AdminGuard will handle client-side auth.
-  const { data: product } = await supabase
-    .from("products")
-    .select(
-      `
-      id,
-      name,
-      description,
-      price,
-      stock,
-      available,
-      category_id,
-      product_images(id, image_url, display_order)
-    `,
-    )
-    .eq("id", id)
-    .single()
+  const isNewProduct = id === "new"
+
+  let product = null
+
+  if (!isNewProduct) {
+    const { data } = await supabase
+      .from("products")
+      .select(
+        `
+        id,
+        name,
+        description,
+        price,
+        stock,
+        available,
+        category_id,
+        product_images(id, image_url, display_order)
+      `,
+      )
+      .eq("id", id)
+      .single()
+
+    product = data
+
+    // If product not found, redirect back to admin
+    if (!product) {
+      redirect("/admin")
+    }
+  }
 
   const { data: categories } = await supabase.from("categories").select("id, name").order("name")
-
-  // If product not found, redirect back to admin
-  if (!product) {
-    redirect("/admin")
-  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -56,12 +63,14 @@ export default async function EditProductPage({ params }: Props) {
         </Link>
 
         <div className="max-w-2xl">
-          <h1 className="text-3xl font-bold mb-2">Editar Producto</h1>
-          <p className="text-muted-foreground mb-8">Actualiza la información del producto</p>
+          <h1 className="text-3xl font-bold mb-2">{isNewProduct ? "Crear Producto" : "Editar Producto"}</h1>
+          <p className="text-muted-foreground mb-8">
+            {isNewProduct ? "Agrega un nuevo producto al catálogo" : "Actualiza la información del producto"}
+          </p>
 
           {/* Client-side guard: solo permitirá ver el form si hay sesión */}
           <AdminGuard>
-            <ProductForm product={product} categories={categories || []} />
+            <ProductForm product={product || undefined} categories={categories || []} />
           </AdminGuard>
         </div>
       </main>
