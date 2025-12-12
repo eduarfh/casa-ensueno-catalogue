@@ -3,10 +3,6 @@
 
 import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 
-/**
- * Cliente singleton para uso en el navegador.
- * Importar y usar solo desde componentes client-side.
- */
 let browserClient: ReturnType<typeof createSupabaseClient> | null = null;
 
 export function createBrowserSupabase() {
@@ -21,10 +17,17 @@ export function createBrowserSupabase() {
     return null;
   }
 
-  browserClient = createSupabaseClient(url, anon);
+  browserClient = createSupabaseClient(url, anon, {
+    auth: {
+      // COMO el servidor persiste sesión en cookies (SSR), desactivamos la persistencia/auto-rotación en cliente
+      persistSession: false,
+      autoRefreshToken: false,
+      detectSessionInUrl: false
+    }
+  });
+
   return browserClient;
 }
 
-// Alias histórico / compatibilidad para código que importaba createBrowserClient / createClient
 export const createBrowserClient = createBrowserSupabase;
 export const createClient = createBrowserSupabase;
