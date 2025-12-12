@@ -1,5 +1,5 @@
 // app/product/[id]/page.tsx
-import { createServerClient } from "@/lib/supabase/server";
+import { createPublicServerClient, createServerClient } from "@/lib/supabase/server";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
@@ -17,7 +17,9 @@ interface Props {
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id } = params;
-  const supabase = await createServerClient();
+
+  // Usamos el **cliente público** (no lee cookies) para metadata — así Next puede prerenderizar.
+  const supabase = createPublicServerClient();
 
   const { data: product } = await supabase
     .from("products")
@@ -55,6 +57,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function ProductPage({ params }: Props) {
   const { id } = params;
+
+  // Para la renderización de la página usamos createServerClient (que respeta cookies/sesión si existe)
   const supabase = await createServerClient();
 
   const { data: product } = await supabase
@@ -83,6 +87,7 @@ export default async function ProductPage({ params }: Props) {
 
   return (
     <div className="min-h-screen bg-background">
+      {/* ... el resto del JSX se mantiene igual que ya tenías ... */}
       <header className="border-b border-border sticky top-0 z-50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <Link
