@@ -24,3 +24,7 @@ export function createBrowserSupabase() {
   browserClient = createSupabaseClient(url, anon);
   return browserClient;
 }
+
+// alias histórico / compatibilidad
+export const createBrowserClient = createBrowserSupabase;
+export const createClient = createBrowserSupabase;
