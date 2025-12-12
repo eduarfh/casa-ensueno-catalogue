@@ -1,22 +1,23 @@
-// app/product/[id]page.tsx
-
-import { createClient } from "@/lib/supabase/server"
-import { notFound } from "next/navigation"
-import Link from "next/link"
-import { Badge } from "@/components/ui/badge"
-import { Card } from "@/components/ui/card"
-import { ChevronLeft, ShoppingCart } from "lucide-react"
-import { ProductImageGallery } from "@/components/product-image-gallery"
-import { ProductShareButtons } from "@/components/product-share-buttons"
-import type { Metadata } from "next"
+// app/product/[id]/page.tsx
+import { createServerClient } from "@/lib/supabase/server";
+import { notFound } from "next/navigation";
+import Link from "next/link";
+import { Badge } from "@/components/ui/badge";
+import { Card } from "@/components/ui/card";
+import { ChevronLeft, ShoppingCart } from "lucide-react";
+import { ProductImageGallery } from "@/components/product-image-gallery";
+import { ProductShareButtons } from "@/components/product-share-buttons";
+import type { Metadata } from "next";
 
 interface Props {
-  params: Promise<{ id: string }>
+  params: {
+    id: string;
+  };
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const { id } = await params
-  const supabase = await createClient()
+  const { id } = params;
+  const supabase = await createServerClient();
 
   const { data: product } = await supabase
     .from("products")
@@ -33,12 +34,12 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     `,
     )
     .eq("id", id)
-    .single()
+    .single();
 
   if (!product) {
     return {
       title: "Producto no encontrado",
-    }
+    };
   }
 
   return {
@@ -49,12 +50,12 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       description: product.description || `${product.name} - $${product.price}`,
       type: "website",
     },
-  }
+  };
 }
 
 export default async function ProductPage({ params }: Props) {
-  const { id } = await params
-  const supabase = await createClient()
+  const { id } = params;
+  const supabase = await createServerClient();
 
   const { data: product } = await supabase
     .from("products")
@@ -72,13 +73,13 @@ export default async function ProductPage({ params }: Props) {
     `,
     )
     .eq("id", id)
-    .single()
+    .single();
 
   if (!product) {
-    notFound()
+    notFound();
   }
 
-  const productUrl = `${process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000"}/product/${id}`
+  const productUrl = `${process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000"}/product/${id}`;
 
   return (
     <div className="min-h-screen bg-background">
@@ -115,8 +116,8 @@ export default async function ProductPage({ params }: Props) {
             <ProductImageGallery
               images={
                 product.product_images
-                  ?.sort((a, b) => (a.display_order || 0) - (b.display_order || 0))
-                  .map((img) => ({
+                  ?.sort((a: any, b: any) => (a.display_order || 0) - (b.display_order || 0))
+                  .map((img: any) => ({
                     id: img.id,
                     url: img.image_url,
                   })) || []
@@ -136,7 +137,7 @@ export default async function ProductPage({ params }: Props) {
               </div>
 
               <div className="flex items-baseline gap-3 py-4">
-                <span className="text-5xl font-bold text-primary">${product.price.toFixed(2)}</span>
+                <span className="text-5xl font-bold text-primary">${(product.price ?? 0).toFixed(2)}</span>
                 {product.stock === 0 && (
                   <Badge variant="destructive" className="text-base py-1 px-3">
                     Agotado
@@ -180,5 +181,5 @@ export default async function ProductPage({ params }: Props) {
         </div>
       </main>
     </div>
-  )
+  );
 }
