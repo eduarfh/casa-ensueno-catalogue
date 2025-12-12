@@ -1,51 +1,57 @@
 // app/api/products/route.ts
-import { createServerClient } from "@/lib/supabase/server"
-import { NextResponse } from "next/server"
+import { createServerClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { NextResponse } from "next/server";
 
 export async function POST(request: Request) {
   try {
-    const supabase = await createServerClient()
+    // Validar sesión con el cliente que respeta cookies
+    const supabase = await createServerClient();
+    const { data: userData } = await supabase.auth.getUser();
+    const user = userData?.user;
+    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    const { data: userData } = await supabase.auth.getUser()
-    const user = userData?.user
-    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-
-    const { name, description, price, stock, category_id, images } = await request.json()
+    const body = await request.json();
+    const { name, description, price, stock, category_id, images } = body ?? {};
 
     if (!name || !category_id) {
-      return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
+      return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
 
-    const { data: product, error: productError } = await supabase
+    // Usar admin client (service role) para evitar RLS al insertar
+    const admin = createAdminClient();
+
+    const { data: product, error: productError } = await admin
       .from("products")
       .insert({
         name,
         description,
-        price: Number.parseFloat(price),
-        stock: Number.parseInt(stock),
+        price: Number.parseFloat(price ?? 0),
+        stock: Number.parseInt(String(stock ?? "0"), 10),
         category_id,
-        available: Number.parseInt(stock) > 0,
+        available: Number.parseInt(String(stock ?? "0"), 10) > 0,
+        owner_id: user.id, // recomendable para auditoría y RLS futuras
       })
       .select()
-      .single()
+      .single();
 
-    if (productError) throw productError
+    if (productError) throw productError;
 
     if (Array.isArray(images) && images.length) {
-      const imageRecords = images.map((img: { url: string; display_order: number }) => ({
+      const imageRecords = images.map((img: { url: string; display_order?: number }) => ({
         product_id: product.id,
         image_url: img.url,
-        display_order: img.display_order,
-      }))
+        display_order: img.display_order ?? 0,
+      }));
 
-      const { error: imgError } = await supabase.from("product_images").insert(imageRecords)
-      if (imgError) console.error("Image insert error:", imgError)
+      const { error: imgError } = await admin.from("product_images").insert(imageRecords);
+      if (imgError) console.error("[product-create] image insert error:", imgError);
     }
 
-    return NextResponse.json(product, { status: 201 })
+    return NextResponse.json(product, { status: 201 });
   } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : "Failed to create product"
-    console.error("[product-create] ", err)
-    return NextResponse.json({ error: message }, { status: 500 })
+    const message = err instanceof Error ? err.message : "Failed to create product";
+    console.error("[product-create] ", err);
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
