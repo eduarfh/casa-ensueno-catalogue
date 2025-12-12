@@ -21,6 +21,10 @@ export async function POST(request: Request) {
     // Usar admin client (service role) para evitar RLS al insertar
     const admin = createAdminClient();
 
+    // justo antes de la inserción en app/api/products/route.ts
+console.log('[product-create] user.id =', user?.id);
+console.log('[product-create] payload =', { name, category_id, price, stock, imagesLength: Array.isArray(images) ? images.length : 0 });
+
     const { data: product, error: productError } = await admin
       .from("products")
       .insert({
