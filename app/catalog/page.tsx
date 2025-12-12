@@ -1,4 +1,5 @@
 // app/catalog/page.tsx
+import React, { Suspense } from "react";
 import { ProductCard } from "@/components/product-card";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
@@ -77,11 +78,16 @@ export default async function CatalogPage({
           <p className="text-sm sm:text-base text-muted-foreground mb-4 sm:mb-6">
             Descubre nuestra selección completa de artículos para tu hogar
           </p>
-          <CatalogFilters
-            categories={categories || []}
-            currentSearch={params.search}
-            currentCategory={params.category}
-          />
+
+          {/* Envuelve el componente cliente en Suspense para evitar el error de useSearchParams */}
+          <Suspense fallback={<div className="mb-4 text-sm text-muted-foreground">Cargando filtros…</div>}>
+            {/* Si CatalogFilters usa useSearchParams internamente, estará contento dentro de Suspense */}
+            <CatalogFilters
+              categories={categories || []}
+              currentSearch={params.search}
+              currentCategory={params.category}
+            />
+          </Suspense>
         </div>
 
         {products && products.length > 0 ? (
