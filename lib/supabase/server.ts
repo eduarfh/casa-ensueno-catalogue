@@ -59,8 +59,9 @@ export async function createServerSupabase() {
         }),
       });
 
+      // NOTE: usar _table (nombre de parámetro válido) para evitar errores de sintaxis en el compilador
       serverClient = {
-        from: (/*table*/: string) => stubQuery(),
+        from: (_table: string) => stubQuery(),
         auth: { getUser: async () => ({ data: { user: null }, error: null }) },
       } as any;
     } else {
