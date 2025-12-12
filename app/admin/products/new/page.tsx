@@ -1,4 +1,6 @@
 // app/admin/products/new/page.tsx
+export const dynamic = "force-dynamic";
+
 import Link from "next/link";
 import { ProductForm } from "@/components/product-form";
 import { ChevronLeft } from "lucide-react";
