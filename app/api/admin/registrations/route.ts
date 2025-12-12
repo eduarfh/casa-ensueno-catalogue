@@ -41,6 +41,7 @@ export async function GET() {
     return NextResponse.json({ requests: data || [] }, { status: 200 });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Internal server error";
+    console.error("[registrations] exception:", err);
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
