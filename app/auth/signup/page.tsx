@@ -1,71 +1,71 @@
 // app/auth/signup/page.tsx
-"use client"
+"use client";
 
-import type React from "react"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import Link from "next/link"
-import { useRouter } from "next/navigation"
-import { useState } from "react"
-import { useToast } from "@/hooks/use-toast"
+import type React from "react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
+import { useToast } from "@/hooks/use-toast";
 
 export default function SignupPage() {
-  const [email, setEmail] = useState("")
-  const [password, setPassword] = useState("")
-  const [confirmPassword, setConfirmPassword] = useState("")
-  const [error, setError] = useState<string | null>(null)
-  const [isLoading, setIsLoading] = useState(false)
-  const router = useRouter()
-  const { toast } = useToast()
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const router = useRouter();
+  const { toast } = useToast();
 
   const handleSignup = async (e: React.FormEvent) => {
-    e.preventDefault()
+    e.preventDefault();
 
     if (password !== confirmPassword) {
-      setError("Las contraseñas no coinciden")
-      return
+      setError("Las contraseñas no coinciden");
+      return;
     }
 
     if (password.length < 6) {
-      setError("La contraseña debe tener al menos 6 caracteres")
-      return
+      setError("La contraseña debe tener al menos 6 caracteres");
+      return;
     }
 
-    setIsLoading(true)
-    setError(null)
+    setIsLoading(true);
+    setError(null);
 
     try {
       const response = await fetch("/api/auth/request-registration", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
-      })
+      });
 
-      const result = await response.json().catch(() => ({}))
+      const result = await response.json().catch(() => ({}));
 
       if (!response.ok) {
-        throw new Error(result?.error || "Error al enviar solicitud")
+        throw new Error(result?.error || "Error al enviar solicitud");
       }
 
       toast({
         title: "Solicitud registrada",
         description: "Tu solicitud ha sido enviada. El administrador la revisará pronto.",
-      })
-      router.push("/auth/signup-success")
+      });
+      router.push("/auth/signup-success");
     } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : "Ocurrió un error"
-      setError(message)
+      const message = error instanceof Error ? error.message : "Ocurrió un error";
+      setError(message);
       toast({
         title: "Error de registro",
         description: message,
         variant: "destructive",
-      })
+      });
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
@@ -132,5 +132,5 @@ export default function SignupPage() {
         </CardContent>
       </Card>
     </div>
-  )
+  );
 }
