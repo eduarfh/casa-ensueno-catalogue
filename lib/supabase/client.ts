@@ -25,6 +25,6 @@ export function createBrowserSupabase() {
   return browserClient;
 }
 
-// alias histórico / compatibilidad
+// Alias histórico / compatibilidad para código que importaba createBrowserClient / createClient
 export const createBrowserClient = createBrowserSupabase;
 export const createClient = createBrowserSupabase;
