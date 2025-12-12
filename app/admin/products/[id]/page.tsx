@@ -13,7 +13,7 @@ interface Props {
 
 export default async function EditProductPage({ params }: Props) {
   const { id } = await params;
-  const supabase = await createServerClient(); // <- server client
+  const supabase = await createServerClient();
 
   const isNewProduct = id === "new";
 
@@ -49,8 +49,12 @@ export default async function EditProductPage({ params }: Props) {
   return (
     <div className="min-h-screen bg-background">
       <AdminHeader />
+
       <main className="container mx-auto px-4 py-8">
-        <Link href="/admin" className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-6 transition-colors">
+        <Link
+          href="/admin"
+          className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-6 transition-colors"
+        >
           <ChevronLeft className="w-4 h-4" />
           Volver al dashboard
         </Link>
