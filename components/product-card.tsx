@@ -1,5 +1,3 @@
-// components/ui/product-card.tsx
-
 "use client"
 
 import Image from "next/image"
@@ -56,38 +54,42 @@ export function ProductCard({ id, name, price, image, available, stock }: Produc
   }
 
   return (
-    <Card className="overflow-hidden hover:shadow-xl transition-all duration-300 hover:border-primary/30 bg-white">
-      <Link href={`/product/${id}`} className="block relative overflow-hidden bg-muted aspect-square group">
+    <Card className="overflow-hidden hover:shadow-xl transition-all duration-300 hover:border-primary/50 bg-card group">
+      <Link href={`/product/${id}`} className="block relative overflow-hidden bg-muted aspect-square">
         <Image
           src={image || "/placeholder.svg"}
           alt={name}
           fill
-          className="object-cover group-hover:scale-110 transition-transform duration-300"
+          className="object-cover group-hover:scale-110 transition-transform duration-500"
         />
         {!available && (
-          <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
-            <Badge className="text-lg py-1 px-3 bg-destructive hover:bg-destructive">Agotado</Badge>
+          <div className="absolute inset-0 bg-black/60 flex items-center justify-center backdrop-blur-sm">
+            <Badge className="text-base sm:text-lg py-1.5 px-4 bg-destructive hover:bg-destructive shadow-lg">
+              Agotado
+            </Badge>
           </div>
         )}
       </Link>
 
-      <div className="p-4 space-y-3">
+      <div className="p-3 sm:p-4 space-y-2 sm:space-y-3">
         <div>
-          <h3 className="font-semibold line-clamp-2 hover:text-primary transition-colors">
+          <h3 className="font-semibold text-sm sm:text-base line-clamp-2 hover:text-primary transition-colors">
             <Link href={`/product/${id}`}>{name}</Link>
           </h3>
-          <p className="text-sm text-muted-foreground mt-1">{stock > 0 ? `${stock} disponibles` : "Sin stock"}</p>
+          <p className="text-xs sm:text-sm text-muted-foreground mt-1">
+            {stock > 0 ? `${stock} disponibles` : "Sin stock"}
+          </p>
         </div>
 
         <div className="flex items-center justify-between">
-          <span className="text-2xl font-bold text-primary">${price.toFixed(2)}</span>
+          <span className="text-xl sm:text-2xl font-bold text-primary">${price.toFixed(2)}</span>
         </div>
 
         <div className="flex gap-2">
           <Button
             asChild
             size="sm"
-            className="flex-1 bg-primary hover:bg-primary/90"
+            className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground text-xs sm:text-sm"
             disabled={!available}
             onClick={(e) => {
               if (!available) e.preventDefault()
@@ -100,19 +102,19 @@ export function ProductCard({ id, name, price, image, available, stock }: Produc
             variant="outline"
             onClick={handleShare}
             disabled={isSharing}
-            className="hover:border-secondary hover:text-secondary transition-colors bg-transparent"
+            className="hover:border-secondary hover:text-secondary hover:bg-secondary/10 transition-all bg-transparent"
             title="Compartir producto"
           >
-            <Share2 className="w-4 h-4" />
+            <Share2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
           </Button>
           <Button
             size="sm"
             variant="outline"
             onClick={handleWhatsApp}
-            className="hover:border-accent hover:text-accent transition-colors bg-transparent"
+            className="hover:border-accent hover:text-accent hover:bg-accent/10 transition-all bg-transparent"
             title="Contactar por WhatsApp"
           >
-            <MessageCircle className="w-4 h-4" />
+            <MessageCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
           </Button>
         </div>
       </div>

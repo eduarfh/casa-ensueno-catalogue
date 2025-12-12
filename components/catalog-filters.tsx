@@ -1,5 +1,3 @@
-// components/ui/catalog-filters.tsx
-
 "use client"
 
 import type React from "react"
@@ -67,30 +65,30 @@ export function CatalogFilters({ categories, currentSearch, currentCategory }: C
 
   return (
     <form onSubmit={handleSearch} className="space-y-4">
-      <div className="flex flex-col gap-4 md:flex-row md:items-end">
-        <div className="flex-1">
-          <label className="text-sm font-medium mb-2 block">Buscar productos</label>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-end">
+        <div className="flex-1 min-w-0">
+          <label className="text-xs sm:text-sm font-medium mb-2 block">Buscar productos</label>
           <div className="relative">
             <Input
               type="text"
               placeholder="Buscar por nombre..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="pr-10"
+              className="pr-10 bg-input border-border focus:border-primary transition-colors"
             />
             <button
               type="submit"
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-primary transition-colors"
             >
               <Search className="w-4 h-4" />
             </button>
           </div>
         </div>
 
-        <div className="flex-1">
-          <label className="text-sm font-medium mb-2 block">Categoría</label>
+        <div className="flex-1 min-w-0">
+          <label className="text-xs sm:text-sm font-medium mb-2 block">Categoría</label>
           <Select value={selectedCategory} onValueChange={handleCategoryChange}>
-            <SelectTrigger>
+            <SelectTrigger className="bg-input border-border focus:border-primary transition-colors">
               <SelectValue placeholder="Todas las categorías" />
             </SelectTrigger>
             <SelectContent>
@@ -105,7 +103,12 @@ export function CatalogFilters({ categories, currentSearch, currentCategory }: C
         </div>
 
         {(search || selectedCategory) && (
-          <Button type="button" variant="outline" onClick={handleClearFilters}>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={handleClearFilters}
+            className="border-primary/30 hover:bg-primary/10 w-full sm:w-auto bg-transparent"
+          >
             Limpiar Filtros
           </Button>
         )}

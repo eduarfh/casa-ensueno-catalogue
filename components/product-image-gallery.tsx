@@ -1,5 +1,3 @@
-// components/ui/product-image-gallery.tsx
-
 "use client"
 
 import { useState } from "react"

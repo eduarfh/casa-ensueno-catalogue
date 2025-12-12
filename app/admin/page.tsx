@@ -5,10 +5,12 @@ import { Button } from "@/components/ui/button"
 import { AdminProductList } from "@/components/admin-product-list"
 import AdminGuard from "@/components/admin-guard"
 import { AdminHeader } from "@/components/admin-header"
+import { createServerClient } from "@/lib/supabase/server"
+
 
 export default async function AdminDashboard() {
   // fetch products server-side (no redirect here)
-  const supabase = await createClient()
+  const supabase = await createServerClient()
 
   const { data: products } = await supabase
     .from("products")
