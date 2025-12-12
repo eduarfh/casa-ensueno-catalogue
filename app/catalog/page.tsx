@@ -1,23 +1,24 @@
-import { ProductCard } from "@/components/product-card"
-import { Button } from "@/components/ui/button"
-import Link from "next/link"
-import { CatalogFilters } from "@/components/catalog-filters"
-import { createServerClient } from "@/lib/supabase/server"
-import { ThemeToggle } from "@/components/theme-toggle"
+// app/catalog/page.tsx
+import { ProductCard } from "@/components/product-card";
+import { Button } from "@/components/ui/button";
+import Link from "next/link";
+import { CatalogFilters } from "@/components/catalog-filters";
+import { createServerClient } from "@/lib/supabase/server";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 export default async function CatalogPage({
   searchParams,
 }: {
-  searchParams: Promise<{ category?: string; search?: string }>
+  searchParams: { category?: string; search?: string };
 }) {
-  const params = await searchParams
-  const supabase = await createServerClient()
+  const params = searchParams || {};
+  const supabase = await createServerClient();
 
   // Fetch categories
-  const { data: categories } = await supabase.from("categories").select("id, name").order("name")
+  const { data: categories } = await supabase.from("categories").select("id, name").order("name");
 
   // Build products query
-  let query = supabase
+  let query: any = supabase
     .from("products")
     .select(
       `
@@ -31,19 +32,19 @@ export default async function CatalogPage({
     `,
     )
     .eq("available", true)
-    .order("created_at", { ascending: false })
+    .order("created_at", { ascending: false });
 
   // Apply category filter
   if (params.category) {
-    query = query.eq("category_id", params.category)
+    query = query.eq("category_id", params.category);
   }
 
   // Apply search filter
   if (params.search) {
-    query = query.ilike("name", `%${params.search}%`)
+    query = query.ilike("name", `%${params.search}%`);
   }
 
-  const { data: products } = await query
+  const { data: products } = await query;
 
   return (
     <div className="min-h-screen bg-background">
@@ -85,7 +86,7 @@ export default async function CatalogPage({
 
         {products && products.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
-            {products.map((product) => (
+            {products.map((product: any) => (
               <ProductCard
                 key={product.id}
                 id={product.id}
@@ -109,5 +110,5 @@ export default async function CatalogPage({
         )}
       </main>
     </div>
-  )
+  );
 }
