@@ -18,25 +18,25 @@ export default async function CatalogPage({
   // Fetch categories
   const { data: categories } = await supabase.from("categories").select("id, name").order("name");
 
-  // Build products query - seleccionar solo available (si quieres mostrar también no disponibles, quita el .eq)
+  // Build products query - incluyamos product_categories relation para mostrar categorías
   let query: any = supabase
     .from("products")
-    .select(
-      `
+    .select(`
       id,
       name,
       price,
       available,
-      category_id,
-      product_images(image_url)
-    `,
-    )
-    .eq("available", true)
+      product_images(image_url),
+      product_categories(category_id, categories(id, name))
+    `)
     .order("created_at", { ascending: false });
 
-  // Apply category filter
+  // Filter only available products by default (si prefieres mostrar todos, quita la siguiente línea)
+  query = query.eq("available", true);
+
+  // Apply category filter (filtra por la tabla intermedia)
   if (params.category) {
-    query = query.eq("category_id", params.category);
+    query = query.eq("product_categories.category_id", params.category);
   }
 
   // Apply search filter
@@ -79,26 +79,27 @@ export default async function CatalogPage({
           </p>
 
           <Suspense fallback={<div className="mb-4 text-sm text-muted-foreground">Cargando filtros…</div>}>
-            <CatalogFilters
-              categories={categories || []}
-              currentSearch={params.search}
-              currentCategory={params.category}
-            />
+            <CatalogFilters categories={categories || []} currentSearch={params.search} currentCategory={params.category} />
           </Suspense>
         </div>
 
         {products && products.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
-            {products.map((product: any) => (
-              <ProductCard
-                key={product.id}
-                id={product.id}
-                name={product.name}
-                price={product.price}
-                image={product.product_images && product.product_images[0]?.image_url}
-                available={product.available}
-              />
-            ))}
+            {products.map((product: any) => {
+              // extraer categorías en forma plana [{id,name}, ...]
+              const cats = product.product_categories?.map((pc: any) => pc.categories).filter(Boolean) || [];
+              return (
+                <ProductCard
+                  key={product.id}
+                  id={product.id}
+                  name={product.name}
+                  price={product.price}
+                  image={product.product_images && product.product_images[0]?.image_url}
+                  available={product.available}
+                  categories={cats}
+                />
+              );
+            })}
           </div>
         ) : (
           <div className="flex flex-col items-center justify-center min-h-96 px-4">
