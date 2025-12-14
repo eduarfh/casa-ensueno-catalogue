@@ -5,25 +5,24 @@ import { NextResponse } from "next/server";
 
 export async function POST(request: Request) {
   try {
-    // Validar sesión con el cliente que respeta cookies
     const supabase = await createServerClient();
     const { data: userData } = await supabase.auth.getUser();
     const user = userData?.user;
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const body = await request.json();
-    const { name, description, price, stock, category_id, images } = body ?? {};
+    const { name, description, price, disponibilidad, category_id, images } = body ?? {};
 
     if (!name || !category_id) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
 
-    // Usar admin client (service role) para evitar RLS al insertar
     const admin = createAdminClient();
 
-    // justo antes de la inserción en app/api/products/route.ts
-console.log('[product-create] user.id =', user?.id);
-console.log('[product-create] payload =', { name, category_id, price, stock, imagesLength: Array.isArray(images) ? images.length : 0 });
+    console.log('[product-create] user.id =', user?.id);
+    console.log('[product-create] payload =', { name, category_id, price, disponibilidad, imagesLength: Array.isArray(images) ? images.length : 0 });
+
+    const disponibilidadInt = Number.parseInt(String(disponibilidad ?? "0"), 10) || 0;
 
     const { data: product, error: productError } = await admin
       .from("products")
@@ -31,10 +30,10 @@ console.log('[product-create] payload =', { name, category_id, price, stock, ima
         name,
         description,
         price: Number.parseFloat(price ?? 0),
-        stock: Number.parseInt(String(stock ?? "0"), 10),
+        disponibilidad: disponibilidadInt,
+        available: disponibilidadInt > 0,
         category_id,
-        available: Number.parseInt(String(stock ?? "0"), 10) > 0,
-        owner_id: user.id, // recomendable para auditoría y RLS futuras
+        owner_id: user.id,
       })
       .select()
       .single();
