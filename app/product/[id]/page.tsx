@@ -28,7 +28,6 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       description,
       price,
       available,
-      disponibilidad,
       category_id,
       product_images(image_url)
     `,
@@ -66,7 +65,6 @@ export default async function ProductPage({ params }: Props) {
       description,
       price,
       available,
-      disponibilidad,
       category_id,
       categories(name),
       product_images(id, image_url, display_order)
@@ -138,7 +136,7 @@ export default async function ProductPage({ params }: Props) {
 
               <div className="flex items-baseline gap-3 py-4">
                 <span className="text-5xl font-bold text-primary">${(product.price ?? 0).toFixed(2)}</span>
-                {product.disponibilidad === 0 && (
+                {!product.available && (
                   <Badge variant="destructive" className="text-base py-1 px-3">
                     Agotado
                   </Badge>
@@ -146,7 +144,7 @@ export default async function ProductPage({ params }: Props) {
               </div>
 
               <p className="text-sm text-muted-foreground font-medium">
-                {product.available ? `${product.disponibilidad} unidades disponibles` : "Sin stock disponible"}
+                {product.available ? "Disponible" : "No disponible"}
               </p>
             </div>
 
@@ -168,10 +166,6 @@ export default async function ProductPage({ params }: Props) {
                   <dd className="font-semibold text-foreground">
                     {product.available ? "Disponible" : "No disponible"}
                   </dd>
-                </div>
-                <div className="flex justify-between items-center">
-                  <dt className="text-muted-foreground font-medium">Unidades:</dt>
-                  <dd className="font-semibold text-foreground">{product.disponibilidad} unidades</dd>
                 </div>
               </dl>
             </Card>
