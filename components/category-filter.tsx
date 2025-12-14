@@ -4,19 +4,38 @@
 import React, { useMemo } from "react"
 import type { Product } from "@/lib/products"
 import { Button } from "@/components/ui/button"
-import { getCategoryColor } from "@/lib/category-colors" // <-- import aquí
+import { getCategoryColor } from "@/lib/category-colors"
 
-interface CategoryFilterProps {
-  selectedCategory: string | null
-  onSelectCategory: (category: string | null) => void
-  products: Product[]
+interface SimpleCategory {
+  id: string
+  name: string
 }
 
-export function CategoryFilter({ selectedCategory, onSelectCategory, products }: CategoryFilterProps) {
-  const categories = useMemo(() => {
-    const unique = Array.from(new Set(products.map((p) => p.category || "Sin categoría")))
-    return unique.sort()
-  }, [products])
+interface CategoryFilterProps {
+  // preferimos recibir categories desde el servidor: [{id,name}, ...]
+  categories?: SimpleCategory[]
+  // fallback: si no hay categories, se pueden derivar de products (pero usar nombres como "id")
+  products?: Product[]
+  selectedCategory: string | null // aquí almacenamos el id de la categoría (UUID) o null
+  onSelectCategory: (categoryId: string | null) => void
+}
+
+export function CategoryFilter({
+  categories = [],
+  products = [],
+  selectedCategory,
+  onSelectCategory,
+}: CategoryFilterProps) {
+  // Si recibimos categories (de la BD) usamos esas; si no, extraemos names desde products (no ideal).
+  const list = useMemo(() => {
+    if (categories && categories.length > 0) {
+      return categories.map((c) => ({ id: c.id, name: c.name }))
+    }
+
+    // fallback: extraer nombres desde products (usamos el nombre como "id" — esto funcionará solo como UI, NO para filtrado por UUID)
+    const uniqueNames = Array.from(new Set(products.map((p) => p.category || "Sin categoría")))
+    return uniqueNames.map((name) => ({ id: name, name }))
+  }, [categories, products])
 
   const darkSelected = "dark:bg-[#95C7C3] dark:text-white"
 
@@ -36,15 +55,15 @@ export function CategoryFilter({ selectedCategory, onSelectCategory, products }:
           Todos
         </Button>
 
-        {categories.map((category) => {
-          const isSelected = selectedCategory === category
-          const { background, textClass } = getCategoryColor(category)
+        {list.map((category) => {
+          const isSelected = selectedCategory === category.id
+          const { background, textClass } = getCategoryColor(category.name)
 
           return (
             <Button
-              key={category}
+              key={category.id}
               variant="outline"
-              onClick={() => onSelectCategory(category === "Sin categoría" ? "" : category)}
+              onClick={() => onSelectCategory(category.id)}
               className={`outline-2 rounded-lg px-4 py-2 duration-150 flex items-center justify-center whitespace-nowrap ${
                 isSelected
                   ? `ring-2 ring-offset-2 ring-[#95C7C3] shadow-lg ${textClass} ${darkSelected}`
@@ -53,7 +72,7 @@ export function CategoryFilter({ selectedCategory, onSelectCategory, products }:
               style={{ backgroundColor: background }}
               aria-pressed={isSelected}
             >
-              {category}
+              {category.name}
             </Button>
           )
         })}
