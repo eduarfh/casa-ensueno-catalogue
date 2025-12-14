@@ -33,10 +33,10 @@ export async function POST(request: Request) {
 
     if (productError) throw productError;
 
-    // insertar relaciones product_categories
-    const catRecords = categories.map((cid: string) => ({
+    // insertar relaciones product_categories (convertir a integer)
+    const catRecords = categories.map((cid: string | number) => ({
       product_id: product.id,
-      category_id: cid,
+      category_id: Number(cid),
     }));
     if (catRecords.length) {
       const { error: pcErr } = await admin.from("product_categories").insert(catRecords);
