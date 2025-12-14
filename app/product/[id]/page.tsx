@@ -29,7 +29,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       price,
       available,
       product_images(image_url),
-      product_categories(category_id, categories(id, name))
+      product_categories(category_id, categories(id_int, name))
     `)
     .eq("id", id)
     .single();
@@ -63,7 +63,7 @@ export default async function ProductPage({ params }: Props) {
       description,
       price,
       available,
-      categories: product_categories ( category_id, categories ( id, name ) ),
+      categories: product_categories ( category_id, categories ( id_int, name ) ),
       product_images(id, image_url, display_order)
     `)
     .eq("id", id)
@@ -73,8 +73,10 @@ export default async function ProductPage({ params }: Props) {
     notFound();
   }
 
-  // extraer categorias plano
-  const cats = (product.categories || []).map((pc: any) => pc.categories).filter(Boolean) || [];
+  // extraer categorias plano; product.categories[*].categories contains {id_int, name}
+  const cats = (product.categories || []).map((pc: any) => {
+    return { id: pc.categories?.id_int, name: pc.categories?.name };
+  }).filter(Boolean) || [];
 
   const productUrl = `${process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000"}/product/${id}`;
 
