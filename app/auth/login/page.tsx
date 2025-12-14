@@ -1,3 +1,4 @@
+// app/auth/login/page.tsx
 "use client";
 
 import React, { useState } from "react";
@@ -35,8 +36,6 @@ export default function LoginPage() {
         password,
       });
 
-      // Log seguro para debug (no mostrar tokens)
-      // hasSession indica si la respuesta incluyó sesión inmediatamente
       console.log("[auth/login] signIn result", {
         hasSession: !!data?.session,
         userId: data?.user?.id ?? null,
@@ -45,8 +44,27 @@ export default function LoginPage() {
 
       if (error) throw error;
 
-      // Si la respuesta incluye session -> redirigir de inmediato
+      // Si hay session (normalmente en la respuesta en-browser), enviamos los tokens al server
       if (data?.session) {
+        const access_token = data.session.access_token;
+        const refresh_token = data.session.refresh_token;
+
+        // POST a /api/auth/set-session para que el servidor escriba las cookies HTTP-only
+        const res = await fetch("/api/auth/set-session", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          credentials: "same-origin",
+          body: JSON.stringify({ access_token, refresh_token }),
+        });
+
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          throw new Error(err?.error || "Error al establecer la sesión en el servidor");
+        }
+
+        // ahora sí redirigimos
         toast({
           title: "Inicio de sesión exitoso",
           description: "Redirigiendo al dashboard...",
@@ -55,26 +73,46 @@ export default function LoginPage() {
         return;
       }
 
-      // Si no hay session inmediata, esperamos al evento SIGNED_IN como fallback
+      // Fallback: si no vino sesión en la respuesta, usamos onAuthStateChange para esperar SIGNED_IN
       const TIMEOUT_MS = 5000;
       let resolved = false;
 
-      const { data: subData } = supabase.auth.onAuthStateChange((event, session) => {
+      const { data: subData } = supabase.auth.onAuthStateChange(async (event, session) => {
         console.log("[auth/login] onAuthStateChange event:", event);
         if (event === "SIGNED_IN" && session) {
-          resolved = true;
-          toast({
-            title: "Inicio de sesión exitoso",
-            description: "Redirigiendo al dashboard...",
-          });
-          router.push("/admin");
+          // Enviamos los tokens al servidor
+          try {
+            const access_token = session.access_token;
+            const refresh_token = session.refresh_token;
+
+            const res = await fetch("/api/auth/set-session", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              credentials: "same-origin",
+              body: JSON.stringify({ access_token, refresh_token }),
+            });
+
+            if (!res.ok) {
+              const err = await res.json().catch(() => ({}));
+              console.error("[auth/login] set-session failed:", err);
+            } else {
+              resolved = true;
+              toast({
+                title: "Inicio de sesión exitoso",
+                description: "Redirigiendo al dashboard...",
+              });
+              router.push("/admin");
+            }
+          } catch (e) {
+            console.error("[auth/login] error setting session in onAuthStateChange:", e);
+          }
         }
       });
 
-      // Espera hasta TIMEOUT_MS por la sesión
+      // Espera un tiempo razonable
       await new Promise((res) => setTimeout(res, TIMEOUT_MS));
 
-      // cleanup suscripción
+      // cleanup subscription
       try {
         subData?.subscription?.unsubscribe?.();
       } catch {
@@ -82,7 +120,6 @@ export default function LoginPage() {
       }
 
       if (!resolved) {
-        // No llegó la sesión en el tiempo esperado
         throw new Error("No se pudo establecer la sesión tras iniciar sesión. Intenta recargar o revisa las cookies.");
       }
     } catch (error: unknown) {
