@@ -1,22 +1,14 @@
 // lib/supabase/index.ts
-/**
- * Re-exports centralizados para los helpers de Supabase.
- *
- * - createBrowserSupabase: cliente singleton para el navegador.
- * - createBrowserClient: alias histórico para compatibilidad.
- * - createServerClient / createServerSupabase: helpers server-side que respetan cookies (SSR).
- * - createClient: alias histórico que apunta al cliente server (mantener compatibilidad con imports antiguos).
- * - createAdminClient: cliente con SERVICE_ROLE (server-only).
- * - updateSession: proxy helper (si existe).
- */
-
+// re-exports claros y sin alias ambiguos
 export { createBrowserSupabase } from "./client";
-export { createBrowserSupabase as createBrowserClient } from "./client"; // alias histórico (client)
-
+export { createBrowserSupabase as createBrowserClient } from "./client"; // alias cliente
 export { createServerClient, createServerSupabase } from "./server";
-export { createServerClient as createClient } from "./server"; // alias histórico -> servidor
-
 export { createAdminClient } from "./admin";
 
-// Si tienes proxy/updateSession en ./proxy
+// NOTA: intencionadamente NO exportamos `createClient` como alias server
+// para evitar importarlo por error desde componentes cliente.
+// Si tienes algún import que use `createClient` en cliente, cámbialo explícitamente
+// a `import { createBrowserSupabase } from "@/lib/supabase/client";`
+
+// si tienes proxy/updateSession
 export { updateSession } from "./proxy";
