@@ -13,7 +13,7 @@ export default async function NewProductPage() {
 
   const { data: categories } = await supabase.from("categories").select("id_int, name").order("name");
 
-  const categoriesForClient = (categories || []).map((c: any) => ({ id: String(c.id_int), name: c.name }));
+  const categoriesForClient = (categories || []).map((c: any) => ({ id: String(c?.id_int ?? ""), name: c?.name ?? "" }));
 
   return (
     <div className="min-h-screen bg-background">
