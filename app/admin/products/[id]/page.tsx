@@ -1,4 +1,3 @@
-// app/admin/products/[id]/page.tsx
 export const dynamic = "force-dynamic";
 
 import { createServerClient } from "@/lib/supabase/server";
@@ -19,7 +18,7 @@ export default async function EditProductPage({ params }: Props) {
 
   const isNewProduct = id === "new";
 
-  let product = null;
+  let product: any = null;
 
   if (!isNewProduct) {
     const { data } = await supabase
@@ -30,10 +29,9 @@ export default async function EditProductPage({ params }: Props) {
         name,
         description,
         price,
-        stock,
         available,
-        category_id,
-        product_images(id, image_url, display_order)
+        product_images(id, image_url, display_order),
+        product_categories(category_id, categories(id, name))
       `,
       )
       .eq("id", id)
