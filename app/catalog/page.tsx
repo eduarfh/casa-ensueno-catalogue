@@ -3,7 +3,7 @@ import React, { Suspense } from "react";
 import { ProductCard } from "@/components/product-card";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { CatalogFilters } from "@/components/catalog-filter";
+import { CatalogFilters } from "@/components/catalog-filters";
 import { createPublicServerClient } from "@/lib/supabase/server";
 import SiteHeader from "@/components/site-header";
 
@@ -35,21 +35,8 @@ export default async function CatalogPage({
   query = query.eq("available", true);
 
   // Apply category filter (filtra por la tabla intermedia)
-  // Nota: params.category puede ser id o name; intentaremos resolver por id (numérico) y si no, por name.
   if (params.category) {
-    // si es igual a uno de los ids devueltos por categories, filtramos por id
-    const foundById = categories?.find((c: any) => c.id === params.category);
-    if (foundById) {
-      query = query.eq("product_categories.category_id", params.category);
-    } else {
-      // buscar por nombre (case-sensitive según BD); si coincide, usamos su id
-      const foundByName = categories?.find((c: any) => c.name === params.category);
-      if (foundByName) {
-        query = query.eq("product_categories.category_id", foundByName.id);
-      } else {
-        // si no encontramos nada, no aplicamos filtro
-      }
-    }
+    query = query.eq("product_categories.category_id", params.category);
   }
 
   // Apply search filter
@@ -58,26 +45,6 @@ export default async function CatalogPage({
   }
 
   const { data: products } = await query;
-
-  // Preparar products simplificados para pasarlos al CategoryFilter (necesita `category` como nombre)
-  const productsForFilter =
-    (products || []).map((p: any) => {
-      const firstCatName =
-        p.product_categories?.[0]?.categories?.name ??
-        (p.product_categories?.length ? p.product_categories.map((pc: any) => pc.categories?.name).filter(Boolean)[0] : undefined) ??
-        "Sin categoría";
-
-      return {
-        id: p.id,
-        name: p.name,
-        price: p.price,
-        available: p.available,
-        image: p.product_images && p.product_images[0]?.image_url,
-        category: firstCatName,
-        // conserva la estructura original por si hace falta
-        _raw: p,
-      };
-    }) ?? [];
 
   return (
     <div className="min-h-screen bg-background">
@@ -91,12 +58,7 @@ export default async function CatalogPage({
           </p>
 
           <Suspense fallback={<div className="mb-4 text-sm text-muted-foreground">Cargando filtros…</div>}>
-            <CatalogFilters
-              categories={categories || []}
-              currentSearch={params.search}
-              currentCategory={params.category}
-              products={productsForFilter}
-            />
+            <CatalogFilters categories={categories || []} currentSearch={params.search} currentCategory={params.category} />
           </Suspense>
         </div>
 
