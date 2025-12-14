@@ -5,6 +5,7 @@ import React, { useMemo } from "react"
 import type { Product } from "@/lib/products"
 import { Button } from "@/components/ui/button"
 import { getCategoryColor } from "@/lib/category-colors"
+import { getCategoryColor } from "@/lib/category-colors"
 
 interface CategoryFilterProps {
   selectedCategory: string | null
