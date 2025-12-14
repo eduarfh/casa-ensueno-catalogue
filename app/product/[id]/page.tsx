@@ -21,17 +21,15 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
   const { data: product } = await supabase
     .from("products")
-    .select(
-      `
+    .select(`
       id,
       name,
       description,
       price,
       available,
-      category_id,
-      product_images(image_url)
-    `,
-    )
+      product_images(image_url),
+      product_categories(category_id, categories(id, name))
+    `)
     .eq("id", id)
     .single();
 
@@ -58,18 +56,15 @@ export default async function ProductPage({ params }: Props) {
 
   const { data: product } = await supabase
     .from("products")
-    .select(
-      `
+    .select(`
       id,
       name,
       description,
       price,
       available,
-      category_id,
-      categories(name),
+      categories: product_categories ( category_id, categories ( id, name ) ),
       product_images(id, image_url, display_order)
-    `,
-    )
+    `)
     .eq("id", id)
     .single();
 
@@ -77,16 +72,16 @@ export default async function ProductPage({ params }: Props) {
     notFound();
   }
 
+  // extraer categorias plano
+  const cats = (product.categories || []).map((pc: any) => pc.categories).filter(Boolean) || [];
+
   const productUrl = `${process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000"}/product/${id}`;
 
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b border-border sticky top-0 z-50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <Link
-            href="/"
-            className="text-2xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent"
-          >
+          <Link href="/" className="text-2xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
             HomeDecor
           </Link>
           <nav className="flex items-center gap-4">
@@ -128,9 +123,13 @@ export default async function ProductPage({ params }: Props) {
               <div className="flex items-start justify-between gap-4 mb-4">
                 <div className="flex-1">
                   <h1 className="text-4xl font-bold mb-3 text-balance">{product.name}</h1>
-                  {product.categories && (
-                    <Badge className="bg-primary text-primary-foreground">{product.categories.name}</Badge>
-                  )}
+                  <div className="flex gap-2 mb-2">
+                    {cats.map((c: any) => (
+                      <Badge key={c.id} className="bg-primary text-primary-foreground">
+                        {c.name}
+                      </Badge>
+                    ))}
+                  </div>
                 </div>
               </div>
 
@@ -163,9 +162,7 @@ export default async function ProductPage({ params }: Props) {
               <dl className="space-y-3 text-sm">
                 <div className="flex justify-between items-center">
                   <dt className="text-muted-foreground font-medium">Disponibilidad:</dt>
-                  <dd className="font-semibold text-foreground">
-                    {product.available ? "Disponible" : "No disponible"}
-                  </dd>
+                  <dd className="font-semibold text-foreground">{product.available ? "Disponible" : "No disponible"}</dd>
                 </div>
               </dl>
             </Card>
