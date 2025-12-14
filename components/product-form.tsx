@@ -127,32 +127,62 @@ export function ProductForm({ product, categories: initialCategories }: ProductF
   };
 
   // --- Eliminar categoría (global) ---
-  const deleteCategory = async (catId: string) => {
+  // dentro de ProductForm component: función deleteCategory mejorada
+const deleteCategory = async (catId: string) => {
+  try {
+    const cat = categories.find((c) => c.id === catId);
+    if (!cat) return;
+
+    const ok = window.confirm(`¿Eliminar la categoría "${cat.name}"? Esto fallará si la categoría está asociada a productos.`);
+    if (!ok) return;
+
+    setDeletingCategoryId(catId);
+
+    const res = await fetch(`/api/categories/${catId}`, { method: "DELETE" });
+
+    // intentar parsear JSON; si falla, leer texto y mostrarlo
+    let payload: any = null;
+    const text = await res.text();
     try {
-      const cat = categories.find((c) => c.id === catId);
-      if (!cat) return;
-
-      const ok = window.confirm(`¿Eliminar la categoría "${cat.name}"? Esto fallará si la categoría está asociada a productos.`);
-      if (!ok) return;
-
-      setDeletingCategoryId(catId);
-      const res = await fetch(`/api/categories/${catId}`, { method: "DELETE" });
-      const data = await res.json();
+      payload = text ? JSON.parse(text) : null;
+    } catch (parseErr) {
+      // respuesta no es JSON (puede ser HTML). Mostramos el body como mensaje.
+      console.warn("[deleteCategory] response not JSON, body:", text);
       if (!res.ok) {
-        throw new Error(data?.error || "Error eliminando categoría");
+        toast({
+          title: "Error eliminando categoría",
+          description: text || `HTTP ${res.status}`,
+          variant: "destructive",
+        });
+        return;
+      } else {
+        // éxito con body no-JSON (poco probable) -> tratar como success
+        setCategories((prev) => prev.filter((c) => c.id !== catId));
+        setFormData((prev) => ({ ...prev, categories: prev.categories.filter((id) => id !== catId) }));
+        toast({ title: "Categoría eliminada", description: `Categoría "${cat.name}" eliminada` });
+        return;
       }
-
-      // Quitar de estado local y de selección del producto
-      setCategories((prev) => prev.filter((c) => c.id !== catId));
-      setFormData((prev) => ({ ...prev, categories: prev.categories.filter((id) => id !== catId) }));
-      toast({ title: "Categoría eliminada", description: `Categoría "${cat.name}" eliminada` });
-    } catch (err: unknown) {
-      toast({ title: "Error", description: err instanceof Error ? err.message : "No se pudo eliminar la categoría", variant: "destructive" });
-      console.error("[deleteCategory] ", err);
-    } finally {
-      setDeletingCategoryId(null);
     }
-  };
+
+    // payload es JSON
+    if (!res.ok) {
+      const errMsg = payload?.error || payload?.message || `HTTP ${res.status}`;
+      toast({ title: "Error eliminando categoría", description: errMsg, variant: "destructive" });
+      return;
+    }
+
+    // éxito
+    setCategories((prev) => prev.filter((c) => c.id !== catId));
+    setFormData((prev) => ({ ...prev, categories: prev.categories.filter((id) => id !== catId) }));
+    toast({ title: "Categoría eliminada", description: `Categoría "${cat.name}" eliminada` });
+  } catch (err: unknown) {
+    toast({ title: "Error", description: err instanceof Error ? err.message : "No se pudo eliminar la categoría", variant: "destructive" });
+    console.error("[deleteCategory] ", err);
+  } finally {
+    setDeletingCategoryId(null);
+  }
+};
+
 
   // --- Submit product (igual que antes, con categories: string[]) ---
   const handleSubmit = async (e: React.FormEvent) => {
