@@ -1,3 +1,4 @@
+// components/category-filter.tsx
 "use client"
 
 import React, { useMemo } from "react"
@@ -13,7 +14,7 @@ interface CategoryFilterProps {
 
 export function CategoryFilter({ selectedCategory, onSelectCategory, products }: CategoryFilterProps) {
   const categories = useMemo(() => {
-    const unique = Array.from(new Set(products.map((p) => p.category)))
+    const unique = Array.from(new Set(products.map((p) => p.category || "Sin categoría")))
     return unique.sort()
   }, [products])
 
@@ -43,7 +44,7 @@ export function CategoryFilter({ selectedCategory, onSelectCategory, products }:
             <Button
               key={category}
               variant="outline"
-              onClick={() => onSelectCategory(category)}
+              onClick={() => onSelectCategory(category === "Sin categoría" ? "" : category)}
               className={`outline-2 rounded-lg px-4 py-2 duration-150 flex items-center justify-center whitespace-nowrap ${
                 isSelected
                   ? `ring-2 ring-offset-2 ring-[#95C7C3] shadow-lg ${textClass} ${darkSelected}`
