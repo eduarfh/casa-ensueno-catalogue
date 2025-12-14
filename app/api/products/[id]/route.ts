@@ -33,7 +33,7 @@ export async function DELETE(request: Request, { params }: { params: { id: strin
       await Promise.all(images.map((img: any) => safeDeleteBlob(img.image_url)));
     }
 
-    // eliminar product_categories asociadas (cascade FK en table lo haría, pero mejor explicito)
+    // eliminar product_categories asociadas (usamos admin client)
     const admin = createAdminClient();
     await admin.from("product_categories").delete().eq("product_id", id);
 
@@ -90,9 +90,10 @@ export async function PUT(request: Request, { params }: { params: { id: string }
     const { error: delErr } = await admin.from("product_categories").delete().eq("product_id", product.id);
     if (delErr) console.error("[product-update] product_categories delete error:", delErr);
 
-    const catRecords = categories.map((cid: string) => ({
+    // convertir categories a enteros (category_id es integer ahora)
+    const catRecords = categories.map((cid: string | number) => ({
       product_id: product.id,
-      category_id: cid,
+      category_id: Number(cid),
     }));
     if (catRecords.length) {
       const { error: pcErr } = await admin.from("product_categories").insert(catRecords);
