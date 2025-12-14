@@ -3,7 +3,7 @@ import React, { Suspense } from "react";
 import { ProductCard } from "@/components/product-card";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { CatalogFilters } from "@/components/catalog-filters";
+import { CatalogFilters } from "@/components/catalog-filter";
 import { createPublicServerClient } from "@/lib/supabase/server";
 import SiteHeader from "@/components/site-header";
 
