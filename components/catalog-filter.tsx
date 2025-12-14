@@ -10,19 +10,17 @@ interface CatalogFiltersProps {
   categories: { id: string; name: string }[]
   currentSearch?: string | null
   currentCategory?: string | null
-  products: Product[] // lista ligera para el filtro (solo necesita .category)
+  products: Product[]
 }
 
-export const CatalogFilters: React.FC<CatalogFiltersProps> = ({ categories, currentSearch, currentCategory, products }) => {
+const CatalogFilters: React.FC<CatalogFiltersProps> = ({ categories, currentSearch, currentCategory, products }) => {
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
 
-  // estado local para selección (inicializa desde la query actual)
   const [selectedCategory, setSelectedCategory] = useState<string | null>(currentCategory ?? null)
 
   useEffect(() => {
-    // si la URL cambia por fuera, sincronizamos estado
     setSelectedCategory(currentCategory ?? null)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentCategory])
@@ -31,15 +29,11 @@ export const CatalogFilters: React.FC<CatalogFiltersProps> = ({ categories, curr
     setSelectedCategory(category)
     const params = new URLSearchParams()
 
-    // mantén el search si existe
     const search = searchParams?.get("search") ?? ""
     if (search) params.set("search", search)
 
     if (category && category !== "") {
       params.set("category", category)
-    } else {
-      // no category -> lo quitamos
-      // si quieres que 'null' muestre todos, simplemente no seteamos category
     }
 
     const q = params.toString()
@@ -48,7 +42,6 @@ export const CatalogFilters: React.FC<CatalogFiltersProps> = ({ categories, curr
 
   return (
     <div>
-      {/* Puedes añadir aquí barra de búsqueda / controles extra si quieres */}
       <CategoryFilter selectedCategory={selectedCategory} onSelectCategory={applyCategory} products={products} />
     </div>
   )
