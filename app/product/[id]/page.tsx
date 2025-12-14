@@ -17,8 +17,6 @@ interface Props {
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id } = params;
-
-  // Usamos el **cliente público** (no lee cookies) para metadata — así Next puede prerenderizar.
   const supabase = createPublicServerClient();
 
   const { data: product } = await supabase
@@ -30,7 +28,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       description,
       price,
       available,
-      stock,
+      disponibilidad,
       category_id,
       product_images(image_url)
     `,
@@ -57,8 +55,6 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function ProductPage({ params }: Props) {
   const { id } = params;
-
-  // Para la renderización de la página usamos createServerClient (que respeta cookies/sesión si existe)
   const supabase = await createServerClient();
 
   const { data: product } = await supabase
@@ -70,7 +66,7 @@ export default async function ProductPage({ params }: Props) {
       description,
       price,
       available,
-      stock,
+      disponibilidad,
       category_id,
       categories(name),
       product_images(id, image_url, display_order)
@@ -87,7 +83,6 @@ export default async function ProductPage({ params }: Props) {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* ... el resto del JSX se mantiene igual que ya tenías ... */}
       <header className="border-b border-border sticky top-0 z-50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <Link
@@ -143,7 +138,7 @@ export default async function ProductPage({ params }: Props) {
 
               <div className="flex items-baseline gap-3 py-4">
                 <span className="text-5xl font-bold text-primary">${(product.price ?? 0).toFixed(2)}</span>
-                {product.stock === 0 && (
+                {product.disponibilidad === 0 && (
                   <Badge variant="destructive" className="text-base py-1 px-3">
                     Agotado
                   </Badge>
@@ -151,7 +146,7 @@ export default async function ProductPage({ params }: Props) {
               </div>
 
               <p className="text-sm text-muted-foreground font-medium">
-                {product.available ? `${product.stock} unidades disponibles` : "Sin stock disponible"}
+                {product.available ? `${product.disponibilidad} unidades disponibles` : "Sin stock disponible"}
               </p>
             </div>
 
@@ -175,8 +170,8 @@ export default async function ProductPage({ params }: Props) {
                   </dd>
                 </div>
                 <div className="flex justify-between items-center">
-                  <dt className="text-muted-foreground font-medium">Stock:</dt>
-                  <dd className="font-semibold text-foreground">{product.stock} unidades</dd>
+                  <dt className="text-muted-foreground font-medium">Unidades:</dt>
+                  <dd className="font-semibold text-foreground">{product.disponibilidad} unidades</dd>
                 </div>
               </dl>
             </Card>
