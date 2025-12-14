@@ -1,3 +1,4 @@
+// app/admin/products/new/page.tsx
 export const dynamic = "force-dynamic";
 
 import Link from "next/link";
@@ -10,7 +11,9 @@ import { createServerClient } from "@/lib/supabase/server";
 export default async function NewProductPage() {
   const supabase = await createServerClient();
 
-  const { data: categories } = await supabase.from("categories").select("id, name").order("name");
+  const { data: categories } = await supabase.from("categories").select("id_int, name").order("name");
+
+  const categoriesForClient = (categories || []).map((c: any) => ({ id: String(c.id_int), name: c.name }));
 
   return (
     <div className="min-h-screen bg-background">
@@ -30,7 +33,7 @@ export default async function NewProductPage() {
             <h1 className="text-3xl font-bold mb-2">Crear Nuevo Producto</h1>
             <p className="text-muted-foreground mb-8">Agrega un nuevo producto a tu catálogo</p>
 
-            <ProductForm categories={categories || []} />
+            <ProductForm categories={categoriesForClient || []} />
           </div>
         </AdminGuard>
       </main>
