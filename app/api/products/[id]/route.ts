@@ -7,11 +7,9 @@ async function safeDeleteBlob(url: string | null | undefined) {
   if (!url) return
   const token = process.env.BLOB_READ_WRITE_TOKEN
   try {
-    // del accepts URL or path; pass token if set
     await del(url, { token })
     console.log("[blob] deleted:", url)
   } catch (err: any) {
-    // Log and continue - don't fail whole operation because of blob delete
     console.warn("[blob] delete failed for", url, ":", err?.message || err)
   }
 }
@@ -38,7 +36,7 @@ export async function DELETE(request: Request, { params }: { params: { id: strin
       )
     }
 
-    // Delete product (product_images have FK cascade) - but we already attempted to delete blob files
+    // Delete product (product_images have FK cascade)
     const { error } = await supabase.from("products").delete().eq("id", id)
     if (error) throw error
 
@@ -54,7 +52,7 @@ export async function PUT(request: Request, { params }: { params: { id: string }
   try {
     const { id } = params
     const body = await request.json()
-    const { name, description, price, stock, category_id, images } = body
+    const { name, description, price, disponibilidad, category_id, images } = body
 
     const supabase = await createServerClient()
     const { data: userData } = await supabase.auth.getUser()
@@ -68,6 +66,8 @@ export async function PUT(request: Request, { params }: { params: { id: string }
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
     }
 
+    const disponibilidadInt = Number.parseInt(String(disponibilidad ?? "0"), 10) || 0
+
     // Update product fields
     const { data: product, error: productError } = await supabase
       .from("products")
@@ -75,9 +75,9 @@ export async function PUT(request: Request, { params }: { params: { id: string }
         name,
         description,
         price: Number.parseFloat(price),
-        stock: Number.parseInt(stock),
+        disponibilidad: disponibilidadInt,
         category_id,
-        available: Number.parseInt(stock) > 0,
+        available: disponibilidadInt > 0,
         updated_at: new Date().toISOString(),
       })
       .eq("id", id)
@@ -88,16 +88,13 @@ export async function PUT(request: Request, { params }: { params: { id: string }
 
     // If images is provided, replace images: delete old blobs, delete rows, insert new rows
     if (Array.isArray(images)) {
-      // fetch existing images
       const { data: existingImgs } = await supabase.from("product_images").select("id, image_url").eq("product_id", product.id)
       if (existingImgs && existingImgs.length) {
         await Promise.all(existingImgs.map((img: any) => safeDeleteBlob(img.image_url)))
       }
 
-      // delete existing rows
       await supabase.from("product_images").delete().eq("product_id", product.id)
 
-      // insert new image records
       const imageRecords = images.map((img: { url: string; display_order: number }) => ({
         product_id: product.id,
         image_url: img.url,
