@@ -1,44 +1,43 @@
-// app/product/[id]page.tsx
-
-import { createClient } from "@/lib/supabase/server"
-import { notFound } from "next/navigation"
-import Link from "next/link"
-import { Badge } from "@/components/ui/badge"
-import { Card } from "@/components/ui/card"
-import { ChevronLeft, ShoppingCart } from "lucide-react"
-import { ProductImageGallery } from "@/components/product-image-gallery"
-import { ProductShareButtons } from "@/components/product-share-buttons"
-import type { Metadata } from "next"
+// app/product/[id]/page.tsx
+import { createPublicServerClient, createServerClient } from "@/lib/supabase/server";
+import { notFound } from "next/navigation";
+import Link from "next/link";
+import { Badge } from "@/components/ui/badge";
+import { Card } from "@/components/ui/card";
+import { ChevronLeft, ShoppingCart } from "lucide-react";
+import { ProductImageGallery } from "@/components/product-image-gallery";
+import { ProductShareButtons } from "@/components/product-share-buttons";
+import SiteHeader from "@/components/site-header";
+import type { Metadata } from "next";
 
 interface Props {
-  params: Promise<{ id: string }>
+  params: {
+    id: string;
+  };
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const { id } = await params
-  const supabase = await createClient()
+  const { id } = params;
+  const supabase = createPublicServerClient();
 
   const { data: product } = await supabase
     .from("products")
-    .select(
-      `
+    .select(`
       id,
       name,
       description,
       price,
       available,
-      stock,
-      category_id,
-      product_images(image_url)
-    `,
-    )
+      product_images(image_url),
+      product_categories(category_id, categories(id, name))
+    `)
     .eq("id", id)
-    .single()
+    .single();
 
   if (!product) {
     return {
       title: "Producto no encontrado",
-    }
+    };
   }
 
   return {
@@ -49,57 +48,39 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       description: product.description || `${product.name} - $${product.price}`,
       type: "website",
     },
-  }
+  };
 }
 
 export default async function ProductPage({ params }: Props) {
-  const { id } = await params
-  const supabase = await createClient()
+  const { id } = params;
+  const supabase = await createServerClient();
 
   const { data: product } = await supabase
     .from("products")
-    .select(
-      `
+    .select(`
       id,
       name,
       description,
       price,
       available,
-      stock,
-      category_id,
-      categories(name),
+      categories: product_categories ( category_id, categories ( id, name ) ),
       product_images(id, image_url, display_order)
-    `,
-    )
+    `)
     .eq("id", id)
-    .single()
+    .single();
 
   if (!product) {
-    notFound()
+    notFound();
   }
 
-  const productUrl = `${process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000"}/product/${id}`
+  // extraer categorias plano
+  const cats = (product.categories || []).map((pc: any) => pc.categories).filter(Boolean) || [];
+
+  const productUrl = `${process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000"}/product/${id}`;
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="border-b border-border sticky top-0 z-50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <Link
-            href="/"
-            className="text-2xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent"
-          >
-            HomeDecor
-          </Link>
-          <nav className="flex items-center gap-4">
-            <Link href="/catalog" className="text-sm font-medium hover:text-primary transition-colors">
-              Catálogo
-            </Link>
-            <Link href="/auth/login" className="text-sm font-medium hover:text-primary transition-colors">
-              Admin
-            </Link>
-          </nav>
-        </div>
-      </header>
+      <SiteHeader />
 
       <main className="container mx-auto px-4 py-8">
         <Link
@@ -115,8 +96,8 @@ export default async function ProductPage({ params }: Props) {
             <ProductImageGallery
               images={
                 product.product_images
-                  ?.sort((a, b) => (a.display_order || 0) - (b.display_order || 0))
-                  .map((img) => ({
+                  ?.sort((a: any, b: any) => (a.display_order || 0) - (b.display_order || 0))
+                  .map((img: any) => ({
                     id: img.id,
                     url: img.image_url,
                   })) || []
@@ -129,15 +110,19 @@ export default async function ProductPage({ params }: Props) {
               <div className="flex items-start justify-between gap-4 mb-4">
                 <div className="flex-1">
                   <h1 className="text-4xl font-bold mb-3 text-balance">{product.name}</h1>
-                  {product.categories && (
-                    <Badge className="bg-primary text-primary-foreground">{product.categories.name}</Badge>
-                  )}
+                  <div className="flex gap-2 mb-2">
+                    {cats.map((c: any) => (
+                      <Badge key={c.id} className="bg-primary text-primary-foreground">
+                        {c.name}
+                      </Badge>
+                    ))}
+                  </div>
                 </div>
               </div>
 
               <div className="flex items-baseline gap-3 py-4">
-                <span className="text-5xl font-bold text-primary">${product.price.toFixed(2)}</span>
-                {product.stock === 0 && (
+                <span className="text-5xl font-bold text-primary">${(product.price ?? 0).toFixed(2)}</span>
+                {!product.available && (
                   <Badge variant="destructive" className="text-base py-1 px-3">
                     Agotado
                   </Badge>
@@ -145,7 +130,7 @@ export default async function ProductPage({ params }: Props) {
               </div>
 
               <p className="text-sm text-muted-foreground font-medium">
-                {product.available ? `${product.stock} unidades disponibles` : "Sin stock disponible"}
+                {product.available ? "Disponible" : "No disponible"}
               </p>
             </div>
 
@@ -164,13 +149,7 @@ export default async function ProductPage({ params }: Props) {
               <dl className="space-y-3 text-sm">
                 <div className="flex justify-between items-center">
                   <dt className="text-muted-foreground font-medium">Disponibilidad:</dt>
-                  <dd className="font-semibold text-foreground">
-                    {product.available ? "Disponible" : "No disponible"}
-                  </dd>
-                </div>
-                <div className="flex justify-between items-center">
-                  <dt className="text-muted-foreground font-medium">Stock:</dt>
-                  <dd className="font-semibold text-foreground">{product.stock} unidades</dd>
+                  <dd className="font-semibold text-foreground">{product.available ? "Disponible" : "No disponible"}</dd>
                 </div>
               </dl>
             </Card>
@@ -180,5 +159,5 @@ export default async function ProductPage({ params }: Props) {
         </div>
       </main>
     </div>
-  )
+  );
 }

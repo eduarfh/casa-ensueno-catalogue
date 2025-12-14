@@ -1,29 +1,45 @@
-// lib/supabase/admin.ts
+// lib/supabase/client.ts
+"use client";
 
-"use client"
+import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 
-import { createBrowserClient } from "@supabase/ssr"
-
-let supabaseClient: ReturnType<typeof createBrowserClient> | null = null
-
-export function createClient() {
-  if (typeof window === "undefined") {
-    return null
-  }
-
-  // Only create client once
-  if (supabaseClient) {
-    return supabaseClient
-  }
-
-  try {
-    supabaseClient = createBrowserClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    )
-  } catch (error) {
-    console.warn("[Supabase] Error creating client:", error)
-  }
-
-  return supabaseClient
+declare global {
+  // extend globalThis para TypeScript
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  var __supabase_browser_client: any;
 }
+
+let browserClient: ReturnType<typeof createSupabaseClient> | null = null;
+
+export function createBrowserSupabase() {
+  if (typeof window === "undefined") return null;
+
+  // si ya existe en global (HMR safe), reutilizamos
+  if ((globalThis as any).__supabase_browser_client) {
+    return (globalThis as any).__supabase_browser_client;
+  }
+
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+  const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+
+  if (!url || !anon) {
+    console.warn("[Supabase][client] NEXT_PUBLIC_SUPABASE_* env vars not set");
+    return null;
+  }
+
+  // IMPORTANTE: persistSession/autoRefreshToken deshabilitados (SSR cookie flow).
+  const client = createSupabaseClient(url, anon, {
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+      detectSessionInUrl: false,
+    },
+  });
+
+  // guardamos en globalThis para evitar múltiples instancias durante HMR
+  (globalThis as any).__supabase_browser_client = client;
+  return client;
+}
+
+export const createBrowserClient = createBrowserSupabase;
+export const createClient = createBrowserSupabase;
