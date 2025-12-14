@@ -1,3 +1,4 @@
+// components/ProductForm.tsx (o app/product form file)
 "use client"
 
 import type React from "react"
@@ -19,7 +20,7 @@ interface ProductFormProps {
     name: string
     description: string | null
     price: number
-    stock: number
+    disponibilidad: number
     available: boolean
     category_id: string | null
     product_images: Array<{ id: string; image_url: string; display_order: number | null }>
@@ -32,7 +33,7 @@ export function ProductForm({ product, categories }: ProductFormProps) {
     name: product?.name || "",
     description: product?.description || "",
     price: product?.price || 0,
-    stock: product?.stock || 0,
+    disponibilidad: product?.disponibilidad || 0,
     category_id: product?.category_id || "",
   })
 
@@ -54,7 +55,7 @@ export function ProductForm({ product, categories }: ProductFormProps) {
     const { name, value } = e.target
     setFormData((prev) => ({
       ...prev,
-      [name]: name === "price" || name === "stock" ? Number(value) : value,
+      [name]: name === "price" || name === "disponibilidad" ? Number(value) : value,
     }))
   }
 
@@ -86,13 +87,11 @@ export function ProductForm({ product, categories }: ProductFormProps) {
     setIsSubmitting(true)
 
     try {
-      // Upload new images to Blob and get URLs
       const uploadedImages: { url: string; display_order: number }[] = []
 
       for (let i = 0; i < images.length; i++) {
         const image = images[i]
 
-        // Skip existing images
         if (image.id && !image.file) {
           uploadedImages.push({ url: image.url, display_order: i })
           continue
@@ -208,12 +207,12 @@ export function ProductForm({ product, categories }: ProductFormProps) {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="stock">Stock</Label>
+            <Label htmlFor="disponibilidad">Disponibilidad (unidades)</Label>
             <Input
-              id="stock"
-              name="stock"
+              id="disponibilidad"
+              name="disponibilidad"
               type="number"
-              value={formData.stock}
+              value={formData.disponibilidad}
               onChange={handleInputChange}
               placeholder="0"
               required
