@@ -19,7 +19,7 @@ export async function POST(request: Request) {
       .from("admin_users")
       .select("is_admin")
       .eq("user_id", user.id)
-      .single();
+      .maybeSingle();
     if (adminErr) {
       console.error("[categories-create] admin lookup error:", adminErr);
       return NextResponse.json({ error: "Error checking admin", details: adminErr.message }, { status: 500 });
@@ -35,16 +35,16 @@ export async function POST(request: Request) {
 
     const admin = createAdminClient();
 
-    // calcular next id_int (evita insertar NULL en id_int)
+    // calcular next id_int (usa maybeSingle para no fallar si tabla vacía)
     const { data: lastRow, error: lastErr } = await admin
       .from("categories")
       .select("id_int")
       .order("id_int", { ascending: false })
       .limit(1)
-      .single();
+      .maybeSingle();
 
-    if (lastErr && lastErr.code !== "PGRST116") {
-      // PGRST116 occurs if no rows in some setups; still we want to continue
+    if (lastErr) {
+      // si hay un error real, loguear y seguir (no detener por PGRST116 porque maybeSingle evita ese caso)
       console.warn("[categories-create] warning while retrieving last id_int:", lastErr);
     }
 
@@ -58,10 +58,8 @@ export async function POST(request: Request) {
       .single();
 
     if (error) {
-      // manejar unique constraint u otros errores
       console.error("[categories-create] error:", error);
       const message = (error?.message as string) || "Error creating category";
-      // si es constraint unique devolver 400
       return NextResponse.json({ error: message }, { status: 400 });
     }
 
