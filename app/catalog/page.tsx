@@ -16,10 +16,13 @@ export default async function CatalogPage({
   const params = searchParams || {};
   const supabase = createPublicServerClient();
 
-  // Fetch categories
-  const { data: categories } = await supabase.from("categories").select("id, name").order("name");
+  // Fetch categories: seleccionamos id_int (entero) y name
+  const { data: categories } = await supabase
+    .from("categories")
+    .select("id_int, name")
+    .order("name");
 
-  // Build products query - incluyamos product_categories relation para mostrar categorías
+  // Build products query - incluir product_categories relation para mostrar categorías
   let query: any = supabase
     .from("products")
     .select(`
@@ -35,9 +38,13 @@ export default async function CatalogPage({
   // Filter only available products by default
   query = query.eq("available", true);
 
-  // Apply category filter (filtra por la tabla intermedia)
+  // Apply category filter (ahora product_categories.category_id es integer)
   if (params.category) {
-    query = query.eq("product_categories.category_id", params.category);
+    const catId = Number(params.category);
+    if (!Number.isNaN(catId)) {
+      query = query.eq("product_categories.category_id", catId);
+    }
+    // si no es número, se ignora (evita 400 por UUID inválido)
   }
 
   // Apply search filter
@@ -47,11 +54,11 @@ export default async function CatalogPage({
 
   const { data: products } = await query;
 
-  // --- Transformación ligera para enviar al cliente (serializable)
+  // Transformación ligera para enviar al cliente (serializable)
   const productsForClient: Product[] = (products || []).map((p: any) => {
     const cats = Array.isArray(p.product_categories)
       ? p.product_categories.map((pc: any) => pc.categories?.name).filter(Boolean)
-      : []
+      : [];
 
     return {
       id: p.id,
@@ -59,9 +66,16 @@ export default async function CatalogPage({
       price: p.price,
       available: p.available,
       image: p.product_images && p.product_images[0]?.image_url ? p.product_images[0].image_url : null,
+      // usamos la primera categoría para el color/label; si no hay, "Sin categoría"
       category: cats.length > 0 ? cats[0] : "Sin categoría",
-    }
-  })
+    };
+  });
+
+  // Mapear categories para frontend: convertir id_int a string (para la URL)
+  const categoriesForClient = (categories || []).map((c: any) => ({
+    id: String(c.id_int),
+    name: c.name,
+  }));
 
   return (
     <div className="min-h-screen bg-background">
@@ -74,10 +88,10 @@ export default async function CatalogPage({
             Descubre nuestra selección completa de artículos para tu hogar
           </p>
 
-          {/* CatalogFilters es ahora cliente; le pasamos categories y productsForClient */}
+          {/* CatalogFilters es cliente; le pasamos categories (con id_int) y productsForClient */}
           <div className="mb-4">
             <CatalogFilters
-              categories={categories || []}
+              categories={categoriesForClient}
               currentSearch={params.search}
               currentCategory={params.category}
               products={productsForClient}
@@ -88,7 +102,6 @@ export default async function CatalogPage({
         {products && products.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
             {products.map((product: any) => {
-              // extraer categorías en forma plana [{id,name}, ...]
               const cats = product.product_categories?.map((pc: any) => pc.categories).filter(Boolean) || [];
               return (
                 <ProductCard
