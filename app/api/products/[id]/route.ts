@@ -29,11 +29,7 @@ export async function DELETE(request: Request, { params }: { params: { id: strin
     // Fetch product images URLs to delete blobs first
     const { data: images } = await supabase.from("product_images").select("image_url").eq("product_id", id)
     if (images && images.length) {
-      await Promise.all(
-        images.map(async (img: any) => {
-          await safeDeleteBlob(img.image_url)
-        }),
-      )
+      await Promise.all(images.map((img: any) => safeDeleteBlob(img.image_url)))
     }
 
     // Delete product (product_images have FK cascade)
@@ -52,7 +48,7 @@ export async function PUT(request: Request, { params }: { params: { id: string }
   try {
     const { id } = params
     const body = await request.json()
-    const { name, description, price, disponibilidad, category_id, images } = body
+    const { name, description, price, available, category_id, images } = body
 
     const supabase = await createServerClient()
     const { data: userData } = await supabase.auth.getUser()
@@ -66,7 +62,8 @@ export async function PUT(request: Request, { params }: { params: { id: string }
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
     }
 
-    const disponibilidadInt = Number.parseInt(String(disponibilidad ?? "0"), 10) || 0
+    // Ensure boolean
+    const availableBool = available === true
 
     // Update product fields
     const { data: product, error: productError } = await supabase
@@ -75,9 +72,8 @@ export async function PUT(request: Request, { params }: { params: { id: string }
         name,
         description,
         price: Number.parseFloat(price),
-        disponibilidad: disponibilidadInt,
+        available: availableBool,
         category_id,
-        available: disponibilidadInt > 0,
         updated_at: new Date().toISOString(),
       })
       .eq("id", id)
