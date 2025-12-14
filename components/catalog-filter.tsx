@@ -1,151 +1,57 @@
-// app/components/catalog-filters.tsx
-"use client";
+// components/catalog-filter.tsx
+"use client"
 
-import React, { useEffect, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Search } from "lucide-react";
+import React, { useState, useEffect } from "react"
+import { useRouter, usePathname, useSearchParams } from "next/navigation"
+import type { Product } from "@/lib/products"
+import CategoryFilter from "@/components/category-filter"
 
 interface CatalogFiltersProps {
-  categories: Array<{ id: string; name: string }>;
-  currentSearch?: string;
-  currentCategory?: string;
+  categories: { id: string; name: string }[]
+  currentSearch?: string | null
+  currentCategory?: string | null
+  products: Product[] // lista ligera para el filtro (solo necesita .category)
 }
 
-export function CatalogFilters({
-  categories,
-  currentSearch,
-  currentCategory,
-}: CatalogFiltersProps) {
-  const router = useRouter();
-  const searchParams = useSearchParams();
+export const CatalogFilters: React.FC<CatalogFiltersProps> = ({ categories, currentSearch, currentCategory, products }) => {
+  const router = useRouter()
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
 
-  // Use "all" as the UI sentinel value for no-category selected
-  const initialCategoryUi = currentCategory ? currentCategory : "all";
-
-  const [search, setSearch] = useState<string>(currentSearch ?? "");
-  const [selectedCategory, setSelectedCategory] = useState<string>(initialCategoryUi);
+  // estado local para selección (inicializa desde la query actual)
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(currentCategory ?? null)
 
   useEffect(() => {
-    setSearch(currentSearch ?? "");
-    setSelectedCategory(currentCategory ?? "all");
-  }, [currentSearch, currentCategory]);
+    // si la URL cambia por fuera, sincronizamos estado
+    setSelectedCategory(currentCategory ?? null)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentCategory])
 
-  // Keep in sync with back/forward (read from searchParams)
-  useEffect(() => {
-    try {
-      const sp = searchParams?.get?.("search") ?? "";
-      const cat = searchParams?.get?.("category") ?? "";
-      const catUi = cat || "all";
-      if (sp !== search) setSearch(sp);
-      if (catUi !== selectedCategory) setSelectedCategory(catUi);
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-    } catch {
-      // defensive: ignore
+  const applyCategory = (category: string | null) => {
+    setSelectedCategory(category)
+    const params = new URLSearchParams()
+
+    // mantén el search si existe
+    const search = searchParams?.get("search") ?? ""
+    if (search) params.set("search", search)
+
+    if (category && category !== "") {
+      params.set("category", category)
+    } else {
+      // no category -> lo quitamos
+      // si quieres que 'null' muestre todos, simplemente no seteamos category
     }
-    // we depend on string form so we update when query changes
-  }, [searchParams?.toString?.()]);
 
-  const pushWithParams = (params: URLSearchParams) => {
-    const qs = params.toString();
-    const path = qs ? `/catalog?${qs}` : "/catalog";
-    router.push(path);
-  };
-
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    const params = new URLSearchParams(searchParams?.toString?.() ?? "");
-
-    if (search) params.set("search", search);
-    else params.delete("search");
-
-    // if UI is "all", remove category param; otherwise set it
-    if (selectedCategory && selectedCategory !== "all") params.set("category", selectedCategory);
-    else params.delete("category");
-
-    pushWithParams(params);
-  };
-
-  const handleCategoryChange = (value: string) => {
-    // value will be "all" or a category id
-    setSelectedCategory(value);
-
-    const params = new URLSearchParams(searchParams?.toString?.() ?? "");
-    if (value && value !== "all") params.set("category", value);
-    else params.delete("category");
-
-    if (search) params.set("search", search);
-
-    pushWithParams(params);
-  };
-
-  const handleClearFilters = () => {
-    setSearch("");
-    setSelectedCategory("all");
-    router.push("/catalog");
-  };
+    const q = params.toString()
+    router.push(`${pathname}${q ? `?${q}` : ""}`)
+  }
 
   return (
-    <form onSubmit={handleSearch} className="space-y-4" aria-label="Filtros de catálogo">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-end">
-        <div className="flex-1 min-w-0">
-          <label className="text-xs sm:text-sm font-medium mb-2 block">Buscar productos</label>
-          <div className="relative">
-            <Input
-              type="text"
-              placeholder="Buscar por nombre..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="pr-10 bg-input border-border focus:border-primary transition-colors"
-              aria-label="Buscar productos"
-            />
-            <button
-              type="submit"
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-primary transition-colors"
-              aria-label="Buscar"
-            >
-              <Search className="w-4 h-4" />
-            </button>
-          </div>
-        </div>
-
-        <div className="flex-1 min-w-0">
-          <label className="text-xs sm:text-sm font-medium mb-2 block">Categoría</label>
-          <Select value={selectedCategory} onValueChange={handleCategoryChange}>
-            <SelectTrigger className="bg-input border-border focus:border-primary transition-colors">
-              <SelectValue placeholder="Todas las categorías" />
-            </SelectTrigger>
-            <SelectContent>
-              {/* Use "all" sentinel — not empty string to satisfy Select component */}
-              <SelectItem value="all">Todas las categorías</SelectItem>
-              {categories.map((category) => (
-                <SelectItem key={category.id} value={category.id}>
-                  {category.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        {(search || (selectedCategory && selectedCategory !== "all")) && (
-          <Button
-            type="button"
-            variant="outline"
-            onClick={handleClearFilters}
-            className="border-primary/30 hover:bg-primary/10 w-full sm:w-auto bg-transparent"
-          >
-            Limpiar Filtros
-          </Button>
-        )}
-      </div>
-    </form>
-  );
+    <div>
+      {/* Puedes añadir aquí barra de búsqueda / controles extra si quieres */}
+      <CategoryFilter selectedCategory={selectedCategory} onSelectCategory={applyCategory} products={products} />
+    </div>
+  )
 }
+
+export default CatalogFilter
