@@ -1,4 +1,4 @@
-// components/ProductCard.tsx (o wherever it lives)
+// components/product-card.tsx
 "use client"
 
 import Image from "next/image"
@@ -14,12 +14,11 @@ interface ProductCardProps {
   id: string
   name: string
   price: number
-  image: string
+  image: string | null | undefined
   available: boolean
-  disponibilidad: number
 }
 
-export function ProductCard({ id, name, price, image, available, disponibilidad }: ProductCardProps) {
+export function ProductCard({ id, name, price, image, available }: ProductCardProps) {
   const [isSharing, setIsSharing] = useState(false)
   const { toast } = useToast()
 
@@ -78,7 +77,7 @@ export function ProductCard({ id, name, price, image, available, disponibilidad 
             <Link href={`/product/${id}`}>{name}</Link>
           </h3>
           <p className="text-xs sm:text-sm text-muted-foreground mt-1">
-            {disponibilidad > 0 ? `${disponibilidad} disponibles` : "Sin stock"}
+            {available ? "Disponible" : "Sin stock"}
           </p>
         </div>
 
