@@ -34,7 +34,7 @@ export default async function EditProductPage({ params }: Props) {
         available,
         product_images(id, image_url, display_order),
         product_categories(category_id, categories(id_int, name))
-      `
+      `,
       )
       .eq("id", id)
       .single();
@@ -47,12 +47,9 @@ export default async function EditProductPage({ params }: Props) {
   }
 
   // Traemos categorías usando id_int y las mapeamos a {id: string, name}
-  const { data: categories } = await supabase
-    .from("categories")
-    .select("id_int, name")
-    .order("name");
+  const { data: categories } = await supabase.from("categories").select("id_int, name").order("name");
 
-  const categoriesForClient = (categories || []).map((c: any) => ({ id: String(c.id_int), name: c.name }));
+  const categoriesForClient = (categories || []).map((c: any) => ({ id: String(c?.id_int ?? ""), name: c?.name ?? "" }));
 
   return (
     <div className="min-h-screen bg-background">
