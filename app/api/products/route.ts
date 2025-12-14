@@ -11,7 +11,7 @@ export async function POST(request: Request) {
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const body = await request.json();
-    const { name, description, price, disponibilidad, category_id, images } = body ?? {};
+    const { name, description, price, available, category_id, images } = body ?? {};
 
     if (!name || !category_id) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
@@ -19,10 +19,8 @@ export async function POST(request: Request) {
 
     const admin = createAdminClient();
 
-    console.log('[product-create] user.id =', user?.id);
-    console.log('[product-create] payload =', { name, category_id, price, disponibilidad, imagesLength: Array.isArray(images) ? images.length : 0 });
-
-    const disponibilidadInt = Number.parseInt(String(disponibilidad ?? "0"), 10) || 0;
+    console.log("[product-create] user.id =", user?.id);
+    console.log("[product-create] payload =", { name, category_id, price, available, imagesLength: Array.isArray(images) ? images.length : 0 });
 
     const { data: product, error: productError } = await admin
       .from("products")
@@ -30,8 +28,7 @@ export async function POST(request: Request) {
         name,
         description,
         price: Number.parseFloat(price ?? 0),
-        disponibilidad: disponibilidadInt,
-        available: disponibilidadInt > 0,
+        available: available === true, // fuerza booleano
         category_id,
         owner_id: user.id,
       })
