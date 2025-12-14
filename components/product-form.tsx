@@ -1,4 +1,4 @@
-// components/ProductForm.tsx (o app/product form file)
+// components/ProductForm.tsx (o el archivo donde lo tengas)
 "use client"
 
 import type React from "react"
@@ -20,7 +20,6 @@ interface ProductFormProps {
     name: string
     description: string | null
     price: number
-    disponibilidad: number
     available: boolean
     category_id: string | null
     product_images: Array<{ id: string; image_url: string; display_order: number | null }>
@@ -33,7 +32,7 @@ export function ProductForm({ product, categories }: ProductFormProps) {
     name: product?.name || "",
     description: product?.description || "",
     price: product?.price || 0,
-    disponibilidad: product?.disponibilidad || 0,
+    available: product?.available ?? true,
     category_id: product?.category_id || "",
   })
 
@@ -52,10 +51,10 @@ export function ProductForm({ product, categories }: ProductFormProps) {
   const { toast } = useToast()
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target
+    const { name, value, type, checked } = e.target as HTMLInputElement
     setFormData((prev) => ({
       ...prev,
-      [name]: name === "price" || name === "disponibilidad" ? Number(value) : value,
+      [name]: name === "price" ? Number(value) : name === "available" ? checked : value,
     }))
   }
 
@@ -190,7 +189,7 @@ export function ProductForm({ product, categories }: ProductFormProps) {
           />
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-2 gap-4 items-end">
           <div className="space-y-2">
             <Label htmlFor="price">Precio ($)</Label>
             <Input
@@ -207,17 +206,19 @@ export function ProductForm({ product, categories }: ProductFormProps) {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="disponibilidad">Disponibilidad (unidades)</Label>
-            <Input
-              id="disponibilidad"
-              name="disponibilidad"
-              type="number"
-              value={formData.disponibilidad}
-              onChange={handleInputChange}
-              placeholder="0"
-              required
-              disabled={isSubmitting}
-            />
+            <Label htmlFor="available">Disponible</Label>
+            <div className="flex items-center gap-3">
+              <input
+                id="available"
+                name="available"
+                type="checkbox"
+                checked={formData.available}
+                onChange={handleInputChange}
+                disabled={isSubmitting}
+                className="h-4 w-4"
+              />
+              <span className="text-sm text-muted-foreground">Marcar si el producto está disponible para la venta</span>
+            </div>
           </div>
         </div>
 
