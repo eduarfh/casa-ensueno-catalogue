@@ -1,5 +1,4 @@
 // app/api/admin/registrations/approve/route.ts
-
 import { NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -53,21 +52,13 @@ export async function POST(request: Request) {
 
     // 5) create auth user with service role client (admin client bypasses RLS)
     const admin = createAdminClient();
-    // if user with this email already exists, we may want to link — attempt create, if fail and already exists, fetch by email
     const { data: createData, error: createError } = await admin.auth.admin.createUser({
       email,
       password: plainPassword,
       email_confirm: true,
     });
 
-    let createdUserId: string | null = null;
-    let createdEmail = email;
-
     if (createError) {
-      // if user exists, try to find by email via admin RPC (list)
-      // Note: Supabase admin API does not provide list-by-email in all SDKs; fallback: surface error unless it's "user already exists"
-      // If the error indicates email already registered, try to find user via admin.auth.api.getUserByEmail (if available)
-      // For portability, return a helpful error
       console.error("[approve] createUser error:", createError);
       return NextResponse.json({ error: createError.message || "Failed to create auth user" }, { status: 400 });
     }
@@ -76,8 +67,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Failed to create auth user" }, { status: 500 });
     }
 
-    createdUserId = createData.user.id;
-    createdEmail = createData.user.email ?? email;
+    const createdUserId = createData.user.id;
+    const createdEmail = createData.user.email ?? email;
 
     // 6) insert admin_users row
     const { error: insertAdminErr } = await admin.from("admin_users").insert([
@@ -119,7 +110,6 @@ export async function POST(request: Request) {
     }
 
     // 9) Return success. Do NOT return plaintext password in production.
-    // In development, if using Ethereal, include previewUrl to inspect the email.
     return NextResponse.json({
       success: true,
       user: { id: createdUserId, email: createdEmail },
