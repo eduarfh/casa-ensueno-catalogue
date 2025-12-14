@@ -12,11 +12,9 @@ interface SimpleCategory {
 }
 
 interface CategoryFilterProps {
-  // preferimos recibir categories desde el servidor: [{id,name}, ...]
   categories?: SimpleCategory[]
-  // fallback: si no hay categories, se pueden derivar de products (pero usar nombres como "id")
   products?: Product[]
-  selectedCategory: string | null // aquí almacenamos el id de la categoría (UUID) o null
+  selectedCategory: string | null
   onSelectCategory: (categoryId: string | null) => void
 }
 
@@ -26,13 +24,11 @@ export function CategoryFilter({
   selectedCategory,
   onSelectCategory,
 }: CategoryFilterProps) {
-  // Si recibimos categories (de la BD) usamos esas; si no, extraemos names desde products (no ideal).
   const list = useMemo(() => {
     if (categories && categories.length > 0) {
       return categories.map((c) => ({ id: c.id, name: c.name }))
     }
 
-    // fallback: extraer nombres desde products (usamos el nombre como "id" — esto funcionará solo como UI, NO para filtrado por UUID)
     const uniqueNames = Array.from(new Set(products.map((p) => p.category || "Sin categoría")))
     return uniqueNames.map((name) => ({ id: name, name }))
   }, [categories, products])
