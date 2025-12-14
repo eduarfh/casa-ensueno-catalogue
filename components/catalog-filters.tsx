@@ -10,7 +10,7 @@ interface CatalogFiltersProps {
   categories: { id: string; name: string }[]
   currentSearch?: string | null
   currentCategory?: string | null
-  products?: Product[] // opcional, se usa solo como fallback si no hay categories
+  products?: Product[]
 }
 
 const CatalogFilters: React.FC<CatalogFiltersProps> = ({
@@ -27,7 +27,6 @@ const CatalogFilters: React.FC<CatalogFiltersProps> = ({
   const [selectedCategory, setSelectedCategory] = useState<string | null>(currentCategory ?? null)
 
   useEffect(() => {
-    // sincroniza cuando cambian los query params desde el servidor / url externa
     setSearchTerm(currentSearch ?? "")
     setSelectedCategory(currentCategory ?? null)
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -55,14 +54,12 @@ const CatalogFilters: React.FC<CatalogFiltersProps> = ({
     applyFilters(null, "")
   }
 
-  // applyCategory será llamado por CategoryFilter con el id de la categoría (o null)
   const applyCategory = (catId: string | null) => {
     applyFilters(catId, searchTerm)
   }
 
   return (
     <div className="mb-4">
-      {/* Barra de búsqueda */}
       <form onSubmit={onSubmit} className="flex gap-2 items-center mb-3">
         <input
           type="search"
@@ -87,7 +84,6 @@ const CatalogFilters: React.FC<CatalogFiltersProps> = ({
         </button>
       </form>
 
-      {/* Filtros por categoría (debajo de la barra de búsqueda) */}
       <CategoryFilter
         categories={categories}
         selectedCategory={selectedCategory}
