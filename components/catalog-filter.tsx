@@ -1,51 +1,42 @@
 // app/components/catalog-filters.tsx
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Search } from "lucide-react";
-import CategoryFilter from "@/components/category-filter"; // <-- asegúrate de la ruta si la tienes en otro sitio
 
 interface CatalogFiltersProps {
   categories: Array<{ id: string; name: string }>;
   currentSearch?: string;
-  currentCategory?: string; // puede ser id o nombre
-  products: Array<any>; // productos simplificados con .category (nombre) — los pasamos desde page.tsx
+  currentCategory?: string;
 }
 
 export function CatalogFilters({
   categories,
   currentSearch,
   currentCategory,
-  products,
 }: CatalogFiltersProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  // Resolve initial category id: currentCategory puede ser id o name.
-  const resolveCategoryId = (input?: string | null) => {
-    if (!input) return "all";
-    // si coincide con id -> devolvemos id
-    const byId = categories.find((c) => c.id === input);
-    if (byId) return byId.id;
-    // si coincide con name -> devolvemos id
-    const byName = categories.find((c) => c.name === input);
-    if (byName) return byName.id;
-    // else fallback
-    return "all";
-  };
-
-  const initialCategoryUi = resolveCategoryId(currentCategory ?? null);
+  // Use "all" as the UI sentinel value for no-category selected
+  const initialCategoryUi = currentCategory ? currentCategory : "all";
 
   const [search, setSearch] = useState<string>(currentSearch ?? "");
-  const [selectedCategory, setSelectedCategory] = useState<string>(initialCategoryUi); // guarda id o "all"
+  const [selectedCategory, setSelectedCategory] = useState<string>(initialCategoryUi);
 
   useEffect(() => {
     setSearch(currentSearch ?? "");
-    setSelectedCategory(resolveCategoryId(currentCategory ?? null));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    setSelectedCategory(currentCategory ?? "all");
   }, [currentSearch, currentCategory]);
 
   // Keep in sync with back/forward (read from searchParams)
@@ -53,14 +44,14 @@ export function CatalogFilters({
     try {
       const sp = searchParams?.get?.("search") ?? "";
       const cat = searchParams?.get?.("category") ?? "";
-      const catUi = resolveCategoryId(cat || "");
+      const catUi = cat || "all";
       if (sp !== search) setSearch(sp);
       if (catUi !== selectedCategory) setSelectedCategory(catUi);
       // eslint-disable-next-line react-hooks/exhaustive-deps
     } catch {
       // defensive: ignore
     }
-    // dependemos de la forma string para actualizar cuando cambie la query
+    // we depend on string form so we update when query changes
   }, [searchParams?.toString?.()]);
 
   const pushWithParams = (params: URLSearchParams) => {
@@ -76,23 +67,23 @@ export function CatalogFilters({
     if (search) params.set("search", search);
     else params.delete("search");
 
+    // if UI is "all", remove category param; otherwise set it
     if (selectedCategory && selectedCategory !== "all") params.set("category", selectedCategory);
     else params.delete("category");
 
     pushWithParams(params);
   };
 
-  // Cuando CategoryFilter nos da un nombre de categoría (o null), lo traducimos a id y navegamos
-  const handleCategoryFilterSelect = (categoryName: string | null) => {
-    // categoryName === null significa "Todas"
-    const id = categoryName ? categories.find((c) => c.name === categoryName)?.id ?? "all" : "all";
-    setSelectedCategory(id);
+  const handleCategoryChange = (value: string) => {
+    // value will be "all" or a category id
+    setSelectedCategory(value);
 
     const params = new URLSearchParams(searchParams?.toString?.() ?? "");
-    if (id && id !== "all") params.set("category", id);
+    if (value && value !== "all") params.set("category", value);
     else params.delete("category");
 
     if (search) params.set("search", search);
+
     pushWithParams(params);
   };
 
@@ -101,12 +92,6 @@ export function CatalogFilters({
     setSelectedCategory("all");
     router.push("/catalog");
   };
-
-  // pasar a CategoryFilter el valor seleccionado por nombre (o null)
-  const selectedCategoryName = selectedCategory === "all" ? null : categories.find((c) => c.id === selectedCategory)?.name ?? null;
-
-  // Preparar productos para CategoryFilter — espera `product.category` como string
-  const productsForFilter = useMemo(() => products ?? [], [products]);
 
   return (
     <form onSubmit={handleSearch} className="space-y-4" aria-label="Filtros de catálogo">
@@ -134,13 +119,20 @@ export function CatalogFilters({
 
         <div className="flex-1 min-w-0">
           <label className="text-xs sm:text-sm font-medium mb-2 block">Categoría</label>
-
-          {/* Usamos CategoryFilter (chips) en lugar del Select */}
-          <CategoryFilter
-            products={productsForFilter}
-            selectedCategory={selectedCategoryName}
-            onSelectCategory={handleCategoryFilterSelect}
-          />
+          <Select value={selectedCategory} onValueChange={handleCategoryChange}>
+            <SelectTrigger className="bg-input border-border focus:border-primary transition-colors">
+              <SelectValue placeholder="Todas las categorías" />
+            </SelectTrigger>
+            <SelectContent>
+              {/* Use "all" sentinel — not empty string to satisfy Select component */}
+              <SelectItem value="all">Todas las categorías</SelectItem>
+              {categories.map((category) => (
+                <SelectItem key={category.id} value={category.id}>
+                  {category.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
 
         {(search || (selectedCategory && selectedCategory !== "all")) && (
