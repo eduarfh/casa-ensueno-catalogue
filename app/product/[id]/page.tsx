@@ -7,6 +7,7 @@ import { Card } from "@/components/ui/card";
 import { ChevronLeft, ShoppingCart } from "lucide-react";
 import { ProductImageGallery } from "@/components/product-image-gallery";
 import { ProductShareButtons } from "@/components/product-share-buttons";
+import SiteHeader from "@/components/site-header";
 import type { Metadata } from "next";
 
 interface Props {
@@ -79,21 +80,7 @@ export default async function ProductPage({ params }: Props) {
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="border-b border-border sticky top-0 z-50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <Link href="/" className="text-2xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
-            HomeDecor
-          </Link>
-          <nav className="flex items-center gap-4">
-            <Link href="/catalog" className="text-sm font-medium hover:text-primary transition-colors">
-              Catálogo
-            </Link>
-            <Link href="/auth/login" className="text-sm font-medium hover:text-primary transition-colors">
-              Admin
-            </Link>
-          </nav>
-        </div>
-      </header>
+      <SiteHeader />
 
       <main className="container mx-auto px-4 py-8">
         <Link
