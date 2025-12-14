@@ -1,3 +1,4 @@
+// app/admin/products/[id]/page.tsx
 export const dynamic = "force-dynamic";
 
 import { createServerClient } from "@/lib/supabase/server";
@@ -21,6 +22,7 @@ export default async function EditProductPage({ params }: Props) {
   let product: any = null;
 
   if (!isNewProduct) {
+    // Seleccionamos product_categories.category_id (INTEGER) y categories(id_int,name)
     const { data } = await supabase
       .from("products")
       .select(
@@ -31,8 +33,8 @@ export default async function EditProductPage({ params }: Props) {
         price,
         available,
         product_images(id, image_url, display_order),
-        product_categories(category_id, categories(id, name))
-      `,
+        product_categories(category_id, categories(id_int, name))
+      `
       )
       .eq("id", id)
       .single();
@@ -44,7 +46,13 @@ export default async function EditProductPage({ params }: Props) {
     }
   }
 
-  const { data: categories } = await supabase.from("categories").select("id, name").order("name");
+  // Traemos categorías usando id_int y las mapeamos a {id: string, name}
+  const { data: categories } = await supabase
+    .from("categories")
+    .select("id_int, name")
+    .order("name");
+
+  const categoriesForClient = (categories || []).map((c: any) => ({ id: String(c.id_int), name: c.name }));
 
   return (
     <div className="min-h-screen bg-background">
@@ -66,7 +74,7 @@ export default async function EditProductPage({ params }: Props) {
           </p>
 
           <AdminGuard>
-            <ProductForm product={product || undefined} categories={categories || []} />
+            <ProductForm product={product || undefined} categories={categoriesForClient || []} />
           </AdminGuard>
         </div>
       </main>
