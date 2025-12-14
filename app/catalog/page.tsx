@@ -18,7 +18,7 @@ export default async function CatalogPage({
   // Fetch categories
   const { data: categories } = await supabase.from("categories").select("id, name").order("name");
 
-  // Build products query
+  // Build products query - seleccionar solo available (si quieres mostrar también no disponibles, quita el .eq)
   let query: any = supabase
     .from("products")
     .select(
@@ -27,7 +27,6 @@ export default async function CatalogPage({
       name,
       price,
       available,
-      stock,
       category_id,
       product_images(image_url)
     `,
@@ -79,9 +78,7 @@ export default async function CatalogPage({
             Descubre nuestra selección completa de artículos para tu hogar
           </p>
 
-          {/* Envuelve el componente cliente en Suspense para evitar el error de useSearchParams */}
           <Suspense fallback={<div className="mb-4 text-sm text-muted-foreground">Cargando filtros…</div>}>
-            {/* Si CatalogFilters usa useSearchParams internamente, estará contento dentro de Suspense */}
             <CatalogFilters
               categories={categories || []}
               currentSearch={params.search}
@@ -100,7 +97,6 @@ export default async function CatalogPage({
                 price={product.price}
                 image={product.product_images && product.product_images[0]?.image_url}
                 available={product.available}
-                stock={product.stock}
               />
             ))}
           </div>
