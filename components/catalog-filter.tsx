@@ -1,4 +1,4 @@
-// components/catalog-filter.tsx
+// components/catalog-filters.tsx
 "use client"
 
 import React, { useState, useEffect } from "react"
@@ -54,4 +54,4 @@ export const CatalogFilters: React.FC<CatalogFiltersProps> = ({ categories, curr
   )
 }
 
-export default CatalogFilter
+export default CatalogFilters
