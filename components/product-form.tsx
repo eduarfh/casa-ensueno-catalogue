@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { X, Upload } from "lucide-react";
+import { X, Upload, Plus, Trash } from "lucide-react";
 import Image from "next/image";
 
 interface Category {
@@ -19,10 +19,10 @@ interface Category {
 
 interface ProductFormProps {
   product?: any; // server data with product_categories relation
-  categories: Category[];
+  categories: Category[]; // initial list passed from server
 }
 
-export function ProductForm({ product, categories }: ProductFormProps) {
+export function ProductForm({ product, categories: initialCategories }: ProductFormProps) {
   const [formData, setFormData] = useState({
     name: product?.name || "",
     description: product?.description || "",
@@ -30,6 +30,13 @@ export function ProductForm({ product, categories }: ProductFormProps) {
     available: product?.available ?? true,
     categories: product?.product_categories?.map((pc: any) => pc.category_id) || [],
   });
+
+  // categories state local (se actualiza cuando creas/eliminás)
+  const [categories, setCategories] = useState<Category[]>(initialCategories || []);
+
+  const [newCategoryName, setNewCategoryName] = useState("");
+  const [creatingCategory, setCreatingCategory] = useState(false);
+  const [deletingCategoryId, setDeletingCategoryId] = useState<string | null>(null);
 
   const [images, setImages] = useState<{ id?: string; url: string; file?: File }[]>(
     product?.product_images
@@ -52,11 +59,12 @@ export function ProductForm({ product, categories }: ProductFormProps) {
       available: product?.available ?? prev.available,
       categories: product?.product_categories?.map((pc: any) => pc.category_id) || prev.categories,
     }));
+    setCategories(initialCategories || []);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [product]);
+  }, [product, initialCategories]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const { name, value, type, checked } = e.target as HTMLInputElement;
+    const { name, value, checked, type } = e.target as HTMLInputElement;
     setFormData((prev) => ({
       ...prev,
       [name]: name === "price" ? Number(value) : name === "available" ? checked : value,
@@ -84,6 +92,69 @@ export function ProductForm({ product, categories }: ProductFormProps) {
     setImages((prev) => prev.filter((_, i) => i !== index));
   };
 
+  // --- Crear categoría inline ---
+  const createCategory = async () => {
+    try {
+      const name = newCategoryName?.trim();
+      if (!name) {
+        toast({ title: "Nombre vacío", description: "Ingresa el nombre de la categoría", variant: "destructive" });
+        return;
+      }
+      setCreatingCategory(true);
+
+      const res = await fetch("/api/categories", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data?.error || "Error creando categoría");
+      }
+
+      // Añadir al listado local y seleccionarla para el producto
+      setCategories((prev) => [...prev, data]);
+      setFormData((prev) => ({ ...prev, categories: Array.from(new Set([...prev.categories, data.id])) }));
+      setNewCategoryName("");
+      toast({ title: "Categoría creada", description: `Categoría "${data.name}" creada con éxito` });
+    } catch (err: unknown) {
+      toast({ title: "Error", description: err instanceof Error ? err.message : "No se pudo crear la categoría", variant: "destructive" });
+      console.error("[createCategory] ", err);
+    } finally {
+      setCreatingCategory(false);
+    }
+  };
+
+  // --- Eliminar categoría (global) ---
+  const deleteCategory = async (catId: string) => {
+    try {
+      const cat = categories.find((c) => c.id === catId);
+      if (!cat) return;
+
+      const ok = window.confirm(`¿Eliminar la categoría "${cat.name}"? Esto fallará si la categoría está asociada a productos.`);
+      if (!ok) return;
+
+      setDeletingCategoryId(catId);
+      const res = await fetch(`/api/categories/${catId}`, { method: "DELETE" });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data?.error || "Error eliminando categoría");
+      }
+
+      // Quitar de estado local y de selección del producto
+      setCategories((prev) => prev.filter((c) => c.id !== catId));
+      setFormData((prev) => ({ ...prev, categories: prev.categories.filter((id) => id !== catId) }));
+      toast({ title: "Categoría eliminada", description: `Categoría "${cat.name}" eliminada` });
+    } catch (err: unknown) {
+      toast({ title: "Error", description: err instanceof Error ? err.message : "No se pudo eliminar la categoría", variant: "destructive" });
+      console.error("[deleteCategory] ", err);
+    } finally {
+      setDeletingCategoryId(null);
+    }
+  };
+
+  // --- Submit product (igual que antes, con categories: string[]) ---
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
@@ -180,13 +251,50 @@ export function ProductForm({ product, categories }: ProductFormProps) {
 
         <div className="space-y-2">
           <Label htmlFor="categories">Categorías</Label>
+
+          {/* Crear nueva categoría inline */}
+          <div className="flex gap-2 items-center mb-3">
+            <Input
+              placeholder="Nueva categoría (ej. Sala)"
+              value={newCategoryName}
+              onChange={(e) => setNewCategoryName(e.target.value)}
+              disabled={creatingCategory}
+            />
+            <Button type="button" onClick={createCategory} disabled={creatingCategory || !newCategoryName.trim()} className="flex items-center gap-2">
+              <Plus className="w-4 h-4" />
+              {creatingCategory ? "Creando..." : "Crear"}
+            </Button>
+          </div>
+
+          {/* Lista de categorías con checkboxes y botón eliminar */}
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-48 overflow-auto p-2 border rounded">
-            {categories.map((cat) => (
-              <label key={cat.id} className="flex items-center gap-2">
-                <input type="checkbox" checked={formData.categories.includes(cat.id)} onChange={() => toggleCategory(cat.id)} disabled={isSubmitting} />
-                <span className="text-sm">{cat.name}</span>
-              </label>
-            ))}
+            {categories.map((cat) => {
+              const selected = formData.categories.includes(cat.id);
+              const deleting = deletingCategoryId === cat.id;
+              return (
+                <div key={cat.id} className="flex items-center justify-between gap-2">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={selected}
+                      onChange={() => toggleCategory(cat.id)}
+                      disabled={isSubmitting}
+                    />
+                    <span className="text-sm">{cat.name}</span>
+                  </label>
+
+                  <button
+                    type="button"
+                    onClick={() => deleteCategory(cat.id)}
+                    disabled={deleting}
+                    title="Eliminar categoría"
+                    className="text-destructive hover:text-destructive/80 p-1 rounded"
+                  >
+                    <Trash className="w-4 h-4" />
+                  </button>
+                </div>
+              );
+            })}
           </div>
         </div>
       </Card>
