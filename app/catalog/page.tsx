@@ -1,11 +1,12 @@
 // app/catalog/page.tsx
-import React, { Suspense } from "react";
+import React from "react";
 import { ProductCard } from "@/components/product-card";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { CatalogFilters } from "@/components/catalog-filters";
+import CatalogFilters from "@/components/catalog-filters"; // ahora es cliente
 import { createPublicServerClient } from "@/lib/supabase/server";
 import SiteHeader from "@/components/site-header";
+import type { Product } from "@/lib/products";
 
 export default async function CatalogPage({
   searchParams,
@@ -31,7 +32,7 @@ export default async function CatalogPage({
     `)
     .order("created_at", { ascending: false });
 
-  // Filter only available products by default (si prefieres mostrar todos, quita la siguiente línea)
+  // Filter only available products by default
   query = query.eq("available", true);
 
   // Apply category filter (filtra por la tabla intermedia)
@@ -46,6 +47,22 @@ export default async function CatalogPage({
 
   const { data: products } = await query;
 
+  // --- Transformación ligera para enviar al cliente (serializable)
+  const productsForClient: Product[] = (products || []).map((p: any) => {
+    const cats = Array.isArray(p.product_categories)
+      ? p.product_categories.map((pc: any) => pc.categories?.name).filter(Boolean)
+      : []
+
+    return {
+      id: p.id,
+      name: p.name,
+      price: p.price,
+      available: p.available,
+      image: p.product_images && p.product_images[0]?.image_url ? p.product_images[0].image_url : null,
+      category: cats.length > 0 ? cats[0] : "Sin categoría",
+    }
+  })
+
   return (
     <div className="min-h-screen bg-background">
       <SiteHeader />
@@ -57,9 +74,15 @@ export default async function CatalogPage({
             Descubre nuestra selección completa de artículos para tu hogar
           </p>
 
-          <Suspense fallback={<div className="mb-4 text-sm text-muted-foreground">Cargando filtros…</div>}>
-            <CatalogFilters categories={categories || []} currentSearch={params.search} currentCategory={params.category} />
-          </Suspense>
+          {/* CatalogFilters es ahora cliente; le pasamos categories y productsForClient */}
+          <div className="mb-4">
+            <CatalogFilters
+              categories={categories || []}
+              currentSearch={params.search}
+              currentCategory={params.category}
+              products={productsForClient}
+            />
+          </div>
         </div>
 
         {products && products.length > 0 ? (
