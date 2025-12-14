@@ -1,53 +1,16 @@
-import Link from "next/link"
-import { Button } from "@/components/ui/button"
-import { Heart, Sparkles, Truck } from "lucide-react"
-import { ThemeToggle } from "@/components/theme-toggle"
+// app/page.tsx
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
+import { Heart, Sparkles, Truck } from "lucide-react";
+import SiteHeader from "@/components/site-header";
 
 export default async function Home() {
-  // Removed Supabase dependency for initial load
-  const user = null
+  // Si en el futuro traes usuario desde supabase, pásalo a SiteHeader
+  const user = null;
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="border-b border-border sticky top-0 z-50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-3 sm:py-4 flex items-center justify-between gap-4">
-          <Link href="/" className="text-xl sm:text-2xl font-bold text-primary hover:text-primary/80 transition-colors">
-            Casa Ensueño • Store
-          </Link>
-          <nav className="flex items-center gap-2 sm:gap-4">
-            <Link
-              href="/catalog"
-              className="text-xs sm:text-sm font-medium hover:text-primary transition-colors px-2 py-1"
-            >
-              Catálogo
-            </Link>
-            {user ? (
-              <>
-                <Link
-                  href="/admin"
-                  className="text-xs sm:text-sm font-medium hover:text-primary transition-colors px-2 py-1"
-                >
-                  Dashboard
-                </Link>
-                <Link
-                  href="/auth/logout"
-                  className="text-xs sm:text-sm font-medium hover:text-primary transition-colors px-2 py-1"
-                >
-                  Salir
-                </Link>
-              </>
-            ) : (
-              <Link
-                href="/auth/login"
-                className="text-xs sm:text-sm font-medium hover:text-primary transition-colors px-2 py-1"
-              >
-                Admin
-              </Link>
-            )}
-            <ThemeToggle />
-          </nav>
-        </div>
-      </header>
+      <SiteHeader user={user} />
 
       <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16 lg:py-20">
         <div className="text-center space-y-8 sm:space-y-12 max-w-3xl mx-auto">
@@ -98,5 +61,5 @@ export default async function Home() {
         </div>
       </main>
     </div>
-  )
+  );
 }

@@ -1,118 +1,97 @@
+// components/catalog-filters.tsx
 "use client"
 
-import type React from "react"
-
-import { useState } from "react"
-import { useRouter, useSearchParams } from "next/navigation"
-import { Input } from "@/components/ui/input"
-import { Button } from "@/components/ui/button"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Search } from "lucide-react"
+import React, { useEffect, useState } from "react"
+import { useRouter, usePathname, useSearchParams } from "next/navigation"
+import type { Product } from "@/lib/products"
+import CategoryFilter from "@/components/category-filter"
 
 interface CatalogFiltersProps {
-  categories: Array<{ id: string; name: string }>
-  currentSearch?: string
-  currentCategory?: string
+  categories: { id: string; name: string }[]
+  currentSearch?: string | null
+  currentCategory?: string | null
+  products?: Product[]
 }
 
-export function CatalogFilters({ categories, currentSearch, currentCategory }: CatalogFiltersProps) {
+const CatalogFilters: React.FC<CatalogFiltersProps> = ({
+  categories,
+  currentSearch,
+  currentCategory,
+  products = [],
+}) => {
   const router = useRouter()
+  const pathname = usePathname()
   const searchParams = useSearchParams()
-  const [search, setSearch] = useState(currentSearch || "")
-  const [selectedCategory, setSelectedCategory] = useState(currentCategory || "")
 
-  const handleSearch = (e: React.FormEvent) => {
+  const [searchTerm, setSearchTerm] = useState<string>(currentSearch ?? "")
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(currentCategory ?? null)
+
+  useEffect(() => {
+    setSearchTerm(currentSearch ?? "")
+    setSelectedCategory(currentCategory ?? null)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentSearch, currentCategory])
+
+  const applyFilters = (categoryId: string | null, search: string | null) => {
+    setSelectedCategory(categoryId)
+    setSearchTerm(search ?? "")
+
+    const params = new URLSearchParams()
+    if (search && search.trim() !== "") params.set("search", search.trim())
+    if (categoryId && categoryId.trim() !== "") params.set("category", categoryId)
+
+    const q = params.toString()
+    router.push(`${pathname}${q ? `?${q}` : ""}`)
+  }
+
+  const onSubmit: React.FormEventHandler = (e) => {
     e.preventDefault()
-    const params = new URLSearchParams(searchParams)
-
-    if (search) {
-      params.set("search", search)
-    } else {
-      params.delete("search")
-    }
-
-    if (selectedCategory) {
-      params.set("category", selectedCategory)
-    } else {
-      params.delete("category")
-    }
-
-    router.push(`/catalog?${params.toString()}`)
+    applyFilters(selectedCategory, searchTerm)
   }
 
-  const handleCategoryChange = (value: string) => {
-    setSelectedCategory(value)
-    const params = new URLSearchParams(searchParams)
-
-    if (value) {
-      params.set("category", value)
-    } else {
-      params.delete("category")
-    }
-
-    if (search) {
-      params.set("search", search)
-    }
-
-    router.push(`/catalog?${params.toString()}`)
+  const onClear = () => {
+    setSearchTerm("")
+    applyFilters(null, "")
   }
 
-  const handleClearFilters = () => {
-    setSearch("")
-    setSelectedCategory("")
-    router.push("/catalog")
+  const applyCategory = (catId: string | null) => {
+    applyFilters(catId, searchTerm)
   }
 
   return (
-    <form onSubmit={handleSearch} className="space-y-4">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-end">
-        <div className="flex-1 min-w-0">
-          <label className="text-xs sm:text-sm font-medium mb-2 block">Buscar productos</label>
-          <div className="relative">
-            <Input
-              type="text"
-              placeholder="Buscar por nombre..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="pr-10 bg-input border-border focus:border-primary transition-colors"
-            />
-            <button
-              type="submit"
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-primary transition-colors"
-            >
-              <Search className="w-4 h-4" />
-            </button>
-          </div>
-        </div>
+    <div className="mb-4">
+      <form onSubmit={onSubmit} className="flex gap-2 items-center mb-3">
+        <input
+          type="search"
+          placeholder="Buscar productos..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="flex-1 rounded-md border px-3 py-2 outline-none focus:ring focus:ring-opacity-60"
+          aria-label="Buscar productos"
+        />
+        <button
+          type="submit"
+          className="px-4 py-2 rounded-md bg-primary text-primary-foreground hover:bg-primary/90"
+        >
+          Buscar
+        </button>
+        <button
+          type="button"
+          onClick={onClear}
+          className="px-3 py-2 rounded-md border hover:bg-muted/20"
+        >
+          Limpiar
+        </button>
+      </form>
 
-        <div className="flex-1 min-w-0">
-          <label className="text-xs sm:text-sm font-medium mb-2 block">Categoría</label>
-          <Select value={selectedCategory} onValueChange={handleCategoryChange}>
-            <SelectTrigger className="bg-input border-border focus:border-primary transition-colors">
-              <SelectValue placeholder="Todas las categorías" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todas las categorías</SelectItem>
-              {categories.map((category) => (
-                <SelectItem key={category.id} value={category.id}>
-                  {category.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        {(search || selectedCategory) && (
-          <Button
-            type="button"
-            variant="outline"
-            onClick={handleClearFilters}
-            className="border-primary/30 hover:bg-primary/10 w-full sm:w-auto bg-transparent"
-          >
-            Limpiar Filtros
-          </Button>
-        )}
-      </div>
-    </form>
+      <CategoryFilter
+        categories={categories}
+        selectedCategory={selectedCategory}
+        onSelectCategory={applyCategory}
+        products={products}
+      />
+    </div>
   )
 }
+
+export default CatalogFilters
