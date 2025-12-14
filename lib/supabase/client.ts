@@ -3,11 +3,21 @@
 
 import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 
+declare global {
+  // extend globalThis para TypeScript
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  var __supabase_browser_client: any;
+}
+
 let browserClient: ReturnType<typeof createSupabaseClient> | null = null;
 
 export function createBrowserSupabase() {
   if (typeof window === "undefined") return null;
-  if (browserClient) return browserClient;
+
+  // si ya existe en global (HMR safe), reutilizamos
+  if ((globalThis as any).__supabase_browser_client) {
+    return (globalThis as any).__supabase_browser_client;
+  }
 
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
   const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -17,9 +27,8 @@ export function createBrowserSupabase() {
     return null;
   }
 
-  // IMPORTANTE: desactivamos persistSession/autoRefreshToken porque el servidor
-  // ya gestiona sesión por cookies (SSR flow). Esto evita doble-rotación.
-  browserClient = createSupabaseClient(url, anon, {
+  // IMPORTANTE: persistSession/autoRefreshToken deshabilitados (SSR cookie flow).
+  const client = createSupabaseClient(url, anon, {
     auth: {
       persistSession: false,
       autoRefreshToken: false,
@@ -27,7 +36,9 @@ export function createBrowserSupabase() {
     },
   });
 
-  return browserClient;
+  // guardamos en globalThis para evitar múltiples instancias durante HMR
+  (globalThis as any).__supabase_browser_client = client;
+  return client;
 }
 
 export const createBrowserClient = createBrowserSupabase;
