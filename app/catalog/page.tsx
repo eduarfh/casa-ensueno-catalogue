@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { CatalogFilters } from "@/components/catalog-filters";
 import { createPublicServerClient } from "@/lib/supabase/server";
-import { ThemeToggle } from "@/components/theme-toggle";
+import SiteHeader from "@/components/site-header";
 
 export default async function CatalogPage({
   searchParams,
@@ -48,28 +48,7 @@ export default async function CatalogPage({
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="border-b border-border sticky top-0 z-50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-3 sm:py-4 flex items-center justify-between gap-4">
-          <Link href="/" className="text-xl sm:text-2xl font-bold text-primary hover:text-primary/80 transition-colors">
-            Casa Ensueño • Store
-          </Link>
-          <nav className="flex items-center gap-2 sm:gap-4">
-            <Link
-              href="/catalog"
-              className="text-xs sm:text-sm font-medium hover:text-primary transition-colors px-2 py-1"
-            >
-              Catálogo
-            </Link>
-            <Link
-              href="/auth/login"
-              className="text-xs sm:text-sm font-medium hover:text-primary transition-colors px-2 py-1"
-            >
-              Admin
-            </Link>
-            <ThemeToggle />
-          </nav>
-        </div>
-      </header>
+      <SiteHeader />
 
       <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
         <div className="mb-6 sm:mb-8">
