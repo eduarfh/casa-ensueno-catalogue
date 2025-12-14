@@ -19,7 +19,8 @@ export async function GET() {
       .single();
 
     return NextResponse.json({ isAdmin: !!adminRow?.is_admin, user: { id: user.id, email: user.email } });
-  } catch {
+  } catch (err) {
+    console.error("[admin/check] error:", err);
     return NextResponse.json({ isAdmin: false, user: null });
   }
 }

@@ -1,4 +1,5 @@
 // app/api/admin/registrations/reject/route.ts
+
 import { NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase/server";
 import { sendEmail } from "@/lib/email";

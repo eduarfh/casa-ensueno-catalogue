@@ -95,6 +95,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ success: true, user: { id: newUserId, email: createData.user.email } }, { status: 201 });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Server error";
+    console.error("[admin/approve] exception:", error);
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
