@@ -18,7 +18,6 @@ interface Category {
 interface ProductCardProps {
   id: string;
   name: string;
-  // Price puede venir como number o string desde el servidor
   price?: number | string | null;
   images?: string[] | null;
   available?: boolean | null;
@@ -36,7 +35,6 @@ export function ProductCard({
   const [isSharing, setIsSharing] = useState(false);
   const { toast } = useToast();
 
-  // Normalizar precio a number y formatear
   const rawPrice =
     typeof price === "number"
       ? price
@@ -46,14 +44,12 @@ export function ProductCard({
   const displayPrice = Number.isFinite(rawPrice) ? rawPrice : 0;
   const priceString = displayPrice.toFixed(2);
 
-  // productUrl seguro (no usar window en SSR)
   const productUrl =
     typeof window !== "undefined" ? `${window.location.origin}/product/${id}` : `/product/${id}`;
 
   const handleShare = async () => {
     setIsSharing(true);
     try {
-      // Web Share API
       if (typeof navigator !== "undefined" && (navigator as any).share) {
         await (navigator as any).share({
           title: name,
@@ -62,11 +58,9 @@ export function ProductCard({
         });
         toast({ title: "Compartido", description: "Producto compartido correctamente." });
       } else if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
-        // Fallback: copiar enlace
         await navigator.clipboard.writeText(productUrl);
         toast({ title: "Enlace copiado", description: "El enlace del producto se copió al portapapeles." });
       } else if (typeof window !== "undefined") {
-        // Último recurso: abrir en nueva pestaña
         window.open(productUrl, "_blank");
         toast({ title: "Abrir", description: "Abriendo el producto en una nueva pestaña." });
       } else {
@@ -82,19 +76,16 @@ export function ProductCard({
 
   const handleWhatsApp = () => {
     const message = encodeURIComponent(`Hola, me interesa el producto: ${name} - $${priceString}`);
-    // Mantener número como el que tenías; cámbialo si es necesario
     const whatsappUrl = `https://wa.me/5352490476?text=${message}`;
     if (typeof window !== "undefined") window.open(whatsappUrl, "_blank");
   };
 
   const firstCategoryName = categories && categories.length > 0 ? categories[0].name : null;
 
-  // Carousel state
   const imgs = images && images.length > 0 ? images : ["/placeholder.svg"];
   const [index, setIndex] = useState(0);
   const containerRef = useRef<HTMLDivElement | null>(null);
 
-  // Reset index si cambian las imágenes
   useEffect(() => {
     setIndex(0);
   }, [images]);
@@ -108,11 +99,9 @@ export function ProductCard({
     setIndex((i) => (i + 1) % imgs.length);
   };
 
-  // Navegación por teclado cuando el carousel está enfocado
   useEffect(() => {
     const handler = (ev: KeyboardEvent) => {
       if (!containerRef.current) return;
-      // Si el foco no está dentro del contenedor, ignoramos
       if (!containerRef.current.contains(document.activeElement)) return;
       if (ev.key === "ArrowLeft") prev();
       if (ev.key === "ArrowRight") next();
@@ -121,7 +110,6 @@ export function ProductCard({
     return () => window.removeEventListener("keydown", handler);
   }, [imgs.length]);
 
-  // Manejo simple de swipe (pointer events)
   useEffect(() => {
     const el = containerRef.current;
     if (!el || imgs.length < 2) return;
@@ -131,9 +119,7 @@ export function ProductCard({
       startX = e.clientX;
       try {
         el.setPointerCapture?.((e as any).pointerId);
-      } catch {
-        // ignore
-      }
+      } catch {}
     };
     const onPointerMove = (e: PointerEvent) => {
       dx = e.clientX - startX;
@@ -160,8 +146,8 @@ export function ProductCard({
   const showControls = imgs.length > 1;
 
   return (
-    <Card className="overflow-hidden hover:shadow-xl transition-all duration-300 hover:border-primary/50 bg-card group">
-      <Link href={`/product/${id}`} className="block relative overflow-hidden bg-muted aspect-square" aria-label={`Ver ${name}`}>
+    <Card className="overflow-hidden hover:shadow-lg transition-all duration-200 hover:border-primary/40 bg-card group p-2 gap-2 rounded-md">
+      <Link href={`/product/${id}`} className="block relative overflow-hidden bg-muted aspect-[4/3]" aria-label={`Ver ${name}`}>
         <div
           ref={containerRef}
           className="w-full h-full relative"
@@ -173,14 +159,13 @@ export function ProductCard({
             src={imgs[index] ?? "/placeholder.svg"}
             alt={`${name} imagen ${index + 1}`}
             fill
-            sizes="(max-width: 768px) 100vw, 33vw"
-            className="object-cover group-hover:scale-110 transition-transform duration-500"
-            // next/image lazy by default
+            sizes="(max-width: 768px) 100vw, 25vw"
+            className="object-cover group-hover:scale-105 transition-transform duration-350"
           />
 
           {!available && (
             <div className="absolute inset-0 bg-black/60 flex items-center justify-center backdrop-blur-sm">
-              <Badge className="text-base sm:text-lg py-1.5 px-4 bg-destructive hover:bg-destructive shadow-lg">Agotado</Badge>
+              <Badge className="text-sm py-1 px-3 bg-destructive shadow-md">Agotado</Badge>
             </div>
           )}
 
@@ -189,7 +174,7 @@ export function ProductCard({
               <button
                 onClick={prev}
                 aria-label="Imagen anterior"
-                className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/40 hover:bg-black/60 text-white p-2 rounded-full focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary"
+                className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/30 hover:bg-black/50 text-white p-1.5 rounded-full focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary"
                 type="button"
               >
                 <ChevronLeft className="w-4 h-4" />
@@ -198,13 +183,12 @@ export function ProductCard({
               <button
                 onClick={next}
                 aria-label="Siguiente imagen"
-                className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/40 hover:bg-black/60 text-white p-2 rounded-full focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary"
+                className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/30 hover:bg-black/50 text-white p-1.5 rounded-full focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary"
                 type="button"
               >
                 <ChevronRight className="w-4 h-4" />
               </button>
 
-              {/* Indicadores */}
               <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-2">
                 {imgs.map((_, i) => {
                   const isActive = i === index;
@@ -227,35 +211,35 @@ export function ProductCard({
         </div>
       </Link>
 
-      <div className="p-3 sm:p-4 space-y-2 sm:space-y-3">
+      <div className="px-2 pb-2 space-y-1">
         <div>
-          <h3 className="font-semibold text-sm sm:text-base line-clamp-2 hover:text-primary transition-colors">
+          <h3 className="font-semibold text-sm line-clamp-2 hover:text-primary transition-colors">
             <Link href={`/product/${id}`}>{name}</Link>
           </h3>
-          <div className="flex items-center gap-2 mt-1">
+          <div className="flex items-center gap-2 mt-0.5">
             {firstCategoryName ? (
-              <span className="text-xs sm:text-sm text-muted-foreground">{firstCategoryName}</span>
+              <span className="text-xs text-muted-foreground">{firstCategoryName}</span>
             ) : (
-              <span className="text-xs sm:text-sm text-muted-foreground">{available ? "Disponible" : "Sin stock"}</span>
+              <span className="text-xs text-muted-foreground">{available ? "Disponible" : "Sin stock"}</span>
             )}
           </div>
         </div>
 
         <div className="flex items-center justify-between">
-          <span className="text-xl sm:text-2xl font-bold text-primary">${priceString}</span>
+          <span className="text-lg font-semibold text-primary">${priceString}</span>
         </div>
 
-        <div className="flex gap-2">
+        <div className="flex gap-2 mt-1">
           <Button
             asChild
             size="sm"
-            className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground text-xs sm:text-sm"
+            className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground text-xs"
             disabled={!available}
             onClick={(e: any) => {
               if (!available) e.preventDefault();
             }}
           >
-            <Link href={`/product/${id}`}>Ver Detalles</Link>
+            <Link href={`/product/${id}`}>Ver</Link>
           </Button>
 
           <Button
@@ -263,20 +247,20 @@ export function ProductCard({
             variant="outline"
             onClick={handleShare}
             disabled={isSharing}
-            className="hover:border-secondary hover:text-secondary hover:bg-secondary/10 transition-all bg-transparent"
+            className="p-1.5"
             title="Compartir producto"
           >
-            <Share2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+            <Share2 className="w-4 h-4" />
           </Button>
 
           <Button
             size="sm"
             variant="outline"
             onClick={handleWhatsApp}
-            className="hover:border-accent hover:text-accent hover:bg-accent/10 transition-all bg-transparent"
+            className="p-1.5"
             title="Contactar por WhatsApp"
           >
-            <MessageCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+            <MessageCircle className="w-4 h-4" />
           </Button>
         </div>
       </div>
