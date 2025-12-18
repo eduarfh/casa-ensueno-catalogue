@@ -1,7 +1,6 @@
+// components/category-filter.tsx
 "use client"
-
 import React, { useMemo, useState, useEffect } from "react"
-import { Product } from "@/lib/product"
 import { Button } from "@/components/ui/button"
 import { getCategoryColor } from "@/lib/category-colors"
 
@@ -12,7 +11,7 @@ interface SimpleCategory {
 
 interface CategoryFilterProps {
   categories?: SimpleCategory[]
-  products?: Product[]
+  products?: any[]
   selectedCategory: string | null
   onSelectCategory: (categoryId: string | null) => void
 }
@@ -27,21 +26,20 @@ export function CategoryFilter({
     if (categories && categories.length > 0) {
       return categories.map((c) => ({ id: c.id, name: c.name }))
     }
-
     const uniqueNames = Array.from(new Set(products.map((p) => p.category || "Sin categoría")))
     return uniqueNames.map((name) => ({ id: name, name }))
   }, [categories, products])
 
-  // Map categoryId -> { background, textClass } (client-side)
-  const [colors, setColors] = useState<Record<string, { background: string; textClass: string }>>({})
+  const [colors, setColors] = useState<Record<string, { background: string; textColor: string }>>({})
 
   useEffect(() => {
-    const map: Record<string, { background: string; textClass: string }> = {}
+    const map: Record<string, { background: string; textColor: string }> = {}
     list.forEach((cat) => {
-      const { background, textClass } = getCategoryColor(cat.name)
-      map[cat.id] = { background, textClass }
+      const { background, textColor } = getCategoryColor(cat.name)
+      map[cat.id] = { background, textColor }
     })
     setColors(map)
+    // depend on list identity
   }, [JSON.stringify(list)])
 
   const darkSelected = "dark:bg-[#95C7C3] dark:text-white"
@@ -52,7 +50,6 @@ export function CategoryFilter({
         <Button
           variant={selectedCategory === null ? "default" : "outline"}
           onClick={() => onSelectCategory(null)}
-          // safe: uses CSS variables present in SSR & client
           style={{
             backgroundColor: "var(--color-primary)",
             color: "var(--color-primary-foreground)",
@@ -70,16 +67,14 @@ export function CategoryFilter({
         {list.map((category) => {
           const isSelected = selectedCategory === category.id
           const colorObj = colors[category.id]
-          const style = colorObj ? { backgroundColor: colorObj.background } : undefined
-          const textClass = colorObj ? colorObj.textClass : "text-muted-foreground"
+          const style = colorObj ? { backgroundColor: colorObj.background, color: colorObj.textColor } : undefined
 
           return (
             <Button
               key={category.id}
               variant="outline"
               onClick={() => onSelectCategory(category.id)}
-              // **aplicamos textClass siempre**, y añadimos el ring/shadow cuando está seleccionado
-              className={`outline-2 rounded-lg px-4 py-2 duration-150 flex items-center justify-center whitespace-nowrap ${textClass} ${
+              className={`outline-2 rounded-lg px-4 py-2 duration-150 flex items-center justify-center whitespace-nowrap ${
                 isSelected
                   ? `ring-2 ring-offset-2 ring-[color:var(--color-ring)] shadow-lg ${darkSelected}`
                   : "opacity-95 md:hover:scale-[1.02] hover:opacity-90"

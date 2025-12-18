@@ -163,11 +163,16 @@ export function ProductCard({
             className="object-cover group-hover:scale-105 transition-transform duration-350"
           />
 
-          {!available && (
-            <div className="absolute inset-0 bg-black/60 flex items-center justify-center backdrop-blur-sm">
-              <Badge className="text-sm py-1 px-3 bg-destructive shadow-md">Agotado</Badge>
-            </div>
-          )}
+          {/* ETIQUETA PEQUEÑA esquina superior izquierda */}
+          <div className="absolute top-2 left-2 z-20">
+            {available ? (
+              <Badge className="text-xs py-0.5 px-2">Disponible</Badge>
+            ) : (
+              <Badge variant="destructive" className="text-xs py-0.5 px-2">
+                Agotado
+              </Badge>
+            )}
+          </div>
 
           {showControls && (
             <>
@@ -216,13 +221,7 @@ export function ProductCard({
           <h3 className="font-semibold text-sm line-clamp-2 hover:text-primary transition-colors">
             <Link href={`/product/${id}`}>{name}</Link>
           </h3>
-          <div className="flex items-center gap-2 mt-0.5">
-            {firstCategoryName ? (
-              <span className="text-xs text-muted-foreground">{firstCategoryName}</span>
-            ) : (
-              <span className="text-xs text-muted-foreground">{available ? "Disponible" : "Sin stock"}</span>
-            )}
-          </div>
+          
         </div>
 
         <div className="flex items-center justify-between">

@@ -37,7 +37,11 @@ export default async function CatalogPage() {
     <div className="min-h-screen bg-background">
       <SiteHeader />
       <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
-        <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold mb-4">Catálogo de Productos</h1>
+        <div className="text-center mb-8">
+          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold mb-4">Catálogo de Productos</h1>
+          <p className="text-muted-foreground">Los mejores productos para tu casa de ensueño</p>
+        </div>
+        
 
         {/* Suspense para el CatalogShell (cliente) */}
         <Suspense fallback={<div className="text-muted-foreground">Cargando catálogo…</div>}>
