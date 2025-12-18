@@ -1,6 +1,0 @@
-{
-  "version": 3,
-  "sources": [],
-  "sections": [
-    {"offset": {"line": 40, "column": 0}, "map": {"version":3,"sources":["file:///C:/Users/fhedu/VisualStudioProjects/casaensueno-catalogue/proxy.ts"],"sourcesContent":["import type { NextRequest } from \"next/server\"\r\n\r\nexport async function proxy(request: NextRequest) {\r\n  // Simplified proxy - just pass through\r\n  // Authentication will be handled by route-specific logic\r\n  return null\r\n}\r\n\r\nexport const config = {\r\n  matcher: [\"/((?!_next/static|_next/image|favicon.ico|.*\\\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)\"],\r\n}\r\n"],"names":[],"mappings":";;;;;;AAEO,eAAe,MAAM,OAAoB;IAC9C,uCAAuC;IACvC,yDAAyD;IACzD,OAAO;AACT;AAEO,MAAM,SAAS;IACpB,SAAS;QAAC;KAAoF;AAChG"}}]
-}
