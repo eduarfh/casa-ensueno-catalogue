@@ -13,8 +13,7 @@ export default function SignupSuccessPage() {
         </CardHeader>
         <CardContent className="space-y-6">
           <p className="text-muted-foreground">
-            El administrador revisará tu solicitud pronto. Recibirás un email de confirmación cuando tu cuenta sea
-            aprobada.
+            El administrador revisará tu solicitud pronto.
           </p>
           <Button asChild className="w-full">
             <Link href="/auth/login">Volver al inicio de sesión</Link>

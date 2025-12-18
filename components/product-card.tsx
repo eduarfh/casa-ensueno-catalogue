@@ -6,8 +6,8 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
-import { Share2, MessageCircle } from "lucide-react";
-import { useState } from "react";
+import { Share2, MessageCircle, ChevronLeft, ChevronRight } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 
 interface Category {
@@ -18,61 +18,213 @@ interface Category {
 interface ProductCardProps {
   id: string;
   name: string;
-  price: number;
-  image?: string | null;
-  available: boolean;
-  categories?: Category[];
+  // Price puede venir como number o string desde el servidor
+  price?: number | string | null;
+  images?: string[] | null;
+  available?: boolean | null;
+  categories?: Category[] | null;
 }
 
-export function ProductCard({ id, name, price, image, available, categories }: ProductCardProps) {
+export function ProductCard({
+  id,
+  name,
+  price,
+  images = [],
+  available = true,
+  categories,
+}: ProductCardProps) {
   const [isSharing, setIsSharing] = useState(false);
   const { toast } = useToast();
 
+  // Normalizar precio a number y formatear
+  const rawPrice =
+    typeof price === "number"
+      ? price
+      : typeof price === "string"
+      ? Number(price)
+      : Number(price ?? 0);
+  const displayPrice = Number.isFinite(rawPrice) ? rawPrice : 0;
+  const priceString = displayPrice.toFixed(2);
+
+  // productUrl seguro (no usar window en SSR)
+  const productUrl =
+    typeof window !== "undefined" ? `${window.location.origin}/product/${id}` : `/product/${id}`;
+
   const handleShare = async () => {
     setIsSharing(true);
-    const productUrl = `${window.location.origin}/product/${id}`;
-
     try {
-      if (navigator.share) {
-        await navigator.share({
+      // Web Share API
+      if (typeof navigator !== "undefined" && (navigator as any).share) {
+        await (navigator as any).share({
           title: name,
-          text: `Mira este producto: ${name} - $${price}`,
+          text: `Mira este producto: ${name} - $${priceString}`,
           url: productUrl,
         });
-      } else {
+        toast({ title: "Compartido", description: "Producto compartido correctamente." });
+      } else if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
+        // Fallback: copiar enlace
         await navigator.clipboard.writeText(productUrl);
-        toast({
-          title: "Enlace copiado",
-          description: "El enlace del producto ha sido copiado al portapapeles",
-        });
+        toast({ title: "Enlace copiado", description: "El enlace del producto se copió al portapapeles." });
+      } else if (typeof window !== "undefined") {
+        // Último recurso: abrir en nueva pestaña
+        window.open(productUrl, "_blank");
+        toast({ title: "Abrir", description: "Abriendo el producto en una nueva pestaña." });
+      } else {
+        toast({ title: "No disponible", description: "No se puede compartir desde este entorno.", variant: "destructive" });
       }
     } catch (error) {
       console.error("Error sharing:", error);
+      toast({ title: "Error al compartir", description: "Ocurrió un problema al intentar compartir el producto.", variant: "destructive" });
     } finally {
       setIsSharing(false);
     }
   };
 
   const handleWhatsApp = () => {
-    const message = encodeURIComponent(`Hola, me interesa el producto: ${name} - $${price}`);
+    const message = encodeURIComponent(`Hola, me interesa el producto: ${name} - $${priceString}`);
+    // Mantener número como el que tenías; cámbialo si es necesario
     const whatsappUrl = `https://wa.me/5352490476?text=${message}`;
-    window.open(whatsappUrl, "_blank");
+    if (typeof window !== "undefined") window.open(whatsappUrl, "_blank");
   };
+
+  const firstCategoryName = categories && categories.length > 0 ? categories[0].name : null;
+
+  // Carousel state
+  const imgs = images && images.length > 0 ? images : ["/placeholder.svg"];
+  const [index, setIndex] = useState(0);
+  const containerRef = useRef<HTMLDivElement | null>(null);
+
+  // Reset index si cambian las imágenes
+  useEffect(() => {
+    setIndex(0);
+  }, [images]);
+
+  const prev = (e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    setIndex((i) => (i - 1 + imgs.length) % imgs.length);
+  };
+  const next = (e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    setIndex((i) => (i + 1) % imgs.length);
+  };
+
+  // Navegación por teclado cuando el carousel está enfocado
+  useEffect(() => {
+    const handler = (ev: KeyboardEvent) => {
+      if (!containerRef.current) return;
+      // Si el foco no está dentro del contenedor, ignoramos
+      if (!containerRef.current.contains(document.activeElement)) return;
+      if (ev.key === "ArrowLeft") prev();
+      if (ev.key === "ArrowRight") next();
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [imgs.length]);
+
+  // Manejo simple de swipe (pointer events)
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el || imgs.length < 2) return;
+    let startX = 0;
+    let dx = 0;
+    const onPointerDown = (e: PointerEvent) => {
+      startX = e.clientX;
+      try {
+        el.setPointerCapture?.((e as any).pointerId);
+      } catch {
+        // ignore
+      }
+    };
+    const onPointerMove = (e: PointerEvent) => {
+      dx = e.clientX - startX;
+    };
+    const onPointerUp = () => {
+      if (Math.abs(dx) > 40) {
+        if (dx < 0) setIndex((i) => (i + 1) % imgs.length);
+        else setIndex((i) => (i - 1 + imgs.length) % imgs.length);
+      }
+      dx = 0;
+    };
+    el.addEventListener("pointerdown", onPointerDown);
+    el.addEventListener("pointermove", onPointerMove);
+    el.addEventListener("pointerup", onPointerUp);
+    el.addEventListener("pointercancel", onPointerUp);
+    return () => {
+      el.removeEventListener("pointerdown", onPointerDown);
+      el.removeEventListener("pointermove", onPointerMove);
+      el.removeEventListener("pointerup", onPointerUp);
+      el.removeEventListener("pointercancel", onPointerUp);
+    };
+  }, [imgs.length]);
+
+  const showControls = imgs.length > 1;
 
   return (
     <Card className="overflow-hidden hover:shadow-xl transition-all duration-300 hover:border-primary/50 bg-card group">
-      <Link href={`/product/${id}`} className="block relative overflow-hidden bg-muted aspect-square">
-        <Image
-          src={image || "/placeholder.svg"}
-          alt={name}
-          fill
-          className="object-cover group-hover:scale-110 transition-transform duration-500"
-        />
-        {!available && (
-          <div className="absolute inset-0 bg-black/60 flex items-center justify-center backdrop-blur-sm">
-            <Badge className="text-base sm:text-lg py-1.5 px-4 bg-destructive hover:bg-destructive shadow-lg">Agotado</Badge>
-          </div>
-        )}
+      <Link href={`/product/${id}`} className="block relative overflow-hidden bg-muted aspect-square" aria-label={`Ver ${name}`}>
+        <div
+          ref={containerRef}
+          className="w-full h-full relative"
+          tabIndex={0}
+          aria-roledescription="carousel"
+          aria-label={`${name} imágenes`}
+        >
+          <Image
+            src={imgs[index] ?? "/placeholder.svg"}
+            alt={`${name} imagen ${index + 1}`}
+            fill
+            sizes="(max-width: 768px) 100vw, 33vw"
+            className="object-cover group-hover:scale-110 transition-transform duration-500"
+            // next/image lazy by default
+          />
+
+          {!available && (
+            <div className="absolute inset-0 bg-black/60 flex items-center justify-center backdrop-blur-sm">
+              <Badge className="text-base sm:text-lg py-1.5 px-4 bg-destructive hover:bg-destructive shadow-lg">Agotado</Badge>
+            </div>
+          )}
+
+          {showControls && (
+            <>
+              <button
+                onClick={prev}
+                aria-label="Imagen anterior"
+                className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/40 hover:bg-black/60 text-white p-2 rounded-full focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary"
+                type="button"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+
+              <button
+                onClick={next}
+                aria-label="Siguiente imagen"
+                className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/40 hover:bg-black/60 text-white p-2 rounded-full focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary"
+                type="button"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+
+              {/* Indicadores */}
+              <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-2">
+                {imgs.map((_, i) => {
+                  const isActive = i === index;
+                  return (
+                    <button
+                      key={i}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setIndex(i);
+                      }}
+                      aria-label={`Ir a la imagen ${i + 1}`}
+                      className={`w-2 h-2 rounded-full ${isActive ? "bg-white" : "bg-white/50"}`}
+                      type="button"
+                    />
+                  );
+                })}
+              </div>
+            </>
+          )}
+        </div>
       </Link>
 
       <div className="p-3 sm:p-4 space-y-2 sm:space-y-3">
@@ -81,8 +233,8 @@ export function ProductCard({ id, name, price, image, available, categories }: P
             <Link href={`/product/${id}`}>{name}</Link>
           </h3>
           <div className="flex items-center gap-2 mt-1">
-            {categories && categories.length > 0 ? (
-              <span className="text-xs sm:text-sm text-muted-foreground">{categories[0].name}</span>
+            {firstCategoryName ? (
+              <span className="text-xs sm:text-sm text-muted-foreground">{firstCategoryName}</span>
             ) : (
               <span className="text-xs sm:text-sm text-muted-foreground">{available ? "Disponible" : "Sin stock"}</span>
             )}
@@ -90,7 +242,7 @@ export function ProductCard({ id, name, price, image, available, categories }: P
         </div>
 
         <div className="flex items-center justify-between">
-          <span className="text-xl sm:text-2xl font-bold text-primary">${price.toFixed(2)}</span>
+          <span className="text-xl sm:text-2xl font-bold text-primary">${priceString}</span>
         </div>
 
         <div className="flex gap-2">
@@ -99,12 +251,13 @@ export function ProductCard({ id, name, price, image, available, categories }: P
             size="sm"
             className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground text-xs sm:text-sm"
             disabled={!available}
-            onClick={(e) => {
+            onClick={(e: any) => {
               if (!available) e.preventDefault();
             }}
           >
             <Link href={`/product/${id}`}>Ver Detalles</Link>
           </Button>
+
           <Button
             size="sm"
             variant="outline"
@@ -115,6 +268,7 @@ export function ProductCard({ id, name, price, image, available, categories }: P
           >
             <Share2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
           </Button>
+
           <Button
             size="sm"
             variant="outline"
@@ -129,3 +283,5 @@ export function ProductCard({ id, name, price, image, available, categories }: P
     </Card>
   );
 }
+
+export default ProductCard;

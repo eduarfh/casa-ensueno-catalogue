@@ -85,7 +85,6 @@ export function AdminProductList({ products }: ProductListProps) {
                 <TableHead>Nombre</TableHead>
                 <TableHead>Categoría</TableHead>
                 <TableHead className="text-right">Precio</TableHead>
-                <TableHead className="text-right">Stock</TableHead>
                 <TableHead>Disponibilidad</TableHead>
                 <TableHead className="text-right">Acciones</TableHead>
               </TableRow>

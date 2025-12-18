@@ -10,14 +10,16 @@ import { ProductShareButtons } from "@/components/product-share-buttons";
 import SiteHeader from "@/components/site-header";
 import type { Metadata } from "next";
 
-interface Props {
-  params: {
+interface ParamsShape {
+  params: Promise<{
     id: string;
-  };
+  }>;
 }
 
-export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const { id } = params;
+export async function generateMetadata({ params }: ParamsShape): Promise<Metadata> {
+  // params is a Promise in this Next version -> await it
+  const { id } = await params;
+
   const supabase = createPublicServerClient();
 
   const { data: product } = await supabase
@@ -42,17 +44,18 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
   return {
     title: product.name,
-    description: product.description || `${product.name} - $${product.price}`,
+    description: product.description || `${product.name} - $${product.price ?? 0}`,
     openGraph: {
       title: product.name,
-      description: product.description || `${product.name} - $${product.price}`,
+      description: product.description || `${product.name} - $${product.price ?? 0}`,
       type: "website",
     },
   };
 }
 
-export default async function ProductPage({ params }: Props) {
-  const { id } = params;
+export default async function ProductPage({ params }: ParamsShape) {
+  // await here too
+  const { id } = await params;
   const supabase = await createServerClient();
 
   const { data: product } = await supabase
@@ -63,7 +66,7 @@ export default async function ProductPage({ params }: Props) {
       description,
       price,
       available,
-      categories: product_categories ( category_id, categories ( id_int, name ) ),
+      product_categories(category_id, categories(id_int, name)),
       product_images(id, image_url, display_order)
     `)
     .eq("id", id)
@@ -73,12 +76,19 @@ export default async function ProductPage({ params }: Props) {
     notFound();
   }
 
-  // extraer categorias plano; product.categories[*].categories contains {id_int, name}
-  const cats = (product.categories || []).map((pc: any) => {
-    return { id: pc.categories?.id_int, name: pc.categories?.name };
-  }).filter(Boolean) || [];
+  const cats =
+    (product.product_categories || [])
+      .map((pc: any) => {
+        const cat = pc?.categories;
+        if (!cat) return null;
+        return {
+          id: String(cat.id_int ?? ""),
+          name: String(cat.name ?? ""),
+        };
+      })
+      .filter(Boolean) || [];
 
-  const productUrl = `${process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000"}/product/${id}`;
+  const productUrl = `${process.env.NEXT_PUBLIC_BASE_URL ?? "http://localhost:3000"}/product/${id}`;
 
   return (
     <div className="min-h-screen bg-background">
@@ -97,10 +107,11 @@ export default async function ProductPage({ params }: Props) {
           <div>
             <ProductImageGallery
               images={
-                product.product_images
-                  ?.sort((a: any, b: any) => (a.display_order || 0) - (b.display_order || 0))
+                (product.product_images || [])
+                  .slice()
+                  .sort((a: any, b: any) => (a.display_order || 0) - (b.display_order || 0))
                   .map((img: any) => ({
-                    id: img.id,
+                    id: String(img.id ?? ""),
                     url: img.image_url,
                   })) || []
               }
@@ -123,7 +134,9 @@ export default async function ProductPage({ params }: Props) {
               </div>
 
               <div className="flex items-baseline gap-3 py-4">
-                <span className="text-5xl font-bold text-primary">${(product.price ?? 0).toFixed(2)}</span>
+                <span className="text-5xl font-bold text-primary">
+                  ${Number(product.price ?? 0).toFixed(2)}
+                </span>
                 {!product.available && (
                   <Badge variant="destructive" className="text-base py-1 px-3">
                     Agotado
@@ -139,7 +152,9 @@ export default async function ProductPage({ params }: Props) {
             {product.description && (
               <div className="py-4 border-t border-border">
                 <h2 className="text-lg font-semibold mb-3">Descripción</h2>
-                <p className="text-muted-foreground leading-relaxed whitespace-pre-line">{product.description}</p>
+                <p className="text-muted-foreground leading-relaxed whitespace-pre-line">
+                  {product.description}
+                </p>
               </div>
             )}
 
@@ -151,12 +166,18 @@ export default async function ProductPage({ params }: Props) {
               <dl className="space-y-3 text-sm">
                 <div className="flex justify-between items-center">
                   <dt className="text-muted-foreground font-medium">Disponibilidad:</dt>
-                  <dd className="font-semibold text-foreground">{product.available ? "Disponible" : "No disponible"}</dd>
+                  <dd className="font-semibold text-foreground">
+                    {product.available ? "Disponible" : "No disponible"}
+                  </dd>
                 </div>
               </dl>
             </Card>
 
-            <ProductShareButtons productUrl={productUrl} productName={product.name} productPrice={product.price} />
+            <ProductShareButtons
+              productUrl={productUrl}
+              productName={product.name}
+              productPrice={Number(product.price ?? 0)}
+            />
           </div>
         </div>
       </main>

@@ -13,13 +13,13 @@ import { X, Upload, Plus, Trash } from "lucide-react";
 import Image from "next/image";
 
 interface Category {
-  id: string;
+  id: string; // uuid
   name: string;
 }
 
 interface ProductFormProps {
   product?: any; // server data with product_categories relation
-  categories: Category[]; // initial list passed from server (id is string of id_int)
+  categories: Category[]; // initial list passed from server (ids should be UUIDs)
 }
 
 export function ProductForm({ product, categories: initialCategories }: ProductFormProps) {
@@ -28,13 +28,11 @@ export function ProductForm({ product, categories: initialCategories }: ProductF
     description: product?.description || "",
     price: product?.price || 0,
     available: product?.available ?? true,
-    // convert product product_categories[*].category_id (likely integer) to string for UI
-    categories: (product?.product_categories?.map((pc: any) => String(pc.category_id)) || []) as string[],
+    // product?.product_categories contains objects with category_id (uuid) or join; convert to uuid strings
+    categories: (product?.product_categories?.map((pc: any) => String(pc.category_id || (pc.categories && pc.categories.id)) ) || []) as string[],
   });
 
-  // categories state local (se actualiza cuando creas/eliminás)
   const [categories, setCategories] = useState<Category[]>(initialCategories || []);
-
   const [newCategoryName, setNewCategoryName] = useState("");
   const [creatingCategory, setCreatingCategory] = useState(false);
   const [deletingCategoryId, setDeletingCategoryId] = useState<string | null>(null);
@@ -51,15 +49,13 @@ export function ProductForm({ product, categories: initialCategories }: ProductF
   const { toast } = useToast();
 
   useEffect(() => {
-    // keep form in sync if product prop changes
     setFormData((prev) => ({
       ...prev,
       name: product?.name ?? prev.name,
       description: product?.description ?? prev.description,
       price: product?.price ?? prev.price,
       available: product?.available ?? prev.available,
-      // convert to string ids
-      categories: (product?.product_categories?.map((pc: any) => String(pc.category_id)) || prev.categories) as string[],
+      categories: (product?.product_categories?.map((pc: any) => String(pc.category_id || (pc.categories && pc.categories.id))) || prev.categories) as string[],
     }));
     setCategories(initialCategories || []);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -85,7 +81,6 @@ export function ProductForm({ product, categories: initialCategories }: ProductF
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     if (!files.length) return;
-
     const newImages = files.map((file) => ({ url: URL.createObjectURL(file), file }));
     setImages((prev) => [...prev, ...newImages]);
   };
@@ -107,19 +102,52 @@ export function ProductForm({ product, categories: initialCategories }: ProductF
       const res = await fetch("/api/categories", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "same-origin", // enviar cookies HTTP-only
         body: JSON.stringify({ name }),
       });
 
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        throw new Error(data?.error || "Error creando categoría");
+        throw new Error(data?.error || data?.message || `HTTP ${res.status}`);
       }
 
-      // data should contain id (string of id_int) and name
-      setCategories((prev) => [...prev, data]);
-      setFormData((prev) => ({ ...prev, categories: Array.from(new Set([...prev.categories, data.id])) }));
+      // Preferir UUID (id) devuelto por el servidor
+      const newCatId = data?.id ?? data?.uuid ?? null;
+      if (!newCatId) {
+        // servidor devolvió sólo id_int? eso es raro; pedimos recarga
+        throw new Error("La categoría fue creada pero el servidor no devolvió su UUID. Recarga la página.");
+      }
+      const newCatName = data?.name ?? name;
+
+      const newCat: Category = { id: String(newCatId), name: newCatName };
+
+      // add to local categories & select it
+      setCategories((prev) => [...prev, newCat]);
+      setFormData((prev) => ({ ...prev, categories: Array.from(new Set([...prev.categories, newCat.id])) }));
       setNewCategoryName("");
-      toast({ title: "Categoría creada", description: `Categoría "${data.name}" creada con éxito` });
+      toast({ title: "Categoría creada", description: `Categoría "${newCat.name}" creada con éxito` });
+
+      // If editing an existing product, create the product_categories relation immediately
+      if (product?.id) {
+        try {
+          const assocRes = await fetch(`/api/products/${product.id}/categories`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: "same-origin",
+            body: JSON.stringify({ category_id: newCat.id }),
+          });
+
+          const assocJson = await assocRes.json().catch(() => ({}));
+          if (!assocRes.ok) {
+            console.warn("[createCategory] association failed:", assocJson);
+            toast({ title: "Asociación fallida", description: "La categoría se creó pero no se asoció al producto. Intenta guardarlo.", variant: "destructive" });
+          } else {
+            toast({ title: "Asociación creada", description: `La categoría se asoció al producto` });
+          }
+        } catch (e) {
+          console.error("[createCategory] error creating product-category association:", e);
+        }
+      }
     } catch (err: unknown) {
       toast({ title: "Error", description: err instanceof Error ? err.message : "No se pudo crear la categoría", variant: "destructive" });
       console.error("[createCategory] ", err);
@@ -139,7 +167,10 @@ export function ProductForm({ product, categories: initialCategories }: ProductF
 
       setDeletingCategoryId(catId);
 
-      const res = await fetch(`/api/categories/${catId}`, { method: "DELETE" });
+      const res = await fetch(`/api/categories/${catId}`, {
+        method: "DELETE",
+        credentials: "same-origin", // enviar cookies HTTP-only
+      });
 
       let payload: any = null;
       const text = await res.text();
@@ -198,7 +229,7 @@ export function ProductForm({ product, categories: initialCategories }: ProductF
           setUploadingImages((prev) => [...prev, i]);
           const fd = new FormData();
           fd.append("file", image.file);
-          const uploadRes = await fetch("/api/upload", { method: "POST", body: fd });
+          const uploadRes = await fetch("/api/upload", { method: "POST", body: fd, credentials: "same-origin" });
           if (!uploadRes.ok) throw new Error("Error al subir la imagen");
           const data = await uploadRes.json();
           uploadedImages.push({ url: data.url, display_order: i });
@@ -206,12 +237,19 @@ export function ProductForm({ product, categories: initialCategories }: ProductF
         }
       }
 
+      // Validate categories: allow UUID or numeric id_int strings
+      const categoriesPayload = formData.categories.map((cid) => String(cid));
+      const uuidOrInt = (s: string) => (/^\d+$/.test(s) || /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(s));
+      if (!categoriesPayload.every(c => uuidOrInt(c))) {
+        throw new Error("Una o más categorías tienen formato inválido. Recarga la página y vuelve a intentarlo.");
+      }
+
       const payload = {
         name: formData.name,
         description: formData.description,
         price: formData.price,
         available: formData.available,
-        categories: formData.categories, // array of string ids (server will convert to numbers)
+        categories: categoriesPayload, // array of uuid or id_int strings (server will resolve)
         images: uploadedImages,
       };
 
@@ -222,11 +260,12 @@ export function ProductForm({ product, categories: initialCategories }: ProductF
         method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
+        credentials: "same-origin", // enviar cookies si endpoint requiere auth
       });
 
       if (!res.ok) {
-        const error = await res.json();
-        throw new Error(error.error || "Error al guardar el producto");
+        const error = await res.json().catch(() => ({}));
+        throw new Error(error.error || error.message || "Error al guardar el producto");
       }
 
       toast({
@@ -277,7 +316,6 @@ export function ProductForm({ product, categories: initialCategories }: ProductF
         <div className="space-y-2">
           <Label htmlFor="categories">Categorías</Label>
 
-          {/* Crear nueva categoría inline */}
           <div className="flex gap-2 items-center mb-3">
             <Input
               placeholder="Nueva categoría (ej. Sala)"
@@ -291,7 +329,6 @@ export function ProductForm({ product, categories: initialCategories }: ProductF
             </Button>
           </div>
 
-          {/* Lista de categorías con checkboxes y botón eliminar */}
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-48 overflow-auto p-2 border rounded">
             {categories.map((cat) => {
               const selected = formData.categories.includes(cat.id);

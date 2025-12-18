@@ -3,7 +3,7 @@
 
 import React, { useEffect, useState } from "react"
 import { useRouter, usePathname, useSearchParams } from "next/navigation"
-import type { Product } from "@/lib/products"
+import { Product } from "@/lib/product"
 import CategoryFilter from "@/components/category-filter"
 
 interface CatalogFiltersProps {
@@ -69,19 +69,7 @@ const CatalogFilters: React.FC<CatalogFiltersProps> = ({
           className="flex-1 rounded-md border px-3 py-2 outline-none focus:ring focus:ring-opacity-60"
           aria-label="Buscar productos"
         />
-        <button
-          type="submit"
-          className="px-4 py-2 rounded-md bg-primary text-primary-foreground hover:bg-primary/90"
-        >
-          Buscar
-        </button>
-        <button
-          type="button"
-          onClick={onClear}
-          className="px-3 py-2 rounded-md border hover:bg-muted/20"
-        >
-          Limpiar
-        </button>
+        
       </form>
 
       <CategoryFilter

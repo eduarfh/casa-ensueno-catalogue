@@ -4,7 +4,8 @@ import { createServerSupabase } from "@/lib/supabase/server";
 
 export async function POST() {
   try {
-    const supabase = await createServerSupabase();
+    const supabase = await createServerSupabase({ allowSetCookies: true });
+
 
     // signOut server-side eliminará cookies asociadas
     const { error } = await supabase.auth.signOut();

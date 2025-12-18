@@ -1,0 +1,11 @@
+var R=require("../../../../chunks/[turbopack]_runtime.js")("server/app/api/admin/check/route.js")
+R.c("server/chunks/node_modules__pnpm_58a4be7c._.js")
+R.c("server/chunks/1dff6_next_8dd65630._.js")
+R.c("server/chunks/a3170_@supabase_realtime-js_dist_module_056f0344._.js")
+R.c("server/chunks/660d3_@supabase_storage-js_dist_module_9a06e2b3._.js")
+R.c("server/chunks/44925_@supabase_auth-js_dist_module_ca4b907e._.js")
+R.c("server/chunks/node_modules__pnpm_1079feef._.js")
+R.c("server/chunks/[root-of-the-server]__47040b8f._.js")
+R.c("server/chunks/_next-internal_server_app_api_admin_check_route_actions_1ab1c0b9.js")
+R.m("[project]/node_modules/.pnpm/next@16.0.10_react-dom@19.2.0_react@19.2.0__react@19.2.0/node_modules/next/dist/esm/build/templates/app-route.js { INNER_APP_ROUTE => \"[project]/app/api/admin/check/route.ts [app-route] (ecmascript)\" } [app-route] (ecmascript)")
+module.exports=R.m("[project]/node_modules/.pnpm/next@16.0.10_react-dom@19.2.0_react@19.2.0__react@19.2.0/node_modules/next/dist/esm/build/templates/app-route.js { INNER_APP_ROUTE => \"[project]/app/api/admin/check/route.ts [app-route] (ecmascript)\" } [app-route] (ecmascript)").exports

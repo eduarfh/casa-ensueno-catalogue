@@ -1,8 +1,7 @@
-// components/category-filter.tsx
 "use client"
 
-import React, { useMemo } from "react"
-import type { Product } from "@/lib/products"
+import React, { useMemo, useState, useEffect } from "react"
+import { Product } from "@/lib/product"
 import { Button } from "@/components/ui/button"
 import { getCategoryColor } from "@/lib/category-colors"
 
@@ -33,6 +32,18 @@ export function CategoryFilter({
     return uniqueNames.map((name) => ({ id: name, name }))
   }, [categories, products])
 
+  // Map categoryId -> { background, textClass } (client-side)
+  const [colors, setColors] = useState<Record<string, { background: string; textClass: string }>>({})
+
+  useEffect(() => {
+    const map: Record<string, { background: string; textClass: string }> = {}
+    list.forEach((cat) => {
+      const { background, textClass } = getCategoryColor(cat.name)
+      map[cat.id] = { background, textClass }
+    })
+    setColors(map)
+  }, [JSON.stringify(list)])
+
   const darkSelected = "dark:bg-[#95C7C3] dark:text-white"
 
   return (
@@ -41,9 +52,14 @@ export function CategoryFilter({
         <Button
           variant={selectedCategory === null ? "default" : "outline"}
           onClick={() => onSelectCategory(null)}
+          // safe: uses CSS variables present in SSR & client
+          style={{
+            backgroundColor: "var(--color-primary)",
+            color: "var(--color-primary-foreground)",
+          }}
           className={
             selectedCategory === null
-              ? "bg-[#95C7C3] hover:bg-[#95C7C3]/90 text-white shadow-sm ring-1 ring-offset-1 ring-[#95C7C3]/40 dark:bg-[#95C7C3] dark:text-white rounded-lg px-4 py-2"
+              ? "shadow-sm ring-1 ring-offset-1 rounded-lg px-4 py-2"
               : "bg-transparent outline outline-[color:var(--color-border)] dark:outline-[color:var(--color-border)] text-muted-foreground rounded-lg px-4 py-2"
           }
           aria-pressed={selectedCategory === null}
@@ -53,19 +69,22 @@ export function CategoryFilter({
 
         {list.map((category) => {
           const isSelected = selectedCategory === category.id
-          const { background, textClass } = getCategoryColor(category.name)
+          const colorObj = colors[category.id]
+          const style = colorObj ? { backgroundColor: colorObj.background } : undefined
+          const textClass = colorObj ? colorObj.textClass : "text-muted-foreground"
 
           return (
             <Button
               key={category.id}
               variant="outline"
               onClick={() => onSelectCategory(category.id)}
-              className={`outline-2 rounded-lg px-4 py-2 duration-150 flex items-center justify-center whitespace-nowrap ${
+              // **aplicamos textClass siempre**, y añadimos el ring/shadow cuando está seleccionado
+              className={`outline-2 rounded-lg px-4 py-2 duration-150 flex items-center justify-center whitespace-nowrap ${textClass} ${
                 isSelected
-                  ? `ring-2 ring-offset-2 ring-[#95C7C3] shadow-lg ${textClass} ${darkSelected}`
+                  ? `ring-2 ring-offset-2 ring-[color:var(--color-ring)] shadow-lg ${darkSelected}`
                   : "opacity-95 md:hover:scale-[1.02] hover:opacity-90"
               }`}
-              style={{ backgroundColor: background }}
+              style={style}
               aria-pressed={isSelected}
             >
               {category.name}

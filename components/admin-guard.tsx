@@ -1,72 +1,66 @@
 // components/ui/admin-guard.tsx
-"use client"
+"use client";
 
-import React, { useEffect, useState } from "react"
-import { useRouter } from "next/navigation"
-import { createClient } from "@/lib/supabase/client"
+import React, { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 
 interface Props {
-  children: React.ReactNode
+  children: React.ReactNode;
 }
 
-/**
- * AdminGuard: componente cliente que asegura que haya un usuario autenticado.
- * - Si NO hay user, redirige a /auth/login
- * - Mientras comprueba, muestra un loader simple
- *
- * Úsalo envolviendo la UI admin que antes hacía comprobaciones en server.
- */
 export default function AdminGuard({ children }: Props) {
-  const router = useRouter()
-  const [checking, setChecking] = useState(true)
-  const [authorized, setAuthorized] = useState(false)
+  const router = useRouter();
+  const [checking, setChecking] = useState(true);
+  const [authorized, setAuthorized] = useState(false);
 
   useEffect(() => {
     let mounted = true;
-    async function check() {
+
+    async function checkServer() {
       try {
-        const supabase = createClient();
-        const { data } = await supabase.auth.getUser();
+        const res = await fetch("/api/admin/check", {
+          method: "GET",
+          credentials: "same-origin",
+          headers: { "Content-Type": "application/json" },
+        });
 
-        if (!data.user) {
-          router.replace("/auth/login");
+        if (!res.ok) {
+          if (mounted) router.replace("/auth/login");
           return;
         }
 
-        // check admin role server-side
-        const res = await fetch("/api/admin/check");
         const json = await res.json();
-        if (!json?.isAdmin) {
-          router.replace("/auth/login");
-          return;
+        if (json?.isAdmin) {
+          if (mounted) setAuthorized(true);
+        } else {
+          if (mounted) router.replace("/auth/login");
         }
-
-        if (mounted) setAuthorized(true);
-      } catch {
-        router.replace("/auth/login");
+      } catch (err) {
+        console.error("[AdminGuard] error checking server session:", err);
+        if (mounted) router.replace("/auth/login");
       } finally {
         if (mounted) setChecking(false);
       }
     }
 
-    check();
+    checkServer();
+
     return () => {
       mounted = false;
     };
   }, [router]);
-
 
   if (checking) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div>Cargando sesión...</div>
       </div>
-    )
+    );
   }
 
   if (!authorized) {
-    return null
+    return null;
   }
 
-  return <>{children}</>
+  return <>{children}</>;
 }

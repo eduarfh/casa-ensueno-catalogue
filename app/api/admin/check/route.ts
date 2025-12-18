@@ -4,23 +4,34 @@ import { createServerClient } from "@/lib/supabase/server";
 
 export async function GET() {
   try {
-    const supabase = await createServerClient();
+    const supabase = await createServerClient({ allowSetCookies: true });
 
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    const { data: userRes, error: userErr } = await supabase.auth.getUser();
+    if (userErr) {
+      console.warn("[/api/admin/check] supabase.auth.getUser error:", userErr);
+      return NextResponse.json({ ok: false, isAdmin: false }, { status: 500 });
+    }
 
-    if (!user) return NextResponse.json({ isAdmin: false, user: null });
+    const user = (userRes as any)?.user ?? null;
+    if (!user) {
+      return NextResponse.json({ ok: false, isAdmin: false, user: null }, { status: 401 });
+    }
 
-    const { data: adminRow } = await supabase
+    const { data: adminRow, error: adminErr } = await supabase
       .from("admin_users")
       .select("is_admin")
       .eq("user_id", user.id)
-      .single();
+      .maybeSingle();
 
-    return NextResponse.json({ isAdmin: !!adminRow?.is_admin, user: { id: user.id, email: user.email } });
+    if (adminErr) {
+      console.warn("[/api/admin/check] admin lookup error:", adminErr);
+      return NextResponse.json({ ok: false, isAdmin: false }, { status: 500 });
+    }
+
+    const isAdmin = !!adminRow?.is_admin;
+    return NextResponse.json({ ok: true, isAdmin, user: { id: user.id, email: user.email } });
   } catch (err) {
-    console.error("[admin/check] error:", err);
-    return NextResponse.json({ isAdmin: false, user: null });
+    console.error("[/api/admin/check] unexpected:", err);
+    return NextResponse.json({ ok: false, isAdmin: false, user: null }, { status: 500 });
   }
 }

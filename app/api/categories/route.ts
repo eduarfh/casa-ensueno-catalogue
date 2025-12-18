@@ -5,7 +5,8 @@ import { createAdminClient } from "@/lib/supabase/admin";
 
 export async function POST(request: Request) {
   try {
-    const supabase = await createServerClient();
+    const supabase = await createServerClient({ allowSetCookies: true });
+
     const { data: userData, error: userErr } = await supabase.auth.getUser();
     if (userErr) {
       console.error("[categories-create] auth.getUser error:", userErr);
@@ -14,7 +15,6 @@ export async function POST(request: Request) {
     const user = userData?.user;
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    // verificar admin
     const { data: adminRow, error: adminErr } = await supabase
       .from("admin_users")
       .select("is_admin")
@@ -35,22 +35,16 @@ export async function POST(request: Request) {
 
     const admin = createAdminClient();
 
-    // calcular next id_int (usa maybeSingle para no fallar si tabla vacía)
-    const { data: lastRow, error: lastErr } = await admin
+    // obtener next id_int
+    const { data: lastRow } = await admin
       .from("categories")
       .select("id_int")
       .order("id_int", { ascending: false })
       .limit(1)
       .maybeSingle();
 
-    if (lastErr) {
-      // si hay un error real, loguear y seguir (no detener por PGRST116 porque maybeSingle evita ese caso)
-      console.warn("[categories-create] warning while retrieving last id_int:", lastErr);
-    }
-
     const nextIdInt = lastRow && typeof lastRow.id_int === "number" ? lastRow.id_int + 1 : 1;
 
-    // insertar categoría incluyendo id_int
     const { data: category, error } = await admin
       .from("categories")
       .insert({ id_int: nextIdInt, name: name.trim(), description: description ?? null })
@@ -63,7 +57,17 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: message }, { status: 400 });
     }
 
-    return NextResponse.json(category, { status: 201 });
+    // Normalize response: send uuid as id plus id_int for clients that need it
+    const normalized = {
+      id: category.id, // UUID
+      uuid: category.id,
+      id_int: category.id_int,
+      name: category.name,
+      description: category.description ?? null,
+      created_at: category.created_at,
+    };
+
+    return NextResponse.json(normalized, { status: 201 });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Error creating category";
     console.error("[categories-create] unexpected:", err);

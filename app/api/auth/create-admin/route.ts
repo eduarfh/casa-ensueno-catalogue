@@ -1,27 +1,32 @@
-// app/api/auth/create-admin/route.ts
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { createServerClient } from "@/lib/supabase/server";
+import { createServerSupabase } from "@/lib/supabase/server";
 
 export async function POST(request: Request) {
   try {
-    const serverSupabase = await createServerClient();
+    // Usamos createServerSupabase y guardamos la instancia en serverSupabase
+    const serverSupabase = await createServerSupabase({ allowSetCookies: true });
+
     const { data: userData } = await serverSupabase.auth.getUser();
-    const user = userData?.user;
+    const user = (userData as any)?.user;
 
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     // check if caller is admin
-    const { data: adminData } = await serverSupabase.from("admin_users").select("is_admin").eq("user_id", user.id).single();
+    const { data: adminData } = await serverSupabase
+      .from("admin_users")
+      .select("is_admin")
+      .eq("user_id", user.id)
+      .single();
 
     if (!adminData?.is_admin) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     const body = await request.json();
-    const { email, password } = body;
+    const { email, password } = body as { email?: string; password?: string };
 
     if (!email || !password) {
       return NextResponse.json({ error: "Email and password required" }, { status: 400 });
