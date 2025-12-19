@@ -1,11 +1,23 @@
 // lib/category-colors.ts
-// Versión con debug + fallback hash->HSL si la paleta resuelta es muy homogénea.
-// No toca :root ni variables globales.
+// Robust category color resolver (TypeScript-friendly).
+// - soporta oklch(...), rgb(...), #hex
+// - normaliza a hex y aplica clamp "pastel-safe"
+// - devuelve { background: '#rrggbb', textColor: '#rrggbb' }
 
-const VARIATION_STEPS = 5
-const VARIATION_STRENGTH = 0.28
+const VARIATION_STEPS = 3
+const VARIATION_STRENGTH = 0.18
 
-const paletteVars = [
+const babyVars = [
+  "--baby-blue",
+  "--baby-orange",
+  "--baby-pink",
+  "--baby-teal",
+  "--baby-bright-pink",
+  "--baby-peach",
+]
+
+const mainPaletteVars = [
+  "--primary",
   "--color-primary",
   "--color-secondary",
   "--color-accent",
@@ -14,21 +26,20 @@ const paletteVars = [
   "--color-popover",
 ]
 
+// Fallback palette (suave)
 const fallbackPalette = [
-  "#bfe6df",
-  "#f6c28b",
-  "#cfeaf0",
-  "#f7b7d3",
-  "#e2a15a",
-  "#ffffff",
+  "#bee4e7",
+  "#f49f51",
+  "#ffd4e5",
+  "#95c7c3",
+  "#f490b9",
+  "#f7ccad",
 ]
 
 const hashString = (str: string) => {
-  let hash = 5381
-  for (let i = 0; i < str.length; i++) {
-    hash = (hash * 33) ^ str.charCodeAt(i)
-  }
-  return Math.abs(hash)
+  let h = 5381
+  for (let i = 0; i < str.length; i++) h = (h * 33) ^ str.charCodeAt(i)
+  return Math.abs(h)
 }
 
 const isHexColor = (s: string | undefined) => {
@@ -54,100 +65,23 @@ const rgbToHex = (r: number, g: number, b: number) => {
   return `#${hr}${hg}${hb}`.toLowerCase()
 }
 
-/** sRGB gamma encode (linear -> srgb 0..1) */
-const linearToSRGB = (v: number) => {
-  if (v <= 0) return 0
-  if (v >= 1) return 1
-  return v <= 0.0031308 ? 12.92 * v : 1.055 * Math.pow(v, 1 / 2.4) - 0.055
-}
-
+/* rgb(...) parser -> hex */
 const rgbStringToHex = (s: string | undefined): string | null => {
   if (!s) return null
   const str = s.trim()
   if (isHexColor(str)) return str.toLowerCase()
-
-  const oklchMatch = str.match(/oklch\(\s*([^\)]+)\s*\)/i)
-  if (oklchMatch) {
-    try {
-      const hex = oklchStringToHex(oklchMatch[1])
-      if (hex) return hex
-    } catch (e) {}
-  }
-
-  const nums = str.match(/-?\d+(\.\d+)?/g)
-  if (!nums || nums.length < 3) return null
-  const r = Number(nums[0])
-  const g = Number(nums[1])
-  const b = Number(nums[2])
-  if (Number.isNaN(r) || Number.isNaN(g) || Number.isNaN(b)) return null
+  const m = str.match(/rgba?\(([^)]+)\)/i)
+  if (!m) return null
+  const parts = m[1].split(",").map((p) => p.trim())
+  if (parts.length < 3) return null
+  const r = Number(parts[0])
+  const g = Number(parts[1])
+  const b = Number(parts[2])
+  if ([r, g, b].some((n) => Number.isNaN(n))) return null
   return rgbToHex(r, g, b)
 }
 
-const mixColors = (hexA: string, hexB: string, weight = 0.5) => {
-  const a = hexToRgb(hexA)
-  const b = hexToRgb(hexB)
-  const r = a.r * (1 - weight) + b.r * weight
-  const g = a.g * (1 - weight) + b.g * weight
-  const bl = a.b * (1 - weight) + b.b * weight
-  return rgbToHex(r, g, bl)
-}
-
-const expandPaletteWithVariations = (baseColors: string[], steps = VARIATION_STEPS, maxStrength = VARIATION_STRENGTH) => {
-  const expanded: string[] = []
-  baseColors.forEach((base) => {
-    let baseHex = base
-    if (!isHexColor(base)) {
-      const conv = rgbStringToHex(base)
-      if (conv) baseHex = conv
-      else {
-        expanded.push(base)
-        return
-      }
-    }
-
-    for (let i = steps; i >= 1; i--) {
-      const weight = (i / steps) * maxStrength
-      expanded.push(mixColors(baseHex, "#000000", weight))
-    }
-
-    expanded.push(baseHex)
-
-    for (let i = 1; i <= steps; i++) {
-      const weight = (i / steps) * maxStrength
-      expanded.push(mixColors(baseHex, "#ffffff", weight))
-    }
-  })
-  return expanded
-}
-
-/** Devuelve '#000000' o '#ffffff' según la luminancia relativa de `hexOrRgb` */
-const getTextHexForBackground = (hexOrRgb: string) => {
-  let hex = hexOrRgb
-  if (!hex) return "#000000"
-  if (!isHexColor(hex)) {
-    const conv = rgbStringToHex(hex)
-    if (conv) hex = conv
-    else return "#000000"
-  }
-
-  const hexClean = hex.slice(1)
-  const r = parseInt(hexClean.substring(0, 2), 16)
-  const g = parseInt(hexClean.substring(2, 4), 16)
-  const b = parseInt(hexClean.substring(4, 6), 16)
-
-  const srgbToLinear = (v: number) => {
-    const s = v / 255
-    return s <= 0.04045 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4)
-  }
-
-  const R = srgbToLinear(r)
-  const G = srgbToLinear(g)
-  const B = srgbToLinear(b)
-  const luminance = 0.2126 * R + 0.7152 * G + 0.0722 * B
-  return luminance > 0.5 ? "#000000" : "#ffffff"
-}
-
-/* OKLCH helpers (sin cambios) */
+/* OKLCH -> hex helpers */
 function oklchStringToHex(inner: string): string | null {
   const parts = inner.split("/")
   const main = parts[0].trim()
@@ -191,124 +125,192 @@ function oklchToHex(L: number, C: number, h: number): string | null {
   return rgbToHex(r255, g255, b255)
 }
 
-/** Helper: calcula luminancia promedio (0..1) de un hex */
-const hexLuminance = (hex: string) => {
-  try {
-    const { r, g, b } = hexToRgb(hex)
-    const srgbToLinear = (v: number) => {
-      const s = v / 255
-      return s <= 0.04045 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4)
+const linearToSRGB = (v: number) => {
+  if (v <= 0) return 0
+  if (v >= 1) return 1
+  return v <= 0.0031308 ? 12.92 * v : 1.055 * Math.pow(v, 1 / 2.4) - 0.055
+}
+
+/* mezcla de colores (ahora declarado antes de su uso) */
+const mixColors = (hexA: string, hexB: string, weight = 0.5) => {
+  const a = hexToRgb(hexA)
+  const b = hexToRgb(hexB)
+  const r = a.r * (1 - weight) + b.r * weight
+  const g = a.g * (1 - weight) + b.g * weight
+  const bl = a.b * (1 - weight) + b.b * weight
+  return rgbToHex(r, g, bl)
+}
+
+/* expand palette */
+const expandPaletteWithVariations = (baseColors: string[], steps = VARIATION_STEPS, maxStrength = VARIATION_STRENGTH) => {
+  const expanded: string[] = []
+  baseColors.forEach((base) => {
+    let baseHex = base
+    if (!isHexColor(base)) {
+      const conv = rgbStringToHex(base) || tryOklchToHex(base)
+      if (conv) baseHex = conv
+      else {
+        // skip unknown entries
+        return
+      }
     }
-    const R = srgbToLinear(r)
-    const G = srgbToLinear(g)
-    const B = srgbToLinear(b)
-    return 0.2126 * R + 0.7152 * G + 0.0722 * B
-  } catch (e) {
-    return 0.0
+
+    for (let i = steps; i >= 1; i--) {
+      const weight = (i / steps) * maxStrength
+      expanded.push(mixColors(baseHex, "#000000", weight))
+    }
+
+    expanded.push(baseHex)
+
+    for (let i = 1; i <= steps; i++) {
+      const weight = (i / steps) * maxStrength
+      expanded.push(mixColors(baseHex, "#ffffff", weight))
+    }
+  })
+  return expanded
+}
+
+/* hex <-> hsl (for clamping) */
+const hexToHsl = (hex: string) => {
+  const { r, g, b } = hexToRgb(hex)
+  const rr = r / 255, gg = g / 255, bb = b / 255
+  const max = Math.max(rr, gg, bb), min = Math.min(rr, gg, bb)
+  let h = 0, s = 0
+  const l = (max + min) / 2
+  if (max !== min) {
+    const d = max - min
+    s = l > 0.5 ? d / (2 - max - min) : d / (max + min)
+    switch (max) {
+      case rr: h = (gg - bb) / d + (gg < bb ? 6 : 0); break
+      case gg: h = (bb - rr) / d + 2; break
+      default: h = (rr - gg) / d + 4; break
+    }
+    h = h * 60
   }
+  return { h, s, l }
 }
 
-/** Convert HSL (h 0..360, s 0..1, l 0..1) to hex */
-const hslToHex = (h: number, s: number, l: number) => {
-  // HSL -> RGB (0..1)
-  const c = (1 - Math.abs(2 * l - 1)) * s
-  const hp = h / 60
-  const x = c * (1 - Math.abs((hp % 2) - 1))
-  let r1 = 0, g1 = 0, b1 = 0
-  if (hp >= 0 && hp < 1) [r1, g1, b1] = [c, x, 0]
-  else if (hp >= 1 && hp < 2) [r1, g1, b1] = [x, c, 0]
-  else if (hp >= 2 && hp < 3) [r1, g1, b1] = [0, c, x]
-  else if (hp >= 3 && hp < 4) [r1, g1, b1] = [0, x, c]
-  else if (hp >= 4 && hp < 5) [r1, g1, b1] = [x, 0, c]
-  else [r1, g1, b1] = [c, 0, x]
-  const m = l - c / 2
-  const r = Math.round((r1 + m) * 255)
-  const g = Math.round((g1 + m) * 255)
-  const b = Math.round((b1 + m) * 255)
-  return rgbToHex(r, g, b)
+const hslToHexLocal = (h:number,s:number,l:number) => {
+  const clamp01=(v:number)=>Math.max(0,Math.min(1,v))
+  s=clamp01(s); l=clamp01(l)
+  const c=(1-Math.abs(2*l-1))*s
+  const hp=h/60; const x=c*(1-Math.abs((hp%2)-1))
+  let r1=0,g1=0,b1=0
+  if(hp>=0 && hp<1)[r1,g1,b1]=[c,x,0]
+  else if(hp>=1 && hp<2)[r1,g1,b1]=[x,c,0]
+  else if(hp>=2 && hp<3)[r1,g1,b1]=[0,c,x]
+  else if(hp>=3 && hp<4)[r1,g1,b1]=[0,x,c]
+  else if(hp>=4 && hp<5)[r1,g1,b1]=[x,0,c]
+  else [r1,g1,b1]=[c,0,x]
+  const m=l-c/2
+  const r=Math.round((r1+m)*255), g=Math.round((g1+m)*255), b=Math.round((b1+m)*255)
+  return rgbToHex(r,g,b)
 }
 
-/** Generate pastel-like color from seed string (guarantees distinct hues) */
-const colorFromHashHsl = (seed: string) => {
+/* clamp pastel */
+const clampPastel = (h:number,s:number,l:number) => {
+  const sC = Math.max(0.18, Math.min(0.58, s))
+  const lC = Math.max(0.58, Math.min(0.86, l))
+  const hN = ((h%360) + 360) % 360
+  return { h: hN, s: sC, l: lC }
+}
+
+/* try oklch */
+const tryOklchToHex = (s:string | undefined): string | null => {
+  if (!s) return null
+  const m = s.trim().match(/oklch\(\s*([^\)]+)\s*\)/i)
+  if (!m) return null
+  try { return oklchStringToHex(m[1]) } catch { return null }
+}
+
+/* readable text color */
+const getTextHexForBackground = (hexOrRgb:string) => {
+  let hex = hexOrRgb
+  if (!hex) return "#000000"
+  if (!isHexColor(hex)) {
+    const conv = rgbStringToHex(hex) || tryOklchToHex(hex)
+    if (conv) hex = conv
+    else return "#000000"
+  }
+  const { r,g,b } = hexToRgb(hex)
+  const srgbToLinear = (v:number)=>{ const s=v/255; return s<=0.04045? s/12.92 : Math.pow((s+0.055)/1.055,2.4) }
+  const R = srgbToLinear(r), G = srgbToLinear(g), B = srgbToLinear(b)
+  const lum = 0.2126*R + 0.7152*G + 0.0722*B
+  return lum > 0.5 ? "#000000" : "#ffffff"
+}
+
+/* pastel hash fallback */
+const colorFromHashPastel = (seed:string) => {
   const h = hashString(seed) % 360
-  const s = 0.48 + (hashString(seed + "s") % 20) / 100 // 0.48 .. 0.67
-  const l = 0.72 + (hashString(seed + "l") % 12) / 100 // 0.72 .. 0.83 (pastel)
-  return hslToHex(h, s, l)
+  const s = 0.30 + ((hashString(seed + "s") % 20) / 100)
+  const l = 0.66 + ((hashString(seed + "l") % 12) / 100)
+  const cl = clampPastel(h,s,l)
+  return hslToHexLocal(cl.h, cl.s, cl.l)
 }
 
-/** Public API — devuelve background (hex) y textColor (hex) */
-export function getCategoryColor(category = "") {
+/** Public API */
+export function getCategoryColor(category = ""): { background: string; textColor: string } {
   let resolvedPalette = fallbackPalette.slice()
 
   try {
     if (typeof window !== "undefined") {
       const root = getComputedStyle(document.documentElement)
-      const resolved = paletteVars.map((v, i) => {
-        const value = root.getPropertyValue(v).trim()
-        if (!value) return fallbackPalette[i] || "#e5e7eb"
-        const conv = rgbStringToHex(value)
-        if (conv) return conv
-        return fallbackPalette[i] || "#e5e7eb"
-      })
-      resolvedPalette = resolved.map((c, i) => (c ? c : fallbackPalette[i] || "#e5e7eb"))
+      const babyResolved = babyVars.map(v => root.getPropertyValue(v).trim()).filter(Boolean)
+      const mainResolved = mainPaletteVars.map(v => root.getPropertyValue(v).trim()).filter(Boolean)
+
+      const converted: string[] = []
+      const pushMaybe = (val:string) => {
+        if (!val) return
+        const c1 = rgbStringToHex(val)
+        if (c1) { converted.push(c1); return }
+        const c2 = tryOklchToHex(val)
+        if (c2) { converted.push(c2); return }
+        if (isHexColor(val)) { converted.push(val.toLowerCase()); return }
+      }
+      babyResolved.forEach(pushMaybe)
+      mainResolved.forEach(pushMaybe)
+
+      if (converted.length > 0) {
+        resolvedPalette = converted.concat(fallbackPalette)
+      } else {
+        resolvedPalette = fallbackPalette.slice()
+      }
     }
   } catch (e) {
     resolvedPalette = fallbackPalette.slice()
   }
 
-  // Expand palette
-  let expanded = expandPaletteWithVariations(resolvedPalette, VARIATION_STEPS, VARIATION_STRENGTH)
+  const expanded = expandPaletteWithVariations(resolvedPalette, VARIATION_STEPS, VARIATION_STRENGTH)
 
-  // Normalize/convert to hex and compute unique count
   const normalized = expanded
-    .map((c) => (isHexColor(c) ? c.toLowerCase() : rgbStringToHex(c) || c))
+    .map(c => {
+      const hex = isHexColor(c) ? c.toLowerCase() : (rgbStringToHex(c) || tryOklchToHex(c))
+      if (!hex) return null
+      const hsl = hexToHsl(hex)
+      const cl = clampPastel(hsl.h, hsl.s, hsl.l)
+      return hslToHexLocal(cl.h, cl.s, cl.l)
+    })
     .filter(Boolean) as string[]
 
-  const uniqueSet = Array.from(new Set(normalized))
-  // Debug: palette resolved + expanded summary
-  // eslint-disable-next-line no-console
-  console.debug(
-    "[getCategoryColor dbg] resolvedPalette:",
-    resolvedPalette,
-    " | expanded len:",
-    normalized.length,
-    " | unique base count:",
-    uniqueSet.length,
-  )
-
-  // If palette is too small/homogeneous (e.g. unique colors < 3), fallback to HSL-hash generation
-  const useHashFallback = uniqueSet.length < 3
-
-  if (useHashFallback) {
-    // Debug note
-    // eslint-disable-next-line no-console
-    console.debug("[getCategoryColor dbg] Using HSL-hash fallback because palette too homogeneous.")
-  }
+  const useHashFallback = normalized.length < 3
 
   if (!category) {
     if (useHashFallback) {
-      const bg = colorFromHashHsl("default")
+      const bg = colorFromHashPastel("default")
       return { background: bg, textColor: getTextHexForBackground(bg) }
     }
     const bg = normalized[0] || fallbackPalette[0]
-    const bgHex = isHexColor(bg) ? bg.toLowerCase() : (rgbStringToHex(bg) || fallbackPalette[0].toLowerCase())
-    return { background: bgHex, textColor: getTextHexForBackground(bgHex) }
-  }
-
-  if (useHashFallback) {
-    const bg = colorFromHashHsl(String(category))
     return { background: bg, textColor: getTextHexForBackground(bg) }
   }
 
-  // Use hash to pick candidate from expanded list
+  if (useHashFallback) {
+    const bg = colorFromHashPastel(String(category))
+    return { background: bg, textColor: getTextHexForBackground(bg) }
+  }
+
   const idx = hashString(String(category)) % normalized.length
   const candidate = normalized[idx] || normalized[0] || fallbackPalette[0]
-  const bgHex = isHexColor(candidate) ? candidate.toLowerCase() : (rgbStringToHex(candidate) || fallbackPalette[0].toLowerCase())
-  // Debug: chosen candidate for this seed
-  // eslint-disable-next-line no-console
-  console.debug("[getCategoryColor dbg] seed:", String(category), " idx:", idx, " candidate:", bgHex)
-  const textColor = getTextHexForBackground(bgHex)
-  return { background: bgHex, textColor }
+  return { background: candidate, textColor: getTextHexForBackground(candidate) }
 }
 
 export default getCategoryColor

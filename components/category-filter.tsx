@@ -2,7 +2,7 @@
 "use client"
 import React, { useMemo, useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
-import { getCategoryColor } from "@/lib/category-colors"
+import getCategoryColor from "@/lib/category-colors"
 
 interface SimpleCategory {
   id: string
@@ -35,11 +35,10 @@ export function CategoryFilter({
   useEffect(() => {
     const map: Record<string, { background: string; textColor: string }> = {}
     list.forEach((cat) => {
-      const { background, textColor } = getCategoryColor(cat.name)
+      const { background, textColor } = getCategoryColor(cat.id)
       map[cat.id] = { background, textColor }
     })
     setColors(map)
-    // depend on list identity
   }, [JSON.stringify(list)])
 
   const darkSelected = "dark:bg-[#95C7C3] dark:text-white"
