@@ -26,9 +26,9 @@ export default function CatalogShell({ categories }: { categories: Category[] })
 
     // Ahora por defecto es "available" si no hay param
     const mapParamToFilter = (p: string | null) => {
-      if (!p) return "available" as const; // default -> available
-      if (p === "1" || p.toLowerCase() === "true") return "available" as const;
-      return "all" as const;
+        if (!p) return "available" as const; // default -> available
+        if (p === "1" || p.toLowerCase() === "true") return "available" as const;
+        return "all" as const;
     }
 
     const [searchTerm, setSearchTerm] = useState<string>(initialSearch);
@@ -134,12 +134,27 @@ export default function CatalogShell({ categories }: { categories: Category[] })
             return [{ title: null, key: "filtered", items: products }];
         }
         const map = new Map<string, any[]>();
+        // helper para extraer clave de categoría primaria de un producto
+        const getPrimaryCategoryKey = (p: any) => {
+            // si viene array de categories (strings u objetos)
+            if (Array.isArray(p.categories) && p.categories.length > 0) {
+                const first = p.categories[0];
+                if (first == null) return null;
+                if (typeof first === "string") return String(first);
+                if (typeof first === "object") return String(first.id ?? first.uuid ?? first.name ?? first.title ?? first);
+            }
+            // fallback a p.category (tu estructura previa)
+            if (p.category) return String(p.category);
+            return null;
+        }
+
         products.forEach((p) => {
-            const key = p.category ?? "uncategorized";
+            const key = getPrimaryCategoryKey(p) ?? "uncategorized";
             const arr = map.get(key) ?? [];
             arr.push(p);
             map.set(key, arr);
         });
+
 
         const groups: { key: string; title: string | null; items: any[] }[] = [];
 
@@ -170,17 +185,17 @@ export default function CatalogShell({ categories }: { categories: Category[] })
                 className="flex gap-3 items-center mb-4"
             >
                 <div className="flex-1">
-                  <SearchBar
-                      value={searchTerm}
-                      onChange={(v) => setSearchTerm(v)}
-                      placeholder="Buscar productos..."
-                      className="w-full"
-                  />
+                    <SearchBar
+                        value={searchTerm}
+                        onChange={(v) => setSearchTerm(v)}
+                        placeholder="Buscar productos..."
+                        className="w-full"
+                    />
                 </div>
 
                 {/* Botón único de disponibilidad (a la derecha de la búsqueda) */}
                 <div className="flex-none ml-2">
-                  <AvailabilityToggle value={availableFilter} onChange={(v) => setAvailableFilter(v)} />
+                    <AvailabilityToggle value={availableFilter} onChange={(v) => setAvailableFilter(v)} />
                 </div>
             </form>
 

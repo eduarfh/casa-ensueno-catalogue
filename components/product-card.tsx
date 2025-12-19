@@ -4,15 +4,18 @@
 import Image from "next/image";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Share2, MessageCircle, ChevronLeft, ChevronRight } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
+import CategoryBadge from "@/components/category-badge";
 
 interface Category {
-  id: string;
-  name: string;
+  id?: string;
+  uuid?: string;
+  name?: string;
+  title?: string;
+  [key: string]: any;
 }
 
 interface ProductCardProps {
@@ -21,7 +24,7 @@ interface ProductCardProps {
   price?: number | string | null;
   images?: string[] | null;
   available?: boolean | null;
-  categories?: Category[] | null;
+  categories?: (Category | string)[] | null;
 }
 
 export function ProductCard({
@@ -80,7 +83,32 @@ export function ProductCard({
     if (typeof window !== "undefined") window.open(whatsappUrl, "_blank");
   };
 
-  const firstCategoryName = categories && categories.length > 0 ? categories[0].name : null;
+  // Helper: extraer nombre y semilla (seed) de cada categoría (soporta string o objeto)
+  const extractCategory = (item: Category | string | null | undefined): { name: string; seed: string } | null => {
+    if (item === null || item === undefined) return null;
+    if (typeof item === "string") {
+      const trimmed = item.trim();
+      if (!trimmed) return null;
+      return { name: trimmed, seed: trimmed };
+    }
+    if (typeof item === "object") {
+      const name = (item.name || item.title || item.id || item.uuid || "").toString();
+      if (!name) return null;
+      // preferir id/uuid como semilla si existe; si no usar name
+      const seed = (item.id ?? item.uuid ?? name).toString();
+      return { name, seed };
+    }
+    return null;
+  };
+
+  // parsedCats: lista de {name, seed} (en el orden original)
+  const parsedCats = (categories ?? [])
+    .map((c) => extractCategory(c))
+    .filter(Boolean) as { name: string; seed: string }[];
+
+  // visibles hasta 3; si hay más mostramos +N
+  const visibleCats = parsedCats.slice(0, 3);
+  const extraCount = Math.max(0, parsedCats.length - visibleCats.length);
 
   const imgs = images && images.length > 0 ? images : ["/placeholder.svg"];
   const [index, setIndex] = useState(0);
@@ -163,14 +191,25 @@ export function ProductCard({
             className="object-cover group-hover:scale-105 transition-transform duration-350"
           />
 
-          {/* ETIQUETA PEQUEÑA esquina superior izquierda */}
-          <div className="absolute top-2 left-2 z-20">
-            {available ? (
-              <Badge className="text-xs py-0.5 px-2">Disponible</Badge>
-            ) : (
-              <Badge variant="destructive" className="text-xs py-0.5 px-2">
-                Agotado
-              </Badge>
+          {/* BADGES DE CATEGORÍA — esquina superior izquierda */}
+          <div className="absolute top-2 left-2 z-20 flex items-center gap-2">
+            {visibleCats.map((cat, idx) => (
+              <CategoryBadge
+                key={`${cat.seed}-${idx}`}
+                category={cat.name}
+                seed={cat.seed}
+                className="px-2 py-0.5 text-xs font-medium"
+              />
+            ))}
+
+            {extraCount > 0 && (
+              <div
+                className="px-2 py-0.5 rounded-full text-xs font-medium select-none bg-muted/90 text-muted-foreground/95"
+                aria-hidden="true"
+                title={`${extraCount} categorías más`}
+              >
+                +{extraCount}
+              </div>
             )}
           </div>
 
@@ -221,7 +260,6 @@ export function ProductCard({
           <h3 className="font-semibold text-sm line-clamp-2 hover:text-primary transition-colors">
             <Link href={`/product/${id}`}>{name}</Link>
           </h3>
-          
         </div>
 
         <div className="flex items-center justify-between">
