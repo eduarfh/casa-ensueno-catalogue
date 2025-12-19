@@ -3,8 +3,9 @@
 
 import React, { useEffect, useState } from "react"
 import { useRouter, usePathname, useSearchParams } from "next/navigation"
-import { Product } from "@/lib/product"
 import CategoryFilter from "@/components/category-filter"
+import AvailabilityToggle from "@/components/availability-toggle"
+import { Product } from "@/lib/product"
 
 interface CatalogFiltersProps {
   categories: { id: string; name: string }[]
@@ -23,8 +24,16 @@ const CatalogFilters: React.FC<CatalogFiltersProps> = ({
   const pathname = usePathname()
   const searchParams = useSearchParams()
 
+  const initialAvailableParam = searchParams?.get("available") ?? null
+  const mapParam = (p: string | null) => {
+    if (!p) return "available"
+    if (p === "1" || p.toLowerCase() === "true") return "available"
+    return "all"
+  }
+
   const [searchTerm, setSearchTerm] = useState<string>(currentSearch ?? "")
   const [selectedCategory, setSelectedCategory] = useState<string | null>(currentCategory ?? null)
+  const [availableFilter, setAvailableFilter] = useState<"all" | "available">(mapParam(initialAvailableParam))
 
   useEffect(() => {
     setSearchTerm(currentSearch ?? "")
@@ -32,13 +41,14 @@ const CatalogFilters: React.FC<CatalogFiltersProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentSearch, currentCategory])
 
-  const applyFilters = (categoryId: string | null, search: string | null) => {
+  const applyFilters = (categoryId: string | null, search: string | null, available: "all" | "available") => {
     setSelectedCategory(categoryId)
     setSearchTerm(search ?? "")
 
     const params = new URLSearchParams()
     if (search && search.trim() !== "") params.set("search", search.trim())
     if (categoryId && categoryId.trim() !== "") params.set("category", categoryId)
+    if (available === "available") params.set("available", "1")
 
     const q = params.toString()
     router.push(`${pathname}${q ? `?${q}` : ""}`)
@@ -46,16 +56,17 @@ const CatalogFilters: React.FC<CatalogFiltersProps> = ({
 
   const onSubmit: React.FormEventHandler = (e) => {
     e.preventDefault()
-    applyFilters(selectedCategory, searchTerm)
+    applyFilters(selectedCategory, searchTerm, availableFilter)
   }
 
   const onClear = () => {
     setSearchTerm("")
-    applyFilters(null, "")
+    setAvailableFilter("available")
+    applyFilters(null, "", "available")
   }
 
   const applyCategory = (catId: string | null) => {
-    applyFilters(catId, searchTerm)
+    applyFilters(catId, searchTerm, availableFilter)
   }
 
   return (
@@ -69,7 +80,9 @@ const CatalogFilters: React.FC<CatalogFiltersProps> = ({
           className="flex-1 rounded-md border px-3 py-2 outline-none focus:ring focus:ring-opacity-60"
           aria-label="Buscar productos"
         />
-        
+        <div className="ml-2">
+          <AvailabilityToggle value={availableFilter} onChange={(v) => { setAvailableFilter(v); applyFilters(selectedCategory, searchTerm, v) }} />
+        </div>
       </form>
 
       <CategoryFilter

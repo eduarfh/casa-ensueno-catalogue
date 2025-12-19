@@ -5,8 +5,8 @@ import React, { useEffect, useRef, useState } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import CategoryFilter from "@/components/category-filter";
 import ProductCard from "@/components/product-card";
-import { Button } from "@/components/ui/button";
 import SearchBar from "./search-bar";
+import AvailabilityToggle from "@/components/availability-toggle";
 
 interface Category {
     uuid: string;
@@ -22,9 +22,18 @@ export default function CatalogShell({ categories }: { categories: Category[] })
 
     const initialCategory = searchParams?.get("category") ?? null;
     const initialSearch = searchParams?.get("search") ?? "";
+    const initialAvailableParam = searchParams?.get("available") ?? null; // "1" | null
+
+    // Ahora por defecto es "available" si no hay param
+    const mapParamToFilter = (p: string | null) => {
+      if (!p) return "available" as const; // default -> available
+      if (p === "1" || p.toLowerCase() === "true") return "available" as const;
+      return "all" as const;
+    }
 
     const [searchTerm, setSearchTerm] = useState<string>(initialSearch);
     const [selectedCategory, setSelectedCategory] = useState<string | null>(initialCategory);
+    const [availableFilter, setAvailableFilter] = useState<"all" | "available">(mapParamToFilter(initialAvailableParam));
     const [products, setProducts] = useState<any[]>([]);
     const [loading, setLoading] = useState<boolean>(false);
     const [error, setError] = useState<string | null>(null);
@@ -40,15 +49,17 @@ export default function CatalogShell({ categories }: { categories: Category[] })
         return m;
     }, [JSON.stringify(categories)]);
 
-    const pushUrl = (cat: string | null, search: string) => {
+    const pushUrl = (cat: string | null, search: string, available: "all" | "available") => {
         const params = new URLSearchParams();
         if (search && search.trim() !== "") params.set("search", search.trim());
         if (cat && String(cat).trim() !== "") params.set("category", String(cat));
+        // SOLO incluimos available si está en 'available'
+        if (available === "available") params.set("available", "1");
         const q = params.toString();
         router.replace(`${pathname}${q ? `?${q}` : ""}`);
     };
 
-    const doFetch = async (cat: string | null, search: string) => {
+    const doFetch = async (cat: string | null, search: string, available: "all" | "available") => {
         setLoading(true);
         setError(null);
         if (controllerRef.current) controllerRef.current.abort();
@@ -58,6 +69,8 @@ export default function CatalogShell({ categories }: { categories: Category[] })
         const params = new URLSearchParams();
         if (search && search.trim() !== "") params.set("search", search.trim());
         if (cat && String(cat).trim() !== "") params.set("category", String(cat));
+        if (available === "available") params.set("available", "1");
+
         const url = `/api/products/search?${params.toString()}`;
 
         try {
@@ -67,7 +80,14 @@ export default function CatalogShell({ categories }: { categories: Category[] })
                 throw new Error(json?.error ?? `HTTP ${res.status}`);
             }
             const json = await res.json();
-            setProducts(json.products ?? []);
+            let items = json.products ?? [];
+
+            // Aplicamos filtrado local por disponibilidad si backend no soporta available
+            if (available === "available") {
+                items = items.filter((p: any) => p.available === true || p.available === 1 || p.available === "1");
+            }
+
+            setProducts(items);
         } catch (err: any) {
             if (err.name === "AbortError") return;
             console.error("[CatalogShell] fetch error:", err);
@@ -78,20 +98,22 @@ export default function CatalogShell({ categories }: { categories: Category[] })
         }
     };
 
+    // debounce + pushUrl
     useEffect(() => {
         if (debounceRef.current) window.clearTimeout(debounceRef.current);
         debounceRef.current = window.setTimeout(() => {
-            pushUrl(selectedCategory, searchTerm);
-            doFetch(selectedCategory, searchTerm);
+            pushUrl(selectedCategory, searchTerm, availableFilter);
+            doFetch(selectedCategory, searchTerm, availableFilter);
         }, 300);
 
         return () => {
             if (debounceRef.current) window.clearTimeout(debounceRef.current);
         };
-    }, [selectedCategory, searchTerm]);
+    }, [selectedCategory, searchTerm, availableFilter]);
 
     useEffect(() => {
-        doFetch(selectedCategory, searchTerm);
+        // llamada inicial (por defecto available si no hay param)
+        doFetch(selectedCategory, searchTerm, availableFilter);
         return () => {
             if (controllerRef.current) controllerRef.current.abort();
         };
@@ -102,8 +124,9 @@ export default function CatalogShell({ categories }: { categories: Category[] })
     const onClear = () => {
         setSelectedCategory(null);
         setSearchTerm("");
-        pushUrl(null, "");
-        doFetch(null, "");
+        setAvailableFilter("available"); // volver al default: available
+        pushUrl(null, "", "available");
+        doFetch(null, "", "available");
     };
 
     const grouped = React.useMemo(() => {
@@ -144,16 +167,22 @@ export default function CatalogShell({ categories }: { categories: Category[] })
                 onSubmit={(e) => {
                     e.preventDefault(); // evitamos submit — búsqueda reactiva onChange
                 }}
-                className="flex gap-2 items-center mb-4"
+                className="flex gap-3 items-center mb-4"
             >
-                <SearchBar
-                    value={searchTerm}
-                    onChange={(v) => setSearchTerm(v)}
-                    placeholder="Buscar productos..."
-                    className="flex-1"
-                />
-            </form>
+                <div className="flex-1">
+                  <SearchBar
+                      value={searchTerm}
+                      onChange={(v) => setSearchTerm(v)}
+                      placeholder="Buscar productos..."
+                      className="w-full"
+                  />
+                </div>
 
+                {/* Botón único de disponibilidad (a la derecha de la búsqueda) */}
+                <div className="flex-none ml-2">
+                  <AvailabilityToggle value={availableFilter} onChange={(v) => setAvailableFilter(v)} />
+                </div>
+            </form>
 
             <CategoryFilter
                 categories={categories.map((c) => ({ id: c.id, name: c.name }))}
@@ -178,7 +207,6 @@ export default function CatalogShell({ categories }: { categories: Category[] })
                                 <h3 className="text-sm text-muted-foreground mb-2">Otros</h3>
                             )}
 
-                            {/** Aquí: móvil -> 2 columnas, tablet/md+ -> 4 columnas */}
                             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6">
                                 {g.items.map((p: any) => (
                                     <ProductCard
