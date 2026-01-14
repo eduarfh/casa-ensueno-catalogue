@@ -44,7 +44,8 @@ export function CategoryFilter({
   const darkSelected = "dark:bg-[#95C7C3] dark:text-white"
 
   return (
-    <div className="w-full overflow-x-auto pb-2 pt-1 md:px-1">
+    // añadimos min-h para evitar que el header de filtros cambie de altura cuando cambia el contenido
+    <div className="w-full overflow-x-auto pb-2 pt-1 md:px-1 min-h-[56px]">
       <div className="flex gap-2 min-w-max px-4 md:px-0 md:flex-wrap md:justify-center">
         <Button
           variant={selectedCategory === null ? "default" : "outline"}
@@ -74,9 +75,7 @@ export function CategoryFilter({
               variant="outline"
               onClick={() => onSelectCategory(category.id)}
               className={`outline-2 rounded-lg px-4 py-2 duration-150 flex items-center justify-center whitespace-nowrap ${
-                isSelected
-                  ? `ring-2 ring-offset-2 ring-[color:var(--color-ring)] shadow-lg ${darkSelected}`
-                  : "opacity-95 md:hover:scale-[1.02] hover:opacity-90"
+                isSelected ? `ring-2 ring-offset-2 ring-[color:var(--color-ring)] shadow-lg ${darkSelected}` : "opacity-95 md:hover:scale-[1.02] hover:opacity-90"
               }`}
               style={style}
               aria-pressed={isSelected}

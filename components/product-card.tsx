@@ -22,11 +22,19 @@ interface ProductCardProps {
   id: string;
   name: string;
   price?: number | string | null;
-  images?: string[] | null;
+  images?: (string | { url?: string })[] | null;
   available?: boolean | null;
   categories?: (Category | string)[] | null;
 }
 
+/**
+ * ProductCard (mejorado):
+ * - tarjeta con h-full para evitar saltos de altura en grid con gridAutoRows: "1fr"
+ * - parent image con aspect-ratio (ya provisto) + Image fill para reservar espacio (evita CLS)
+ * - carga de imagen con transición de opacidad (fade-in)
+ * - soporte para images como strings o { url }
+ * - controles accesibles y comportamiento táctil/teclado conservado
+ */
 export function ProductCard({
   id,
   name,
@@ -79,6 +87,7 @@ export function ProductCard({
 
   const handleWhatsApp = () => {
     const message = encodeURIComponent(`Hola, me interesa el producto: ${name} - $${priceString}`);
+    // adapta el número si es necesario
     const whatsappUrl = `https://wa.me/5352490476?text=${message}`;
     if (typeof window !== "undefined") window.open(whatsappUrl, "_blank");
   };
@@ -94,37 +103,54 @@ export function ProductCard({
     if (typeof item === "object") {
       const name = (item.name || item.title || item.id || item.uuid || "").toString();
       if (!name) return null;
-      // preferir id/uuid como semilla si existe; si no usar name
       const seed = (item.id ?? item.uuid ?? name).toString();
       return { name, seed };
     }
     return null;
   };
 
-  // parsedCats: lista de {name, seed} (en el orden original)
   const parsedCats = (categories ?? [])
     .map((c) => extractCategory(c))
     .filter(Boolean) as { name: string; seed: string }[];
 
-  // visibles hasta 3; si hay más mostramos +N
   const visibleCats = parsedCats.slice(0, 3);
   const extraCount = Math.max(0, parsedCats.length - visibleCats.length);
 
-  const imgs = images && images.length > 0 ? images : ["/placeholder.svg"];
+  // normalizar images: aceptar string o { url }
+  const imgs = (Array.isArray(images) && images.length > 0
+    ? images.map((it) => (typeof it === "string" ? it : (it && (it as any).url) ?? "").filter ? (it as any) : it)
+    : []
+  ) as (string | { url?: string })[];
+
+  // produce array of string URLs fallback to placeholder
+  const normalizedImgs: string[] = (imgs.length
+    ? imgs.map((it) => (typeof it === "string" ? it : (it && (it as any).url) ?? "/placeholder.svg")).filter(Boolean)
+    : ["/placeholder.svg"]
+  ) as string[];
+
   const [index, setIndex] = useState(0);
   const containerRef = useRef<HTMLDivElement | null>(null);
 
+  // image loaded state for fade-in
+  const [imgLoaded, setImgLoaded] = useState(false);
+
+  // reset index when images change
   useEffect(() => {
     setIndex(0);
   }, [images]);
 
+  // reset imgLoaded when index changes so fade works for each image
+  useEffect(() => {
+    setImgLoaded(false);
+  }, [index]);
+
   const prev = (e?: React.MouseEvent) => {
     e?.stopPropagation();
-    setIndex((i) => (i - 1 + imgs.length) % imgs.length);
+    setIndex((i) => (i - 1 + normalizedImgs.length) % normalizedImgs.length);
   };
   const next = (e?: React.MouseEvent) => {
     e?.stopPropagation();
-    setIndex((i) => (i + 1) % imgs.length);
+    setIndex((i) => (i + 1) % normalizedImgs.length);
   };
 
   useEffect(() => {
@@ -136,11 +162,12 @@ export function ProductCard({
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [imgs.length]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [normalizedImgs.length]);
 
   useEffect(() => {
     const el = containerRef.current;
-    if (!el || imgs.length < 2) return;
+    if (!el || normalizedImgs.length < 2) return;
     let startX = 0;
     let dx = 0;
     const onPointerDown = (e: PointerEvent) => {
@@ -154,8 +181,8 @@ export function ProductCard({
     };
     const onPointerUp = () => {
       if (Math.abs(dx) > 40) {
-        if (dx < 0) setIndex((i) => (i + 1) % imgs.length);
-        else setIndex((i) => (i - 1 + imgs.length) % imgs.length);
+        if (dx < 0) setIndex((i) => (i + 1) % normalizedImgs.length);
+        else setIndex((i) => (i - 1 + normalizedImgs.length) % normalizedImgs.length);
       }
       dx = 0;
     };
@@ -169,12 +196,12 @@ export function ProductCard({
       el.removeEventListener("pointerup", onPointerUp);
       el.removeEventListener("pointercancel", onPointerUp);
     };
-  }, [imgs.length]);
+  }, [normalizedImgs.length]);
 
-  const showControls = imgs.length > 1;
+  const showControls = normalizedImgs.length > 1;
 
   return (
-    <Card className="overflow-hidden hover:shadow-lg transition-all duration-200 hover:border-primary/40 bg-card group p-2 gap-2 rounded-md">
+    <Card className="overflow-hidden hover:shadow-lg transition-all duration-200 hover:border-primary/40 bg-card group p-2 gap-2 rounded-md h-full"> {/* <-- h-full para filas uniformes */}
       <Link href={`/product/${id}`} className="block relative overflow-hidden bg-muted aspect-[4/3]" aria-label={`Ver ${name}`}>
         <div
           ref={containerRef}
@@ -184,22 +211,21 @@ export function ProductCard({
           aria-label={`${name} imágenes`}
         >
           <Image
-            src={imgs[index] ?? "/placeholder.svg"}
+            src={normalizedImgs[index] ?? "/placeholder.svg"}
             alt={`${name} imagen ${index + 1}`}
             fill
             sizes="(max-width: 768px) 100vw, 25vw"
-            className="object-cover group-hover:scale-105 transition-transform duration-350"
+            style={{ objectFit: "cover" }}
+            className={`group-hover:scale-105 transition-transform duration-350 transition-opacity ${imgLoaded ? "opacity-100" : "opacity-0"}`}
+            onLoadingComplete={() => setImgLoaded(true)}
+            loading={index === 0 ? "eager" : "lazy"}
+            priority={false}
           />
 
           {/* BADGES DE CATEGORÍA — esquina superior izquierda */}
           <div className="absolute top-2 left-2 z-20 flex items-center gap-2">
             {visibleCats.map((cat, idx) => (
-              <CategoryBadge
-                key={`${cat.seed}-${idx}`}
-                category={cat.name}
-                seed={cat.seed}
-                className="px-2 py-0.5 text-xs font-medium"
-              />
+              <CategoryBadge key={`${cat.seed}-${idx}`} category={cat.name} seed={cat.seed} className="px-2 py-0.5 text-xs font-medium" />
             ))}
 
             {extraCount > 0 && (
@@ -234,7 +260,7 @@ export function ProductCard({
               </button>
 
               <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-2">
-                {imgs.map((_, i) => {
+                {normalizedImgs.map((_, i) => {
                   const isActive = i === index;
                   return (
                     <button
@@ -255,7 +281,7 @@ export function ProductCard({
         </div>
       </Link>
 
-      <div className="px-2 pb-2 space-y-1">
+      <div className="px-2 pb-2 space-y-1 flex flex-col flex-1">
         <div>
           <h3 className="font-semibold text-sm line-clamp-2 hover:text-primary transition-colors">
             <Link href={`/product/${id}`}>{name}</Link>
@@ -266,7 +292,7 @@ export function ProductCard({
           <span className="text-lg font-semibold text-primary">${priceString}</span>
         </div>
 
-        <div className="flex gap-2 mt-1">
+        <div className="flex gap-2 mt-2">
           <Button
             asChild
             size="sm"
@@ -282,7 +308,10 @@ export function ProductCard({
           <Button
             size="sm"
             variant="outline"
-            onClick={handleShare}
+            onClick={(e) => {
+              e.stopPropagation();
+              handleShare();
+            }}
             disabled={isSharing}
             className="p-1.5"
             title="Compartir producto"
@@ -293,7 +322,10 @@ export function ProductCard({
           <Button
             size="sm"
             variant="outline"
-            onClick={handleWhatsApp}
+            onClick={(e) => {
+              e.stopPropagation();
+              handleWhatsApp();
+            }}
             className="p-1.5"
             title="Contactar por WhatsApp"
           >
