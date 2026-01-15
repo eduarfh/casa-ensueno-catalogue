@@ -1,4 +1,3 @@
-// components/catalog-shell.tsx
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
@@ -12,9 +11,11 @@ import SkeletonGrid from "@/components/skeleton-grid";
 interface Category {
   uuid: string;
   id_int: number | null;
-  id: string;
+  id: string; // aquí page.tsx asigna String(id_int ?? id)
   name: string;
 }
+
+const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 export default function CatalogShell({ categories }: { categories: Category[] }) {
   const router = useRouter();
@@ -41,6 +42,7 @@ export default function CatalogShell({ categories }: { categories: Category[] })
   const debounceRef = useRef<number | null>(null);
   const controllerRef = useRef<AbortController | null>(null);
 
+  // mapa uuid -> { id (el id usado por el filtro), name }
   const uuidToCategory = React.useMemo(() => {
     const m = new Map<string, { id: string; name: string }>();
     (categories || []).forEach((c) => {
@@ -59,11 +61,9 @@ export default function CatalogShell({ categories }: { categories: Category[] })
   };
 
   const doFetch = async (cat: string | null, search: string, available: "all" | "available") => {
-    // doFetch gestiona su propio loading -> importante dejarlo
     setLoading(true);
     setError(null);
 
-    // abort previous controller (should already be aborted by handlers, pero por si)
     if (controllerRef.current) {
       controllerRef.current.abort();
     }
@@ -86,7 +86,6 @@ export default function CatalogShell({ categories }: { categories: Category[] })
       const json = await res.json();
       let items = json.products ?? [];
 
-      // Aplicamos filtrado local por disponibilidad si backend no soporta available
       if (available === "available") {
         items = items.filter((p: any) => p.available === true || p.available === 1 || p.available === "1");
       }
@@ -95,7 +94,6 @@ export default function CatalogShell({ categories }: { categories: Category[] })
       setError(null);
     } catch (err: any) {
       if (err.name === "AbortError") {
-        // petición abortada: no consideramos error
         return;
       }
       console.error("[CatalogShell] fetch error:", err);
@@ -103,17 +101,13 @@ export default function CatalogShell({ categories }: { categories: Category[] })
       setProducts([]);
     } finally {
       setLoading(false);
-      // liberar controllerRef si era el actual
       if (controllerRef.current === controller) controllerRef.current = null;
     }
   };
 
-  // debounce + pushUrl: centralizamos el debounce aquí (se reactiva al cambiar selectedCategory/searchTerm/availableFilter)
   useEffect(() => {
-    // limpiar debounce previo
     if (debounceRef.current) window.clearTimeout(debounceRef.current);
 
-    // arrancamos un nuevo debounce
     debounceRef.current = window.setTimeout(() => {
       pushUrl(selectedCategory, searchTerm, availableFilter);
       doFetch(selectedCategory, searchTerm, availableFilter);
@@ -123,10 +117,8 @@ export default function CatalogShell({ categories }: { categories: Category[] })
     return () => {
       if (debounceRef.current) window.clearTimeout(debounceRef.current);
     };
-    // deliberately watch these three params
   }, [selectedCategory, searchTerm, availableFilter]);
 
-  // inicial: fetch una vez al montar (si quieres forzar skeleton)
   useEffect(() => {
     doFetch(selectedCategory, searchTerm, availableFilter);
     return () => {
@@ -135,7 +127,6 @@ export default function CatalogShell({ categories }: { categories: Category[] })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // HANDLERS (mejor experiencia: activar loading inmediatamente y abortar fetchs previos)
   const safeAbortAndSetLoading = () => {
     if (debounceRef.current) {
       window.clearTimeout(debounceRef.current);
@@ -147,14 +138,12 @@ export default function CatalogShell({ categories }: { categories: Category[] })
       } catch {}
       controllerRef.current = null;
     }
-    // activamos overlay inmediatamente para evitar ver la lista "mezclada"
     setLoading(true);
   };
 
   const onSelectCategory = (cat: string | null) => {
     safeAbortAndSetLoading();
     setSelectedCategory(cat);
-    // la useEffect que escucha selectedCategory se encargará de reiniciar el debounce/doFetch
   };
 
   const onSearchChange = (v: string) => {
@@ -168,20 +157,67 @@ export default function CatalogShell({ categories }: { categories: Category[] })
   };
 
   const onClear = () => {
-    // cancelar cualquier petición y mostrar loading hasta que doFetch responda
     safeAbortAndSetLoading();
     setSelectedCategory(null);
     setSearchTerm("");
     setAvailableFilter("available");
     pushUrl(null, "", "available");
-    // lanza fetch inmediato (sin esperar al debounce) para respuesta rápida al clear
     doFetch(null, "", "available");
   };
 
+  // RESOLVER que devuelve { name, seed } donde seed es la misma clave que usa el filtro
+  const resolveCategory = (candidate: any): { name: string | null; seed: string | null } => {
+    if (candidate === null || candidate === undefined) return { name: null, seed: null };
+
+    // si candidate ya es objeto con name y posiblemente id/uuid
+    if (typeof candidate === "object") {
+      const name = candidate.name ?? candidate.title ?? null;
+
+      // intentar obtener seed en el mismo formato que CategoryFilter usa (page.tsx -> id = id_int ?? id)
+      // prioridad: si tiene uuid -> buscar en uuidToCategory para obtener su id (el id que usa filtro)
+      if (candidate.id && typeof candidate.id === "string" && uuidRegex.test(candidate.id)) {
+        const found = uuidToCategory.get(candidate.id);
+        return { name: name ?? (found?.name ?? candidate.id), seed: found?.id ?? candidate.id };
+      }
+
+      if (candidate.uuid && typeof candidate.uuid === "string") {
+        const found = uuidToCategory.get(candidate.uuid);
+        return { name: name ?? (found?.name ?? candidate.uuid), seed: found?.id ?? candidate.uuid };
+      }
+
+      // si tiene id que no es uuid (podría ser id_int)
+      if (candidate.id) {
+        const s = String(candidate.id);
+        // buscar en categories
+        const found2 = (categories || []).find((c) => String(c.id) === s || String(c.id_int) === s || String(c.uuid) === s);
+        if (found2) return { name: name ?? found2.name, seed: found2.id };
+        return { name: name ?? s, seed: s };
+      }
+
+      return { name, seed: name ?? null };
+    }
+
+    // candidate es string / number
+    const s = String(candidate).trim();
+    if (!s) return { name: null, seed: null };
+
+    if (uuidRegex.test(s)) {
+      const found = uuidToCategory.get(s);
+      return { name: found?.name ?? s, seed: found?.id ?? s };
+    }
+
+    if (/^\d+$/.test(s)) {
+      // buscar en categories por id (page.tsx mapea id = id_int ?? id)
+      const found = (categories || []).find((c) => String(c.id) === s || String(c.id_int) === s);
+      if (found) return { name: found.name, seed: found.id };
+      return { name: s, seed: s };
+    }
+
+    // si no es uuid ni numérico, lo tratamos como nombre
+    return { name: s, seed: s };
+  };
+
   const grouped = React.useMemo(() => {
-    // Si hay un filtro aplicado, devolvemos el grupo "filtered" con los items actuales.
-    // Nota: ahora, al cambiar un filtro, `loading` se activa inmediatamente por los handlers,
-    // y el overlay cubrirá la lista previa hasta que la nueva petición reemplace `products`.
     if (selectedCategory) {
       return [{ title: null, key: "filtered", items: products }];
     }
@@ -223,7 +259,7 @@ export default function CatalogShell({ categories }: { categories: Category[] })
     }
 
     return groups;
-  }, [selectedCategory, products, uuidToCategory]);
+  }, [selectedCategory, products, uuidToCategory, categories]);
 
   return (
     <div>
@@ -254,7 +290,6 @@ export default function CatalogShell({ categories }: { categories: Category[] })
           <div className="text-red-600">Error: {error}</div>
         ) : (
           <div className="relative">
-            {/* Si no hay productos previos y estamos cargando, mostramos skeletons */}
             {loading && products.length === 0 ? (
               <SkeletonGrid columns={4} count={8} />
             ) : (
@@ -263,15 +298,32 @@ export default function CatalogShell({ categories }: { categories: Category[] })
                   {g.title ? <h2 className="text-lg font-semibold mb-3">{g.title}</h2> : selectedCategory ? null : <h3 className="text-sm text-muted-foreground mb-2">Otros</h3>}
 
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6" style={{ gridAutoRows: "1fr" }}>
-                    {g.items.map((p: any) => (
-                      <ProductCard key={p.id} id={p.id} name={p.name} price={p.price} images={p.images} available={p.available} />
-                    ))}
+                    {g.items.map((p: any) => {
+                      // calculamos name + seed para pasar al ProductCard
+                      const firstCat = Array.isArray(p.categories) && p.categories.length > 0 ? p.categories[0] : p.category ?? null;
+                      const resolved = resolveCategory(firstCat);
+
+                      return (
+                        <ProductCard
+                          key={p.id}
+                          id={p.id}
+                          name={p.name}
+                          price={p.price}
+                          images={p.images}
+                          available={p.available}
+                          // pasamos nombre legible y seed (seed coincide con lo que usa CategoryFilter)
+                          category={resolved.name}
+                          categorySeed={resolved.seed}
+                          // mantengo raw categories por compatibilidad
+                          categories={p.categories}
+                        />
+                      );
+                    })}
                   </div>
                 </section>
               ))
             )}
 
-            {/* overlay sutil si hay items previos y estamos recargando */}
             {loading && products.length > 0 && (
               <div
                 className="absolute inset-0 flex items-center justify-center bg-white/60 dark:bg-black/30 backdrop-blur-sm pointer-events-none"

@@ -1,10 +1,10 @@
-// components/product-card.tsx
 "use client";
 
 import Image from "next/image";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { Share2, MessageCircle, ChevronLeft, ChevronRight } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
@@ -23,18 +23,14 @@ interface ProductCardProps {
   name: string;
   price?: number | string | null;
   images?: (string | { url?: string })[] | null;
-  available?: boolean | null;
+  available?: boolean | number | string | null;
   categories?: (Category | string)[] | null;
+  // nombre legible que mostraremos
+  category?: string | null;
+  // seed que usará getCategoryColor (debe coincidir con el usado en CategoryFilter)
+  categorySeed?: string | null;
 }
 
-/**
- * ProductCard (mejorado):
- * - tarjeta con h-full para evitar saltos de altura en grid con gridAutoRows: "1fr"
- * - parent image con aspect-ratio (ya provisto) + Image fill para reservar espacio (evita CLS)
- * - carga de imagen con transición de opacidad (fade-in)
- * - soporte para images como strings o { url }
- * - controles accesibles y comportamiento táctil/teclado conservado
- */
 export function ProductCard({
   id,
   name,
@@ -42,6 +38,8 @@ export function ProductCard({
   images = [],
   available = true,
   categories,
+  category,
+  categorySeed,
 }: ProductCardProps) {
   const [isSharing, setIsSharing] = useState(false);
   const { toast } = useToast();
@@ -87,12 +85,11 @@ export function ProductCard({
 
   const handleWhatsApp = () => {
     const message = encodeURIComponent(`Hola, me interesa el producto: ${name} - $${priceString}`);
-    // adapta el número si es necesario
     const whatsappUrl = `https://wa.me/5352490476?text=${message}`;
     if (typeof window !== "undefined") window.open(whatsappUrl, "_blank");
   };
 
-  // Helper: extraer nombre y semilla (seed) de cada categoría (soporta string o objeto)
+  // Helper: extraer nombre y semilla (seed) si vienen como categories[] (guardamos como fallback)
   const extractCategory = (item: Category | string | null | undefined): { name: string; seed: string } | null => {
     if (item === null || item === undefined) return null;
     if (typeof item === "string") {
@@ -109,37 +106,36 @@ export function ProductCard({
     return null;
   };
 
-  const parsedCats = (categories ?? [])
+  const parsedCats = (Array.isArray(categories) ? categories : [])
     .map((c) => extractCategory(c))
     .filter(Boolean) as { name: string; seed: string }[];
 
-  const visibleCats = parsedCats.slice(0, 3);
-  const extraCount = Math.max(0, parsedCats.length - visibleCats.length);
+  // PRIORIDAD para category display:
+  // 1) prop category (nombre legible) y categorySeed (semilla que asegura color igual al filtro)
+  // 2) si no vienen, fallback a parsedCats[0]
+  const displayName = category ?? (parsedCats.length > 0 ? parsedCats[0].name : null);
+  const displaySeed = categorySeed ?? (parsedCats.length > 0 ? parsedCats[0].seed : null);
 
   // normalizar images: aceptar string o { url }
-  const imgs = (Array.isArray(images) && images.length > 0
-    ? images.map((it) => (typeof it === "string" ? it : (it && (it as any).url) ?? "").filter ? (it as any) : it)
-    : []
-  ) as (string | { url?: string })[];
+  const imgs = Array.isArray(images)
+    ? images
+        .map((it) => {
+          if (!it) return "";
+          return typeof it === "string" ? it : (it as any).url ?? "";
+        })
+        .filter(Boolean)
+    : [];
 
-  // produce array of string URLs fallback to placeholder
-  const normalizedImgs: string[] = (imgs.length
-    ? imgs.map((it) => (typeof it === "string" ? it : (it && (it as any).url) ?? "/placeholder.svg")).filter(Boolean)
-    : ["/placeholder.svg"]
-  ) as string[];
+  const normalizedImgs: string[] = imgs.length ? imgs : ["/placeholder.svg"];
 
   const [index, setIndex] = useState(0);
   const containerRef = useRef<HTMLDivElement | null>(null);
-
-  // image loaded state for fade-in
   const [imgLoaded, setImgLoaded] = useState(false);
 
-  // reset index when images change
   useEffect(() => {
     setIndex(0);
   }, [images]);
 
-  // reset imgLoaded when index changes so fade works for each image
   useEffect(() => {
     setImgLoaded(false);
   }, [index]);
@@ -162,7 +158,6 @@ export function ProductCard({
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [normalizedImgs.length]);
 
   useEffect(() => {
@@ -199,9 +194,10 @@ export function ProductCard({
   }, [normalizedImgs.length]);
 
   const showControls = normalizedImgs.length > 1;
+  const isAvailable = available === true || available === 1 || available === "1";
 
   return (
-    <Card className="overflow-hidden hover:shadow-lg transition-all duration-200 hover:border-primary/40 bg-card group p-2 gap-2 rounded-md h-full"> {/* <-- h-full para filas uniformes */}
+    <Card className="overflow-hidden hover:shadow-lg transition-all duration-200 hover:border-primary/40 bg-card group p-2 gap-2 rounded-md h-full">
       <Link href={`/product/${id}`} className="block relative overflow-hidden bg-muted aspect-[4/3]" aria-label={`Ver ${name}`}>
         <div
           ref={containerRef}
@@ -222,20 +218,23 @@ export function ProductCard({
             priority={false}
           />
 
-          {/* BADGES DE CATEGORÍA — esquina superior izquierda */}
-          <div className="absolute top-2 left-2 z-20 flex items-center gap-2">
-            {visibleCats.map((cat, idx) => (
-              <CategoryBadge key={`${cat.seed}-${idx}`} category={cat.name} seed={cat.seed} className="px-2 py-0.5 text-xs font-medium" />
-            ))}
+          {/* BADGE PRINCIPAL DE CATEGORÍA — usamos displayName y displaySeed */}
+          <div className="absolute top-2 left-2 z-20">
+            {displayName ? (
+              <CategoryBadge category={displayName} seed={displaySeed ?? undefined} className="px-3 py-1 text-xs font-medium" />
+            ) : null}
+          </div>
 
-            {extraCount > 0 && (
-              <div
-                className="px-2 py-0.5 rounded-full text-xs font-medium select-none bg-muted/90 text-muted-foreground/95"
-                aria-hidden="true"
-                title={`${extraCount} categorías más`}
-              >
-                +{extraCount}
-              </div>
+          {/* AVAILABILITY BADGE — esquina superior derecha */}
+          <div className="absolute top-2 right-2 z-20">
+            {isAvailable ? (
+              <Badge title="Disponible" aria-label="Producto disponible" className="text-xs py-0.5 px-2">
+                Disponible
+              </Badge>
+            ) : (
+              <Badge variant="destructive" title="Agotado" aria-label="Producto agotado" className="text-xs py-0.5 px-2">
+                Agotado
+              </Badge>
             )}
           </div>
 
@@ -297,9 +296,9 @@ export function ProductCard({
             asChild
             size="sm"
             className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground text-xs"
-            disabled={!available}
+            disabled={!isAvailable}
             onClick={(e: any) => {
-              if (!available) e.preventDefault();
+              if (!isAvailable) e.preventDefault();
             }}
           >
             <Link href={`/product/${id}`}>Ver</Link>
