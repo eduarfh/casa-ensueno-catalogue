@@ -79,30 +79,36 @@ export function AdminProductList({ products }: ProductListProps) {
     <>
       <div className="border border-border rounded-lg overflow-hidden">
         <div className="overflow-x-auto">
-          <Table>
+          <Table className="min-w-max">
             <TableHeader>
               <TableRow>
-                <TableHead>Nombre</TableHead>
-                <TableHead>Categoría</TableHead>
-                <TableHead className="text-right">Precio</TableHead>
-                <TableHead>Disponibilidad</TableHead>
-                <TableHead className="text-right">Acciones</TableHead>
+                <TableHead className="min-w-[160px] whitespace-nowrap">Nombre</TableHead>
+                <TableHead className="min-w-[140px] whitespace-nowrap">Categoría</TableHead>
+                <TableHead className="text-right min-w-[100px] whitespace-nowrap">Precio</TableHead>
+                <TableHead className="min-w-[140px] whitespace-nowrap">Disponibilidad</TableHead>
+                <TableHead className="text-right min-w-[140px] whitespace-nowrap">Acciones</TableHead>
               </TableRow>
             </TableHeader>
+
             <TableBody>
               {products.map((product) => (
                 <TableRow key={product.id}>
-                  <TableCell className="font-medium">{product.name}</TableCell>
-                  <TableCell>
+                  <TableCell className="font-medium whitespace-nowrap">{product.name}</TableCell>
+
+                  <TableCell className="whitespace-nowrap">
                     {product.categories ? (
                       <Badge variant="secondary">{product.categories.name}</Badge>
                     ) : (
                       <span className="text-muted-foreground text-sm">Sin categoría</span>
                     )}
                   </TableCell>
-                  <TableCell className="text-right">${product.price.toFixed(2)}</TableCell>
-                  <TableCell className="text-right">{product.stock}</TableCell>
-                  <TableCell>
+
+                  <TableCell className="text-right whitespace-nowrap">
+                    ${product.price.toFixed(2)}
+                  </TableCell>
+
+
+                  <TableCell className="whitespace-nowrap">
                     {product.available ? (
                       <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
                         Disponible
@@ -111,13 +117,15 @@ export function AdminProductList({ products }: ProductListProps) {
                       <Badge variant="destructive">Agotado</Badge>
                     )}
                   </TableCell>
-                  <TableCell className="text-right">
+
+                  <TableCell className="text-right whitespace-nowrap">
                     <div className="flex gap-2 justify-end">
                       <Button asChild size="sm" variant="outline">
                         <Link href={`/admin/products/${product.id}`}>
                           <Edit className="w-4 h-4" />
                         </Link>
                       </Button>
+
                       <Button
                         size="sm"
                         variant="outline"

@@ -24,6 +24,8 @@ export default async function AdminDashboard() {
     `,
     )
     .order("created_at", { ascending: false });
+    console.log("productsRaw:", JSON.stringify(productsRaw, null, 2));
+
 
   // Normalizar categorías para pasar un array plano categories: [{id,name}, ...]
   const products = (productsRaw || []).map((p: any) => {
