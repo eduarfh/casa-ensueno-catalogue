@@ -31,14 +31,14 @@ export default async function Home() {
             >
               <Link href="/catalog">Explorar Catálogo</Link>
             </Button>
-            <Button
+            {/* <Button
               asChild
               variant="outline"
               size="lg"
               className="w-full sm:w-auto border-primary/30 hover:bg-primary/10 bg-transparent"
             >
               <Link href="/auth/login">Acceso Administrador</Link>
-            </Button>
+            </Button> */}
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 mt-12 sm:mt-16 px-4 sm:px-0">

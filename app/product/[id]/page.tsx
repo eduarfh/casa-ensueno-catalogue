@@ -9,6 +9,7 @@ import { ProductImageGallery } from "@/components/product-image-gallery";
 import { ProductShareButtons } from "@/components/product-share-buttons";
 import SiteHeader from "@/components/site-header";
 import type { Metadata } from "next";
+import StoreInfo from "@/components/store-info";
 
 interface ParamsShape {
   params: Promise<{
@@ -17,7 +18,6 @@ interface ParamsShape {
 }
 
 export async function generateMetadata({ params }: ParamsShape): Promise<Metadata> {
-  // params is a Promise in this Next version -> await it
   const { id } = await params;
 
   const supabase = createPublicServerClient();
@@ -31,7 +31,7 @@ export async function generateMetadata({ params }: ParamsShape): Promise<Metadat
       price,
       available,
       product_images(image_url),
-      product_categories(category_id, categories(id_int, name))
+      category
     `)
     .eq("id", id)
     .single();
@@ -54,7 +54,6 @@ export async function generateMetadata({ params }: ParamsShape): Promise<Metadat
 }
 
 export default async function ProductPage({ params }: ParamsShape) {
-  // await here too
   const { id } = await params;
   const supabase = await createServerClient();
 
@@ -66,7 +65,7 @@ export default async function ProductPage({ params }: ParamsShape) {
       description,
       price,
       available,
-      product_categories(category_id, categories(id_int, name)),
+      category,
       product_images(id, image_url, display_order)
     `)
     .eq("id", id)
@@ -75,18 +74,6 @@ export default async function ProductPage({ params }: ParamsShape) {
   if (!product) {
     notFound();
   }
-
-  const cats =
-    (product.product_categories || [])
-      .map((pc: any) => {
-        const cat = pc?.categories;
-        if (!cat) return null;
-        return {
-          id: String(cat.id_int ?? ""),
-          name: String(cat.name ?? ""),
-        };
-      })
-      .filter(Boolean) || [];
 
   const productUrl = `${process.env.NEXT_PUBLIC_BASE_URL ?? "http://localhost:3000"}/product/${id}`;
 
@@ -123,51 +110,47 @@ export default async function ProductPage({ params }: ParamsShape) {
               <div className="flex items-start justify-between gap-4 mb-4">
                 <div className="flex-1">
                   <h1 className="text-4xl font-bold mb-3 text-balance">{product.name}</h1>
-                  <div className="flex gap-2 mb-2">
-                    {cats.map((c: any) => (
-                      <Badge key={c.id} className="bg-primary text-primary-foreground">
-                        {c.name}
-                      </Badge>
-                    ))}
-                  </div>
                 </div>
               </div>
 
               <div className="flex items-baseline gap-3 py-4">
                 <span className="text-5xl font-bold text-primary">
-                  ${Number(product.price ?? 0).toFixed(2)}
+                  ${Number(product.price ?? 0).toFixed(2)}{" "}
+                  <span className="text-foreground">CUP</span>
                 </span>
-                {!product.available && (
-                  <Badge variant="destructive" className="text-base py-1 px-3">
-                    Agotado
-                  </Badge>
-                )}
+
+
+
               </div>
 
-              <p className="text-sm text-muted-foreground font-medium">
-                {product.available ? "Disponible" : "No disponible"}
-              </p>
+
             </div>
-
-            {product.description && (
-              <div className="py-4 border-t border-border">
-                <h2 className="text-lg font-semibold mb-3">Descripción</h2>
-                <p className="text-muted-foreground leading-relaxed whitespace-pre-line">
-                  {product.description}
-                </p>
-              </div>
-            )}
 
             <Card className="p-5 bg-muted/50 border-muted">
               <h3 className="font-semibold mb-4 flex items-center gap-2">
                 <ShoppingCart className="w-5 h-5 text-secondary" />
                 Información del Producto
               </h3>
+
               <dl className="space-y-3 text-sm">
                 <div className="flex justify-between items-center">
                   <dt className="text-muted-foreground font-medium">Disponibilidad:</dt>
                   <dd className="font-semibold text-foreground">
                     {product.available ? "Disponible" : "No disponible"}
+                  </dd>
+                </div>
+
+                <div className="flex justify-between items-center">
+                  <dt className="text-muted-foreground font-medium">Categoría:</dt>
+                  <dd className="font-semibold text-foreground">
+                    {product.category ?? "Sin categoría"}
+                  </dd>
+                </div>
+
+                <div>
+                  <dt className="text-muted-foreground font-medium mb-2">Descripción:</dt>
+                  <dd className="text-sm text-foreground leading-relaxed whitespace-pre-line">
+                    {product.description ?? "Sin descripción disponible."}
                   </dd>
                 </div>
               </dl>
@@ -181,6 +164,9 @@ export default async function ProductPage({ params }: ParamsShape) {
           </div>
         </div>
       </main>
+      <footer>
+        <StoreInfo />
+      </footer>
     </div>
   );
 }

@@ -5,7 +5,17 @@ import React, { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { LogOut, Menu, X } from "lucide-react";
+import { List, LogOut, Menu, Settings, UserCheck, X } from "lucide-react";
+import {
+  Dialog,
+  DialogTrigger,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import { Button } from "./ui/button";
+import AdminStoreForm from "./store-form";
 
 type AdminCheckResp = {
   ok?: boolean;
@@ -15,6 +25,7 @@ type AdminCheckResp = {
 };
 
 export function AdminHeader() {
+  const [isStoreDialogOpen, setIsStoreDialogOpen] = useState(false);
   const [email, setEmail] = useState<string | null>(null);
   const [checking, setChecking] = useState(true);
   const [open, setOpen] = useState(false);
@@ -157,25 +168,67 @@ export function AdminHeader() {
             {/* Nav visible en sm+ */}
             <nav className="hidden sm:flex items-center gap-2 sm:gap-4">
               <div className="flex items-center gap-2">
-                <Link
-                  href="/admin/registrations"
-                  className="text-xs sm:text-sm font-medium hover:text-primary transition-colors px-2 py-1"
-                >
-                  Solicitudes
-                </Link>
+
 
                 {/* Mantener botones originales: si hay sesión mostrar email + Salir; si no, link a login */}
                 {checking ? (
                   <div className="text-sm text-muted-foreground px-2 py-1">Cargando...</div>
                 ) : email ? (
                   <>
-                    <span className="text-xs sm:text-sm text-muted-foreground px-2 py-1">{email}</span>
-                    <button
-                      onClick={handleLogout}
-                      className="text-xs sm:text-sm font-medium hover:text-primary transition-colors px-2 py-1"
+
+                    <span className="text-sm text-muted-foreground px-3 py-2 rounded-md">{email}</span>
+
+                    <Link
+                      href="/admin/registrations"
+                      className="text-xs sm:text-sm font-medium transition-colors px-2 py-1"
                     >
-                      Salir
-                    </button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="bg-transparent transition-colors"
+                      >
+                        <List className="h-4 w-4" />
+                      </Button>
+                    </Link>
+
+                    <Dialog open={isStoreDialogOpen} onOpenChange={setIsStoreDialogOpen}>
+                      <DialogTrigger asChild>
+                        <Button variant="outline" size="sm" className="flex items-center gap-2">
+                          <Settings className="h-4 w-4" />
+                        </Button>
+                      </DialogTrigger>
+
+                      <DialogContent className="sm:max-w-3xl max-w-full store-dialog">
+                        <DialogHeader>
+                          <div className="flex items-start justify-between w-full">
+                            <div>
+                              <DialogTitle className="text-lg font-semibold">Configuración de la tienda</DialogTitle>
+                              <p className="text-xs text-muted-foreground">Edita los datos que se muestran en la tienda y el contacto.</p>
+                            </div>
+                            <div className="ml-4">
+                              <Button variant="ghost" size="sm" onClick={() => setIsStoreDialogOpen(false)}>Cerrar</Button>
+                            </div>
+                          </div>
+                        </DialogHeader>
+
+                        <div className="mt-4">
+                          <AdminStoreForm />
+                        </div>
+                      </DialogContent>
+                    </Dialog>
+                    <div className="inline-flex items-center px-1">
+                      <ThemeToggle />
+                    </div>
+
+
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleLogout}
+                      className="text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 bg-transparent"
+                    >
+                      <LogOut className="h-4 w-4" />
+                    </Button>
                   </>
                 ) : (
                   <Link
@@ -185,14 +238,10 @@ export function AdminHeader() {
                     Iniciar sesión
                   </Link>
                 )}
-
-                <div className="inline-flex items-center px-1">
-                  <ThemeToggle />
-                </div>
               </div>
             </nav>
 
-            <ThemeToggle />
+
             {/* Mobile menu toggle */}
             <button
               aria-label={open ? "Cerrar menú" : "Abrir menú"}
@@ -217,16 +266,15 @@ export function AdminHeader() {
 
         {/* panel que ocupa todo el espacio del header */}
         <div
-          className={`w-full h-full px-4 py-2 flex items-center transition-all duration-300 ease-out origin-top
+          className={`w-full h-full px-1 py-2 flex items-center transition-all duration-300 ease-out origin-top
             ${open ? "opacity-100 translate-y-0 pointer-events-auto" : "opacity-0 -translate-y-3 pointer-events-none"}`}
           role={open ? "dialog" : undefined}
           aria-modal={open ? "true" : undefined}
         >
           <div
             className="relative w-full h-full flex items-center justify-center gap-3 px-4 py-1 rounded-2xl
-             backdrop-blur-[60px] supports-[backdrop-filter]:backdrop-blur-[60px]
-             bg-white/50 dark:bg-slate-900/70
-             border border-white/30 dark:border-white/30
+             bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80
+             border border-white/30 
              shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
@@ -234,29 +282,65 @@ export function AdminHeader() {
 
 
             {/* Links centrados */}
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
+
               <Link
                 href="/admin/registrations"
-                className="text-sm font-medium hover:text-primary transition-colors px-3 py-2 rounded-md"
-                onClick={closeMenu}
+                className="text-xs sm:text-sm font-medium hover:text-primary transition-colors px-2 py-1"
               >
-                Solicitudes
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="bg-transparent"
+                >
+                  <List className="h-4 w-4" />
+                </Button>
               </Link>
+
+              <Dialog open={isStoreDialogOpen} onOpenChange={setIsStoreDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button variant="outline" size="sm" className="flex items-center gap-2">
+                    <Settings className="h-4 w-4" />
+                  </Button>
+                </DialogTrigger>
+
+                <DialogContent className="sm:max-w-3xl max-w-full store-dialog">
+                  <DialogHeader>
+                    <div className="flex items-start justify-between w-full">
+                      <div>
+                        <DialogTitle className="text-lg font-semibold">Configuración de la tienda</DialogTitle>
+                        <p className="text-xs text-muted-foreground">Edita los datos que se muestran en la tienda y el contacto.</p>
+                      </div>
+                      <div className="ml-4">
+                        <Button variant="ghost" size="sm" onClick={() => setIsStoreDialogOpen(false)}>Cerrar</Button>
+                      </div>
+                    </div>
+                  </DialogHeader>
+
+                  <div className="mt-4">
+                    <AdminStoreForm />
+                  </div>
+                </DialogContent>
+              </Dialog>
 
               {checking ? (
                 <div className="text-sm text-muted-foreground px-3 py-2 rounded-md">Cargando...</div>
               ) : email ? (
                 <>
                   <span className="text-sm text-muted-foreground px-3 py-2 rounded-md">{email}</span>
-                  <button
+                  <ThemeToggle />
+                  <Button
+                    variant="outline"
+                    size="sm"
                     onClick={() => {
                       closeMenu();
                       handleLogout();
                     }}
-                    className="text-sm font-medium hover:text-primary transition-colors px-3 py-2 rounded-md"
+                    className="text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 bg-transparent"
                   >
-                    <LogOut className="h-4 w-4 mr-2" />
-                  </button>
+                    <LogOut className="h-4 w-4" />
+                  </Button>
+
                 </>
               ) : (
                 <Link
@@ -267,6 +351,8 @@ export function AdminHeader() {
                   Iniciar sesión
                 </Link>
               )}
+
+
 
               <div
                 role="button"
@@ -284,14 +370,14 @@ export function AdminHeader() {
               </div>
             </div>
 
-            {/* Botón X dentro del panel */}
+            {/* Botón X dentro del panel
             <button
               onClick={closeMenu}
               aria-label="Cerrar menú"
               className="absolute right-3 top-1/2 -translate-y-1/2 p-2 rounded-md hover:bg-muted/10 transition"
             >
               <X size={18} />
-            </button>
+            </button> */}
           </div>
         </div>
       </div>

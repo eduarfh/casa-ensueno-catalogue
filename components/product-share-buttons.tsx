@@ -63,7 +63,6 @@ export function ProductShareButtons({ productUrl, productName, productPrice }: P
 
   return (
     <div className="space-y-4 border-t border-border pt-6">
-      <h3 className="font-semibold text-lg">Compartir Producto</h3>
       <div className="flex gap-3 flex-wrap">
         <Button
           onClick={handleNativeShare}

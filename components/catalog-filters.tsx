@@ -1,17 +1,17 @@
 // components/catalog-filters.tsx
-"use client"
+"use client";
 
-import React, { useEffect, useState } from "react"
-import { useRouter, usePathname, useSearchParams } from "next/navigation"
-import CategoryFilter from "@/components/category-filter"
-import AvailabilityToggle from "@/components/availability-toggle"
-import { Product } from "@/lib/product"
+import React, { useEffect, useState } from "react";
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
+import CategoryFilter from "@/components/category-filter";
+import { Product } from "@/lib/product";
+import AvailabilityFilter from "./availability-filter";
 
 interface CatalogFiltersProps {
-  categories: { id: string; name: string }[]
-  currentSearch?: string | null
-  currentCategory?: string | null
-  products?: Product[]
+  categories: { id: string; name: string }[];
+  currentSearch?: string | null;
+  currentCategory?: string | null;
+  products?: Product[];
 }
 
 const CatalogFilters: React.FC<CatalogFiltersProps> = ({
@@ -20,54 +20,54 @@ const CatalogFilters: React.FC<CatalogFiltersProps> = ({
   currentCategory,
   products = [],
 }) => {
-  const router = useRouter()
-  const pathname = usePathname()
-  const searchParams = useSearchParams()
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
 
-  const initialAvailableParam = searchParams?.get("available") ?? null
+  const initialAvailableParam = searchParams?.get("available") ?? null;
   const mapParam = (p: string | null) => {
-    if (!p) return "available"
-    if (p === "1" || p.toLowerCase() === "true") return "available"
-    return "all"
-  }
+    if (!p) return "available";
+    if (p === "1" || p.toLowerCase() === "true") return "available";
+    return "all";
+  };
 
-  const [searchTerm, setSearchTerm] = useState<string>(currentSearch ?? "")
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(currentCategory ?? null)
-  const [availableFilter, setAvailableFilter] = useState<"all" | "available">(mapParam(initialAvailableParam))
+  const [searchTerm, setSearchTerm] = useState<string>(currentSearch ?? "");
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(currentCategory ?? null);
+  const [availableFilter, setAvailableFilter] = useState<"all" | "available">(mapParam(initialAvailableParam));
 
   useEffect(() => {
-    setSearchTerm(currentSearch ?? "")
-    setSelectedCategory(currentCategory ?? null)
+    setSearchTerm(currentSearch ?? "");
+    setSelectedCategory(currentCategory ?? null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentSearch, currentCategory])
+  }, [currentSearch, currentCategory]);
 
   const applyFilters = (categoryId: string | null, search: string | null, available: "all" | "available") => {
-    setSelectedCategory(categoryId)
-    setSearchTerm(search ?? "")
+    setSelectedCategory(categoryId);
+    setSearchTerm(search ?? "");
 
-    const params = new URLSearchParams()
-    if (search && search.trim() !== "") params.set("search", search.trim())
-    if (categoryId && categoryId.trim() !== "") params.set("category", categoryId)
-    if (available === "available") params.set("available", "1")
+    const params = new URLSearchParams();
+    if (search && search.trim() !== "") params.set("search", search.trim());
+    if (categoryId && categoryId.trim() !== "") params.set("category", categoryId);
+    if (available === "available") params.set("available", "1");
 
-    const q = params.toString()
-    router.push(`${pathname}${q ? `?${q}` : ""}`)
-  }
+    const q = params.toString();
+    router.push(`${pathname}${q ? `?${q}` : ""}`);
+  };
 
   const onSubmit: React.FormEventHandler = (e) => {
-    e.preventDefault()
-    applyFilters(selectedCategory, searchTerm, availableFilter)
-  }
+    e.preventDefault();
+    applyFilters(selectedCategory, searchTerm, availableFilter);
+  };
 
   const onClear = () => {
-    setSearchTerm("")
-    setAvailableFilter("available")
-    applyFilters(null, "", "available")
-  }
+    setSearchTerm("");
+    setAvailableFilter("available");
+    applyFilters(null, "", "available");
+  };
 
   const applyCategory = (catId: string | null) => {
-    applyFilters(catId, searchTerm, availableFilter)
-  }
+    applyFilters(catId, searchTerm, availableFilter);
+  };
 
   return (
     <div className="mb-4">
@@ -81,7 +81,11 @@ const CatalogFilters: React.FC<CatalogFiltersProps> = ({
           aria-label="Buscar productos"
         />
         <div className="ml-2">
-          <AvailabilityToggle value={availableFilter} onChange={(v) => { setAvailableFilter(v); applyFilters(selectedCategory, searchTerm, v) }} />
+          {/* PASAMOS active + onChange para cumplir la firma del componente */}
+          <AvailabilityFilter
+            active={availableFilter === "available"}
+            onChange={(active) => setAvailableFilter(active ? "available" : "all")}
+          />
         </div>
       </form>
 
@@ -92,7 +96,7 @@ const CatalogFilters: React.FC<CatalogFiltersProps> = ({
         products={products}
       />
     </div>
-  )
-}
+  );
+};
 
-export default CatalogFilters
+export default CatalogFilters;

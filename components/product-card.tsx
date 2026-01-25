@@ -25,10 +25,9 @@ interface ProductCardProps {
   images?: (string | { url?: string })[] | null;
   available?: boolean | number | string | null;
   categories?: (Category | string)[] | null;
-  // nombre legible que mostraremos
   category?: string | null;
-  // seed que usará getCategoryColor (debe coincidir con el usado en CategoryFilter)
   categorySeed?: string | null;
+  compact?: boolean;
 }
 
 export function ProductCard({
@@ -40,6 +39,7 @@ export function ProductCard({
   categories,
   category,
   categorySeed,
+  compact = false,
 }: ProductCardProps) {
   const [isSharing, setIsSharing] = useState(false);
   const { toast } = useToast();
@@ -89,7 +89,6 @@ export function ProductCard({
     if (typeof window !== "undefined") window.open(whatsappUrl, "_blank");
   };
 
-  // Helper: extraer nombre y semilla (seed) si vienen como categories[] (guardamos como fallback)
   const extractCategory = (item: Category | string | null | undefined): { name: string; seed: string } | null => {
     if (item === null || item === undefined) return null;
     if (typeof item === "string") {
@@ -110,13 +109,9 @@ export function ProductCard({
     .map((c) => extractCategory(c))
     .filter(Boolean) as { name: string; seed: string }[];
 
-  // PRIORIDAD para category display:
-  // 1) prop category (nombre legible) y categorySeed (semilla que asegura color igual al filtro)
-  // 2) si no vienen, fallback a parsedCats[0]
   const displayName = category ?? (parsedCats.length > 0 ? parsedCats[0].name : null);
   const displaySeed = categorySeed ?? (parsedCats.length > 0 ? parsedCats[0].seed : null);
 
-  // normalizar images: aceptar string o { url }
   const imgs = Array.isArray(images)
     ? images
         .map((it) => {
@@ -128,6 +123,38 @@ export function ProductCard({
 
   const normalizedImgs: string[] = imgs.length ? imgs : ["/placeholder.svg"];
 
+  // compact mode (usado en otros contextos; lo dejamos intacto)
+  if (compact) {
+    const imgSrc = normalizedImgs[0] ?? "/placeholder.svg";
+    const isAvailable = available === true || available === 1 || available === "1";
+
+    return (
+      <div className="rounded-md overflow-hidden border bg-card group p-1 h-full">
+        <Link href={`/product/${id}`} className="flex gap-2 items-center">
+          <div className="relative w-20 h-20 flex-shrink-0 rounded-md overflow-hidden bg-muted">
+            <Image src={imgSrc} alt={name ?? "Producto"} fill style={{ objectFit: "cover" }} loading="lazy" />
+          </div>
+
+          <div className="flex-1 min-w-0">
+            <h4 className="text-sm font-medium line-clamp-2">{name}</h4>
+            <div className="mt-1 flex items-center justify-between gap-2">
+              <span className="text-xs text-muted-foreground line-clamp-1">{displayName ?? "Sin categoría"}</span>
+              <span className="text-sm font-semibold text-primary">${priceString}</span>
+            </div>
+
+            <div className="mt-2 flex items-center gap-2">
+              <Badge variant={isAvailable ? "default" : "destructive"} className="text-xs py-0.5 px-2">
+                {isAvailable ? "Disponible" : "Agotado"}
+              </Badge>
+              {displaySeed ? <CategoryBadge category={displayName ?? ""} seed={displaySeed} className="text-xs py-0.5 px-2" /> : null}
+            </div>
+          </div>
+        </Link>
+      </div>
+    );
+  }
+
+  // full card
   const [index, setIndex] = useState(0);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [imgLoaded, setImgLoaded] = useState(false);
@@ -158,8 +185,11 @@ export function ProductCard({
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [normalizedImgs.length]);
 
+  // swipe/drag logic + prevent link navigation on drag
+  const draggingRef = useRef(false);
   useEffect(() => {
     const el = containerRef.current;
     if (!el || normalizedImgs.length < 2) return;
@@ -167,12 +197,14 @@ export function ProductCard({
     let dx = 0;
     const onPointerDown = (e: PointerEvent) => {
       startX = e.clientX;
+      draggingRef.current = false;
       try {
         el.setPointerCapture?.((e as any).pointerId);
       } catch {}
     };
     const onPointerMove = (e: PointerEvent) => {
       dx = e.clientX - startX;
+      if (Math.abs(dx) > 8) draggingRef.current = true;
     };
     const onPointerUp = () => {
       if (Math.abs(dx) > 40) {
@@ -180,6 +212,10 @@ export function ProductCard({
         else setIndex((i) => (i - 1 + normalizedImgs.length) % normalizedImgs.length);
       }
       dx = 0;
+      // small timeout to avoid immediate click after drag
+      setTimeout(() => {
+        draggingRef.current = false;
+      }, 50);
     };
     el.addEventListener("pointerdown", onPointerDown);
     el.addEventListener("pointermove", onPointerMove);
@@ -196,15 +232,64 @@ export function ProductCard({
   const showControls = normalizedImgs.length > 1;
   const isAvailable = available === true || available === 1 || available === "1";
 
+  // --- AUTOPLAY (catalog: rápido) ---
+  const AUTOPLAY_INTERVAL = 1200; // ms (catalogo: rápido)
+  const autoplayRef = useRef<number | null>(null);
+  const [isInteracting, setIsInteracting] = useState(false);
+
+  useEffect(() => {
+    if (!showControls) return;
+    if (isInteracting) return;
+
+    const id = window.setInterval(() => {
+      setIndex((i) => (i + 1) % normalizedImgs.length);
+    }, AUTOPLAY_INTERVAL);
+    autoplayRef.current = id;
+    return () => {
+      if (autoplayRef.current) {
+        clearInterval(autoplayRef.current);
+        autoplayRef.current = null;
+      }
+    };
+  }, [showControls, isInteracting, normalizedImgs.length]);
+
+  // pause/resume helpers
+  const pauseAutoplay = () => setIsInteracting(true);
+  const resumeAutoplay = () => setIsInteracting(false);
+
+  // Prevent navigation if user was dragging
+  const onImageLinkClick = (e: React.MouseEvent) => {
+    if (draggingRef.current) {
+      e.preventDefault();
+      e.stopPropagation();
+      return;
+    }
+    // otherwise let Link work normally
+  };
+
   return (
-    <Card className="overflow-hidden hover:shadow-lg transition-all duration-200 hover:border-primary/40 bg-card group p-2 gap-2 rounded-md h-full">
-      <Link href={`/product/${id}`} className="block relative overflow-hidden bg-muted aspect-[4/3]" aria-label={`Ver ${name}`}>
+    <Card
+      className={
+        // Escala ligera en móvil para que se vea igual que desktop pero algo más pequeño.
+        // - scale-95 por defecto (mobile), md:scale-100 para pantallas medianas en adelante (tablet/desktop).
+        // - padding y text sizes responsivos para mantener proporciones.
+        "overflow-hidden hover:shadow-lg transition-all duration-200 hover:border-primary/40 bg-card group p-2 md:p-3 gap-2 rounded-md h-full transform-gpu scale-95 md:scale-100"
+      }
+    >
+      <Link href={`/product/${id}`} className="block relative overflow-hidden bg-muted aspect-[4/3]" aria-label={`Ver ${name}`} onClick={onImageLinkClick}>
         <div
           ref={containerRef}
           className="w-full h-full relative"
           tabIndex={0}
           aria-roledescription="carousel"
           aria-label={`${name} imágenes`}
+          onMouseEnter={pauseAutoplay}
+          onMouseLeave={resumeAutoplay}
+          onFocus={pauseAutoplay}
+          onBlur={resumeAutoplay}
+          // pointerdown sets interacting to true until pointerup (helps for touch)
+          onPointerDown={() => setIsInteracting(true)}
+          onPointerUp={() => setTimeout(() => setIsInteracting(false), 150)}
         >
           <Image
             src={normalizedImgs[index] ?? "/placeholder.svg"}
@@ -218,15 +303,13 @@ export function ProductCard({
             priority={false}
           />
 
-          {/* BADGE PRINCIPAL DE CATEGORÍA — usamos displayName y displaySeed */}
-          <div className="absolute top-2 left-2 z-20">
+          <div className="absolute top-2 left-2 z-10">
             {displayName ? (
               <CategoryBadge category={displayName} seed={displaySeed ?? undefined} className="px-3 py-1 text-xs font-medium" />
             ) : null}
           </div>
 
-          {/* AVAILABILITY BADGE — esquina superior derecha */}
-          <div className="absolute top-2 right-2 z-20">
+          <div className="absolute top-2 right-2 z-10">
             {isAvailable ? (
               <Badge title="Disponible" aria-label="Producto disponible" className="text-xs py-0.5 px-2">
                 Disponible
@@ -282,13 +365,13 @@ export function ProductCard({
 
       <div className="px-2 pb-2 space-y-1 flex flex-col flex-1">
         <div>
-          <h3 className="font-semibold text-sm line-clamp-2 hover:text-primary transition-colors">
+          <h3 className="font-semibold text-sm md:text-base line-clamp-2 hover:text-primary transition-colors">
             <Link href={`/product/${id}`}>{name}</Link>
           </h3>
         </div>
 
         <div className="flex items-center justify-between">
-          <span className="text-lg font-semibold text-primary">${priceString}</span>
+          <span className="text-lg md:text-xl font-semibold text-primary">${priceString}</span>
         </div>
 
         <div className="flex gap-2 mt-2">

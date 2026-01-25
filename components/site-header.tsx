@@ -4,7 +4,8 @@ import Link from "next/link";
 import { ThemeToggle } from "@/components/theme-toggle";
 import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
-import { Menu, X } from "lucide-react";
+import { Boxes, GalleryHorizontal, Grid2X2, List, Menu, PackageSearch, X } from "lucide-react";
+import { Button } from "./ui/button";
 
 interface SiteHeaderProps {
   user?: {
@@ -117,20 +118,23 @@ export default function SiteHeader({ user = null }: SiteHeaderProps) {
                     </Link>
                   </>
                 ) : (
+
                   <Link
                     href="/auth/login"
                     className="text-xs sm:text-sm font-medium hover:text-primary transition-colors px-2 py-1"
                   >
                     Admin
                   </Link>
+
                 )}
+
 
                 <div className="inline-flex items-center px-1">
                   <ThemeToggle />
                 </div>
               </div>
             </nav>
-            <ThemeToggle />
+
             {/* Mobile menu toggle */}
             <button
               aria-label={open ? "Cerrar menú" : "Abrir menú"}
@@ -168,9 +172,8 @@ export default function SiteHeader({ user = null }: SiteHeaderProps) {
           aria-modal={open ? "true" : undefined}
         ><div
           className="relative w-full h-full flex items-center justify-center gap-3 px-4 py-1 rounded-2xl
-             backdrop-blur-[60px] supports-[backdrop-filter]:backdrop-blur-[60px]
-             bg-white/50 dark:bg-slate-900/70
-             border border-white/30 dark:border-white/30
+             bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80
+             border border-white/30 
              shadow-2xl"
           onClick={(e) => e.stopPropagation()}
         >
@@ -179,19 +182,19 @@ export default function SiteHeader({ user = null }: SiteHeaderProps) {
               <Link
                 href="/catalog"
                 className="text-sm font-medium hover:text-primary transition-colors px-3 py-2 rounded-md"
-                onClick={closeMenu}
+
               >
-                Catálogo
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="bg-transparent"
+                >
+                  <PackageSearch className="h-4 w-4" />
+                </Button>
               </Link>
 
 
-              <Link
-                href="/auth/login"
-                className="text-sm font-medium hover:text-primary transition-colors px-3 py-2 rounded-md"
-                onClick={closeMenu}
-              >
-                Admin
-              </Link>
+              
 
 
               <div
@@ -207,7 +210,7 @@ export default function SiteHeader({ user = null }: SiteHeaderProps) {
                 className="inline-flex items-center px-1"
                 aria-label="Cambiar tema y cerrar menú"
               >
-
+                <ThemeToggle />
               </div>
             </div>
 

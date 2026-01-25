@@ -22,7 +22,6 @@ export default async function EditProductPage({ params }: Props) {
   let product: any = null;
 
   if (!isNewProduct) {
-    // Seleccionamos product_categories.category_id (INTEGER) y categories(id_int,name)
     const { data } = await supabase
       .from("products")
       .select(
@@ -32,8 +31,8 @@ export default async function EditProductPage({ params }: Props) {
         description,
         price,
         available,
-        product_images(id, image_url, display_order),
-        product_categories(category_id, categories(id_int, name))
+        category,
+        product_images(id, image_url, display_order)
       `,
       )
       .eq("id", id)

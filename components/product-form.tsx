@@ -1,7 +1,7 @@
 // components/product-form.tsx
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,31 +9,52 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { X, Upload, Plus, Trash } from "lucide-react";
+import { X, Upload, Plus, Trash, ChevronDown } from "lucide-react";
 import Image from "next/image";
 
-interface Category {
-  id: string; // uuid
+type Category = {
+  id: string;
   name: string;
-}
+};
 
 interface ProductFormProps {
-  product?: any; // server data with product_categories relation
-  categories: Category[]; // initial list passed from server (ids should be UUIDs)
+  product?: any; // server data (product.category: string)
+  categories: (Category | string)[]; // lista inicial desde server
 }
 
-export function ProductForm({ product, categories: initialCategories }: ProductFormProps) {
+export function ProductForm({ product, categories: initialCategories = [] }: ProductFormProps) {
+  const router = useRouter();
+  const { toast } = useToast();
+
   const [formData, setFormData] = useState({
     name: product?.name || "",
     description: product?.description || "",
-    price: product?.price || 0,
+    price: product?.price ?? 0,
     available: product?.available ?? true,
-    // product?.product_categories contains objects with category_id (uuid) or join; convert to uuid strings
-    categories: (product?.product_categories?.map((pc: any) => String(pc.category_id || (pc.categories && pc.categories.id)) ) || []) as string[],
+    category: product?.category ?? "",
   });
 
-  const [categories, setCategories] = useState<Category[]>(initialCategories || []);
-  const [newCategoryName, setNewCategoryName] = useState("");
+  const normalizedFromProp = useMemo(() => {
+    return (initialCategories || [])
+      .map((c) => {
+        if (!c) return null;
+        if (typeof c === "string") return { id: c, name: c } as Category;
+        return { id: String((c as Category).id), name: String((c as Category).name) } as Category;
+      })
+      .filter(Boolean) as Category[];
+  }, [initialCategories]);
+
+  const [categories, setCategories] = useState<Category[]>(normalizedFromProp);
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
+
+  // Combobox / inline creation states
+  const [isCustomCategory, setIsCustomCategory] = useState(false);
+  const [comboOpen, setComboOpen] = useState(false);
+  const comboboxRef = useRef<HTMLDivElement | null>(null);
+  const listRef = useRef<HTMLUListElement | null>(null);
+
+  const [showNewCategoryInput, setShowNewCategoryInput] = useState(false);
+  const [customCategoryName, setCustomCategoryName] = useState("");
   const [creatingCategory, setCreatingCategory] = useState(false);
   const [deletingCategoryId, setDeletingCategoryId] = useState<string | null>(null);
 
@@ -42,57 +63,115 @@ export function ProductForm({ product, categories: initialCategories }: ProductF
       ?.sort((a: any, b: any) => (a.display_order || 0) - (b.display_order || 0))
       .map((img: any) => ({ id: img.id, url: img.image_url })) || []
   );
-
   const [uploadingImages, setUploadingImages] = useState<number[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const router = useRouter();
-  const { toast } = useToast();
 
+  const MAX_BYTES_CLIENT = 500 * 1024; // 500KB
+
+  // Inicializar categorías y selección
   useEffect(() => {
+    setCategories(normalizedFromProp);
+
+    const prodCat = product?.category ?? null;
+    if (prodCat) {
+      const prodCatStr = String(prodCat).trim();
+      if (!prodCatStr) {
+        setSelectedCategoryId(null);
+      } else {
+        const found = normalizedFromProp.find((c) => String(c.name).toLowerCase() === prodCatStr.toLowerCase());
+        if (found) {
+          setSelectedCategoryId(String(found.id));
+          setFormData((prev) => ({ ...prev, category: found.name }));
+        } else {
+          // synthetic
+          setSelectedCategoryId(prodCatStr);
+          setFormData((prev) => ({ ...prev, category: prodCatStr }));
+          setCategories((prev) => {
+            if (prev.find((p) => String(p.id) === prodCatStr)) return prev;
+            return [...prev, { id: prodCatStr, name: prodCatStr }];
+          });
+        }
+      }
+    } else {
+      setSelectedCategoryId(null);
+      setFormData((prev) => ({ ...prev, category: "" }));
+    }
+
     setFormData((prev) => ({
       ...prev,
       name: product?.name ?? prev.name,
       description: product?.description ?? prev.description,
       price: product?.price ?? prev.price,
       available: product?.available ?? prev.available,
-      categories: (product?.product_categories?.map((pc: any) => String(pc.category_id || (pc.categories && pc.categories.id))) || prev.categories) as string[],
     }));
-    setCategories(initialCategories || []);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [product, initialCategories]);
+  }, [product, normalizedFromProp]);
+
+  // cerrar combobox si clic fuera
+  useEffect(() => {
+    function onDocClick(e: MouseEvent) {
+      if (!comboboxRef.current) return;
+      if (comboboxRef.current.contains(e.target as Node)) return;
+      setComboOpen(false);
+    }
+    if (comboOpen) document.addEventListener("click", onDocClick);
+    return () => document.removeEventListener("click", onDocClick);
+  }, [comboOpen]);
+
+  const existingCategories = categories.map((c) => c.name);
+
+  const handleSelectCategory = (catName: string) => {
+    setFormData((prev) => ({ ...prev, category: catName }));
+    // buscar id existente (case-insensitive)
+    const found = categories.find((c) => c.name.toLowerCase() === catName.toLowerCase());
+    if (found) {
+      setSelectedCategoryId(String(found.id));
+    } else {
+      // synthetic id = name
+      const syntheticId = catName;
+      setSelectedCategoryId(syntheticId);
+      setCategories((prev) => {
+        if (prev.find((p) => String(p.id) === syntheticId)) return prev;
+        return [...prev, { id: syntheticId, name: catName }];
+      });
+    }
+    setComboOpen(false);
+  };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const { name, value, checked, type } = e.target as HTMLInputElement;
+    const target = e.target as HTMLInputElement;
+    const { name, value, checked } = target;
     setFormData((prev) => ({
       ...prev,
       [name]: name === "price" ? Number(value) : name === "available" ? checked : value,
     }));
   };
 
-  const toggleCategory = (catId: string) => {
-    setFormData((prev) => {
-      const set = new Set(prev.categories);
-      if (set.has(catId)) set.delete(catId);
-      else set.add(catId);
-      return { ...prev, categories: Array.from(set) };
-    });
-  };
-
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     if (!files.length) return;
-    const newImages = files.map((file) => ({ url: URL.createObjectURL(file), file }));
-    setImages((prev) => [...prev, ...newImages]);
+
+    const accepted: { id?: string; url: string; file?: File }[] = [];
+    for (const f of files) {
+      if (typeof f.size === "number" && f.size > MAX_BYTES_CLIENT) {
+        toast({
+          title: "Imagen demasiado grande",
+          description: `La imagen "${f.name}" supera el límite de ${Math.round(MAX_BYTES_CLIENT / 1024)} KB.`,
+          variant: "destructive",
+        });
+        continue;
+      }
+      accepted.push({ url: URL.createObjectURL(f), file: f });
+    }
+    if (accepted.length) setImages((prev) => [...prev, ...accepted]);
+    if (e.target) e.target.value = "";
   };
 
-  const removeImage = (index: number) => {
-    setImages((prev) => prev.filter((_, i) => i !== index));
-  };
+  const removeImage = (index: number) => setImages((prev) => prev.filter((_, i) => i !== index));
 
-  // --- Crear categoría inline ---
   const createCategory = async () => {
     try {
-      const name = newCategoryName?.trim();
+      const name = customCategoryName?.trim();
       if (!name) {
         toast({ title: "Nombre vacío", description: "Ingresa el nombre de la categoría", variant: "destructive" });
         return;
@@ -102,123 +181,66 @@ export function ProductForm({ product, categories: initialCategories }: ProductF
       const res = await fetch("/api/categories", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        credentials: "same-origin", // enviar cookies HTTP-only
+        credentials: "same-origin",
         body: JSON.stringify({ name }),
       });
-
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        throw new Error(data?.error || data?.message || `HTTP ${res.status}`);
-      }
+      if (!res.ok) throw new Error(data?.error || data?.message || `HTTP ${res.status}`);
 
-      // Preferir UUID (id) devuelto por el servidor
-      const newCatId = data?.id ?? data?.uuid ?? null;
-      if (!newCatId) {
-        // servidor devolvió sólo id_int? eso es raro; pedimos recarga
-        throw new Error("La categoría fue creada pero el servidor no devolvió su UUID. Recarga la página.");
-      }
+      const newCatId = data?.id ?? data?.uuid ?? (data?.id_int ? String(data.id_int) : null) ?? String(name);
       const newCatName = data?.name ?? name;
-
       const newCat: Category = { id: String(newCatId), name: newCatName };
 
-      // add to local categories & select it
-      setCategories((prev) => [...prev, newCat]);
-      setFormData((prev) => ({ ...prev, categories: Array.from(new Set([...prev.categories, newCat.id])) }));
-      setNewCategoryName("");
+      setCategories((prev) => {
+        const without = prev.filter((c) => String(c.id) !== newCat.id && String(c.name).toLowerCase() !== newCatName.toLowerCase());
+        return [...without, newCat];
+      });
+      setSelectedCategoryId(String(newCat.id));
+      setFormData((prev) => ({ ...prev, category: newCatName }));
+      setCustomCategoryName("");
+      setShowNewCategoryInput(false);
       toast({ title: "Categoría creada", description: `Categoría "${newCat.name}" creada con éxito` });
-
-      // If editing an existing product, create the product_categories relation immediately
-      if (product?.id) {
-        try {
-          const assocRes = await fetch(`/api/products/${product.id}/categories`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            credentials: "same-origin",
-            body: JSON.stringify({ category_id: newCat.id }),
-          });
-
-          const assocJson = await assocRes.json().catch(() => ({}));
-          if (!assocRes.ok) {
-            console.warn("[createCategory] association failed:", assocJson);
-            toast({ title: "Asociación fallida", description: "La categoría se creó pero no se asoció al producto. Intenta guardarlo.", variant: "destructive" });
-          } else {
-            toast({ title: "Asociación creada", description: `La categoría se asoció al producto` });
-          }
-        } catch (e) {
-          console.error("[createCategory] error creating product-category association:", e);
-        }
-      }
     } catch (err: unknown) {
       toast({ title: "Error", description: err instanceof Error ? err.message : "No se pudo crear la categoría", variant: "destructive" });
-      console.error("[createCategory] ", err);
+      console.error("[createCategory]", err);
     } finally {
       setCreatingCategory(false);
     }
   };
 
-  // --- Eliminar categoría (global) ---
   const deleteCategory = async (catId: string) => {
     try {
       const cat = categories.find((c) => c.id === catId);
       if (!cat) return;
-
-      const ok = window.confirm(`¿Eliminar la categoría "${cat.name}"? Esto fallará si la categoría está asociada a productos.`);
-      if (!ok) return;
-
+      if (!window.confirm(`¿Eliminar la categoría "${cat.name}"? Esto fallará si la categoría está asociada a productos.`)) return;
       setDeletingCategoryId(catId);
 
-      const res = await fetch(`/api/categories/${catId}`, {
-        method: "DELETE",
-        credentials: "same-origin", // enviar cookies HTTP-only
-      });
-
-      let payload: any = null;
+      const res = await fetch(`/api/categories/${catId}`, { method: "DELETE", credentials: "same-origin" });
       const text = await res.text();
-      try {
-        payload = text ? JSON.parse(text) : null;
-      } catch (parseErr) {
-        console.warn("[deleteCategory] response not JSON, body:", text);
-        if (!res.ok) {
-          toast({
-            title: "Error eliminando categoría",
-            description: text || `HTTP ${res.status}`,
-            variant: "destructive",
-          });
-          return;
-        } else {
-          setCategories((prev) => prev.filter((c) => c.id !== catId));
-          setFormData((prev) => ({ ...prev, categories: prev.categories.filter((id) => id !== catId) }));
-          toast({ title: "Categoría eliminada", description: `Categoría "${cat.name}" eliminada` });
-          return;
-        }
-      }
-
       if (!res.ok) {
-        const errMsg = payload?.error || payload?.message || `HTTP ${res.status}`;
-        toast({ title: "Error eliminando categoría", description: errMsg, variant: "destructive" });
+        toast({ title: "Error eliminando categoría", description: text || `HTTP ${res.status}`, variant: "destructive" });
         return;
       }
 
       setCategories((prev) => prev.filter((c) => c.id !== catId));
-      setFormData((prev) => ({ ...prev, categories: prev.categories.filter((id) => id !== catId) }));
+      if (selectedCategoryId === catId) {
+        setSelectedCategoryId(null);
+        setFormData((prev) => ({ ...prev, category: "" }));
+      }
       toast({ title: "Categoría eliminada", description: `Categoría "${cat.name}" eliminada` });
     } catch (err: unknown) {
       toast({ title: "Error", description: err instanceof Error ? err.message : "No se pudo eliminar la categoría", variant: "destructive" });
-      console.error("[deleteCategory] ", err);
+      console.error("[deleteCategory]", err);
     } finally {
       setDeletingCategoryId(null);
     }
   };
 
-  // --- Submit product ---
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
-
     try {
-      // upload new images to /api/upload
       const uploadedImages: { url: string; display_order: number }[] = [];
-
       for (let i = 0; i < images.length; i++) {
         const image = images[i];
         if (image.id && !image.file) {
@@ -226,30 +248,46 @@ export function ProductForm({ product, categories: initialCategories }: ProductF
           continue;
         }
         if (image.file) {
+          if (typeof image.file.size === "number" && image.file.size > MAX_BYTES_CLIENT) {
+            const msg = `La imagen "${image.file.name}" supera el tamaño máximo permitido de ${Math.round(MAX_BYTES_CLIENT / 1024)} KB.`;
+            toast({ title: "Imagen muy grande", description: msg, variant: "destructive" });
+            throw new Error(msg);
+          }
+
           setUploadingImages((prev) => [...prev, i]);
           const fd = new FormData();
           fd.append("file", image.file);
+
           const uploadRes = await fetch("/api/upload", { method: "POST", body: fd, credentials: "same-origin" });
-          if (!uploadRes.ok) throw new Error("Error al subir la imagen");
-          const data = await uploadRes.json();
+          const data = await uploadRes.json().catch(() => ({}));
+          if (!uploadRes.ok) {
+            const serverMsg = data?.error || data?.details || `HTTP ${uploadRes.status}`;
+            toast({ title: "Error al subir imagen", description: serverMsg, variant: "destructive" });
+            setUploadingImages((prev) => prev.filter((idx) => idx !== i));
+            throw new Error(serverMsg);
+          }
+          if (!data?.url) {
+            const serverMsg = data?.error || data?.details || "No se recibió URL de la imagen subida";
+            toast({ title: "Error al subir imagen", description: serverMsg, variant: "destructive" });
+            setUploadingImages((prev) => prev.filter((idx) => idx !== i));
+            throw new Error(serverMsg);
+          }
           uploadedImages.push({ url: data.url, display_order: i });
           setUploadingImages((prev) => prev.filter((idx) => idx !== i));
         }
       }
 
-      // Validate categories: allow UUID or numeric id_int strings
-      const categoriesPayload = formData.categories.map((cid) => String(cid));
-      const uuidOrInt = (s: string) => (/^\d+$/.test(s) || /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(s));
-      if (!categoriesPayload.every(c => uuidOrInt(c))) {
-        throw new Error("Una o más categorías tienen formato inválido. Recarga la página y vuelve a intentarlo.");
-      }
+      // Permitir tanto selectedCategoryId (id o synthetic) como texto en formData.category cuando se usa custom
+      if (!selectedCategoryId && !formData.category) throw new Error("Selecciona o crea una categoría para el producto.");
 
-      const payload = {
+      const categoryPayload = isCustomCategory ? formData.category : selectedCategoryId ?? formData.category;
+
+      const payload: any = {
         name: formData.name,
         description: formData.description,
         price: formData.price,
         available: formData.available,
-        categories: categoriesPayload, // array of uuid or id_int strings (server will resolve)
+        category: categoryPayload,
         images: uploadedImages,
       };
 
@@ -260,7 +298,7 @@ export function ProductForm({ product, categories: initialCategories }: ProductF
         method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
-        credentials: "same-origin", // enviar cookies si endpoint requiere auth
+        credentials: "same-origin",
       });
 
       if (!res.ok) {
@@ -274,14 +312,11 @@ export function ProductForm({ product, categories: initialCategories }: ProductF
       });
 
       router.push("/admin");
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : "No se pudo guardar el producto",
-        variant: "destructive",
-      });
+    } catch (err: unknown) {
+      toast({ title: "Error", description: err instanceof Error ? err.message : "No se pudo guardar el producto", variant: "destructive" });
     } finally {
       setIsSubmitting(false);
+      setUploadingImages([]);
     }
   };
 
@@ -308,57 +343,127 @@ export function ProductForm({ product, categories: initialCategories }: ProductF
             <Label htmlFor="available">Disponible</Label>
             <div className="flex items-center gap-3">
               <input id="available" name="available" type="checkbox" checked={formData.available} onChange={handleInputChange} disabled={isSubmitting} className="h-4 w-4" />
-              <span className="text-sm text-muted-foreground">Marcar si el producto está disponible para la venta</span>
+              <span className="text-sm text-muted-foreground">Marcar si está disponible</span>
             </div>
           </div>
         </div>
 
+        {/* ====== NUEVA SECCIÓN DE CATEGORÍA (combobox + crear inline) ====== */}
         <div className="space-y-2">
-          <Label htmlFor="categories">Categorías</Label>
-
-          <div className="flex gap-2 items-center mb-3">
-            <Input
-              placeholder="Nueva categoría (ej. Sala)"
-              value={newCategoryName}
-              onChange={(e) => setNewCategoryName(e.target.value)}
-              disabled={creatingCategory}
-            />
-            <Button type="button" onClick={createCategory} disabled={creatingCategory || !newCategoryName.trim()} className="flex items-center gap-2">
-              <Plus className="w-4 h-4" />
-              {creatingCategory ? "Creando..." : "Crear"}
+          <div className="flex items-center justify-between">
+            <Label htmlFor="category">Categoría</Label>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                setIsCustomCategory((s) => !s);
+                setFormData((prev) => ({ ...prev, category: "" }));
+                setSelectedCategoryId(null);
+              }}
+              className="text-xs"
+            >
+              {isCustomCategory ? "Seleccionar existente" : "Crear nueva"}
             </Button>
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-48 overflow-auto p-2 border rounded">
-            {categories.map((cat) => {
-              const selected = formData.categories.includes(cat.id);
-              const deleting = deletingCategoryId === cat.id;
-              return (
-                <div key={cat.id} className="flex items-center justify-between gap-2">
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={selected}
-                      onChange={() => toggleCategory(cat.id)}
-                      disabled={isSubmitting}
-                    />
-                    <span className="text-sm">{cat.name}</span>
-                  </label>
+          {isCustomCategory ? (
+            <div className="flex gap-2 items-center">
+              <Input
+                id="category"
+                value={formData.category}
+                onChange={(e) => setFormData((prev) => ({ ...prev, category: e.target.value }))}
+                placeholder="Escribe una nueva categoría"
+                required
+              />
+              {/* botón opcional para crear en tabla categories si quieres persistirla ahora */}
+              <Button type="button" onClick={() => { setCustomCategoryName(formData.category); setShowNewCategoryInput(true); }}>
+                Guardar
+              </Button>
+            </div>
+          ) : (
+            <div ref={comboboxRef} className="relative">
+              <div className="relative">
+                <Input
+                  id="category"
+                  value={formData.category}
+                  readOnly
+                  onClick={() => setComboOpen((s) => !s)}
+                  placeholder="Selecciona una categoría"
+                  aria-haspopup="listbox"
+                  aria-expanded={comboOpen}
+                  className="cursor-pointer pr-10"
+                />
+                <button
+                  type="button"
+                  onClick={() => setComboOpen((s) => !s)}
+                  aria-hidden
+                  className="absolute inset-y-0 right-0 flex items-center pr-3"
+                >
+                  <ChevronDown className="opacity-70" size={18} />
+                </button>
+              </div>
 
-                  <button
-                    type="button"
-                    onClick={() => deleteCategory(cat.id)}
-                    disabled={deleting}
-                    title="Eliminar categoría"
-                    className="text-destructive hover:text-destructive/80 p-1 rounded"
-                  >
-                    <Trash className="w-4 h-4" />
-                  </button>
-                </div>
-              );
-            })}
-          </div>
+              {comboOpen && (
+                <ul
+                  ref={listRef}
+                  role="listbox"
+                  aria-label="Categorías"
+                  className="absolute z-50 mt-2 w-full max-h-60 overflow-auto rounded-lg border bg-white dark:bg-slate-900 shadow-lg p-1 dark:border-slate-700"
+                >
+                  {existingCategories.length === 0 ? (
+                    <li className="px-3 py-2 text-sm text-slate-400 dark:text-slate-500">No hay categorías</li>
+                  ) : (
+                    existingCategories.map((cat) => (
+                      <li
+                        key={cat}
+                        role="option"
+                        aria-selected={formData.category === cat}
+                        onClick={() => handleSelectCategory(cat)}
+                        className={`px-3 py-2 rounded cursor-pointer text-sm hover:bg-slate-100 dark:hover:bg-slate-800 ${
+                          formData.category === cat ? "bg-slate-50 dark:bg-slate-800 font-medium" : ""
+                        }`}
+                      >
+                        {cat}
+                      </li>
+                    ))
+                  )}
+                </ul>
+              )}
+
+              <input type="hidden" name="category" value={formData.category} />
+            </div>
+          )}
+
+          
         </div>
+
+        {/* Si el usuario quiere crear vía API una categoría nueva desde el modal inline */}
+        {showNewCategoryInput && (
+          <div className="flex gap-2 items-center mb-3">
+            <Input
+              placeholder="Nombre de la nueva categoría (ej. Sala)"
+              value={customCategoryName}
+              onChange={(e) => setCustomCategoryName(e.target.value)}
+              disabled={creatingCategory}
+            />
+            <Button type="button" onClick={createCategory} disabled={creatingCategory || !customCategoryName.trim()} className="flex items-center gap-2">
+              {creatingCategory ? "Creando..." : "Crear"}
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setShowNewCategoryInput(false);
+                setCustomCategoryName("");
+              }}
+              disabled={creatingCategory}
+            >
+              Cancelar
+            </Button>
+          </div>
+        )}
+        {/* ====== FIN SECCIÓN CATEGORÍA ====== */}
       </Card>
 
       <Card className="p-6 space-y-4">
@@ -368,6 +473,7 @@ export function ProductForm({ product, categories: initialCategories }: ProductF
           <div className="flex flex-col items-center gap-2">
             <Upload className="w-6 h-6 text-muted-foreground" />
             <span className="text-sm text-muted-foreground">Haz clic para subir imágenes</span>
+            <span className="text-xs text-muted-foreground">Máx {Math.round(MAX_BYTES_CLIENT / 1024)} KB por imagen</span>
           </div>
           <input type="file" multiple accept="image/*" onChange={handleImageUpload} disabled={isSubmitting} className="hidden" />
         </label>
@@ -384,7 +490,12 @@ export function ProductForm({ product, categories: initialCategories }: ProductF
                     </div>
                   )}
                 </div>
-                <button type="button" onClick={() => removeImage(index)} className="absolute -top-2 -right-2 bg-destructive text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity" disabled={isSubmitting}>
+                <button
+                  type="button"
+                  onClick={() => removeImage(index)}
+                  className="absolute -top-2 -right-2 bg-destructive text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                  disabled={isSubmitting}
+                >
                   <X className="w-4 h-4" />
                 </button>
               </div>
@@ -397,10 +508,12 @@ export function ProductForm({ product, categories: initialCategories }: ProductF
         <Button type="button" variant="outline" onClick={() => router.back()} disabled={isSubmitting}>
           Cancelar
         </Button>
-        <Button type="submit" disabled={isSubmitting || !formData.name || formData.categories.length === 0}>
+        <Button type="submit" disabled={isSubmitting || !formData.name || (!selectedCategoryId && !formData.category)}>
           {isSubmitting ? "Guardando..." : product ? "Actualizar Producto" : "Crear Producto"}
         </Button>
       </div>
     </form>
   );
 }
+
+export default ProductForm;

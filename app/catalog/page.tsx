@@ -1,52 +1,135 @@
-// app/catalog/page.tsx
-import React, { Suspense } from "react";
+import React from "react";
 import SiteHeader from "@/components/site-header";
 import { createServerClient } from "@/lib/supabase/server";
-import CatalogShell from "@/components/catalog-shell";
+import CatalogClient from "@/components/catalog-client";
+import StoreInfo from "@/components/store-info";
+import CatalogLoading from "./loading";
+
+export const dynamic = "force-dynamic";
 
 export default async function CatalogPage() {
   const supabase = await createServerClient();
 
-  // Traemos categorías (id, id_int y name)
-  const { data: categoriesRaw, error } = await supabase
-    .from("categories")
-    .select("id, id_int, name")
-    .order("name");
+  // Traer productos + imágenes (servidor)
+  let products: any[] = [];
+  try {
+    const { data: dbProducts, error: productsError } = await supabase
+      .from("products")
+      .select("*")
+      .order("created_at", { ascending: false });
 
-  if (error) {
+    if (productsError) {
+      console.error("[catalog] Error fetching products:", productsError);
+      // Si falla la carga de productos, mostramos el skeleton (CatalogLoading)
+      return (
+        <div className="min-h-screen bg-background">
+          <SiteHeader />
+          <CatalogLoading />
+        </div>
+      );
+    }
+
+    const { data: dbImages, error: imagesError } = await supabase
+      .from("product_images")
+      .select("*")
+      .order("display_order", { ascending: true });
+
+    if (imagesError) {
+      console.error("[catalog] Error fetching product images:", imagesError);
+      // continuamos sin abortar; usaremos placeholder para productos sin imágenes
+    }
+
+    // Si dbProducts es undefined/null -> mostrar skeleton
+    if (!dbProducts) {
+      return (
+        <div className="min-h-screen bg-background">
+          <SiteHeader />
+          <CatalogLoading />
+        </div>
+      );
+    }
+
+    products = (dbProducts || []).map((product: any) => {
+      const productImages = (dbImages || [])
+        .filter((img: any) => img.product_id === product.id)
+        .map((img: any) => img.image_url);
+
+      // Normalizar price a number (si viene string), y proteger contra NaN
+      const rawPrice = product.price ?? 0;
+      const parsedPrice =
+        typeof rawPrice === "string" && rawPrice.trim() !== "" ? parseFloat(rawPrice) : (rawPrice as number | undefined);
+      const price = Number.isFinite(parsedPrice as number) ? (parsedPrice as number) : 0;
+
+      // Normalizar available a boolean (campo explícito en products)
+      const explicitAvailable = (product as any).available;
+      let available = false;
+      if (typeof explicitAvailable === "boolean") available = explicitAvailable;
+      else if (typeof explicitAvailable === "string") {
+        available = explicitAvailable === "1" || explicitAvailable.toLowerCase() === "true";
+      } else {
+        // Si no hay campo available, inferimos desde stock (si existe)
+        available = (product.stock ?? 0) > 0;
+      }
+
+      return {
+        id: product.id,
+        name: product.name,
+        category: product.category ?? "Sin categoría",
+        price,
+        description: product.description,
+        stock: product.stock,
+        images: productImages.length > 0 ? productImages : ["/placeholder.svg?height=300&width=300"],
+        created_at: product.created_at,
+        updated_at: product.updated_at,
+        available,
+      };
+    });
+  } catch (err) {
+    console.error("[catalog] Failed to load products:", err);
     return (
       <div className="min-h-screen bg-background">
         <SiteHeader />
-        <main className="container mx-auto px-4 py-6">
-          <h1 className="text-2xl font-bold mb-4">Error consultando categorías</h1>
-          <pre className="whitespace-pre-wrap bg-red-50 p-4 rounded">{JSON.stringify(error, null, 2)}</pre>
-        </main>
+        <CatalogLoading />
       </div>
     );
   }
 
-  // Mapear y enviar uuid + id_int (si existe) para que el cliente pueda resolver categorías por UUID
-  const categories = (categoriesRaw || []).map((c: any) => ({
-    uuid: String(c.id),
-    id_int: typeof c.id_int === "number" ? c.id_int : null,
-    id: String(c.id_int ?? c.id), // id usado por la UI (prefiere id_int)
-    name: c.name,
-  }));
+  // Si no hay productos (array vacío) consideramos mostrar el skeleton para indicar carga
+  if (!products || products.length === 0) {
+    return (
+      <div className="min-h-screen bg-background">
+        <SiteHeader />
+        <CatalogLoading />
+      </div>
+    );
+  }
+
+  // --- Opcional: derivar lista única de categorías desde los productos ---
+  // Útil si quieres pasar una lista de categorías a algún componente de filtros
+  const derivedCategories = Array.from(
+    new Map(
+      products
+        .map((p) => {
+          // normalizar nombre de categoría como string no vacío
+          const name = (p.category ?? "Sin categoría").toString().trim() || "Sin categoría";
+          return [name, { id: name, name }] as const;
+        })
+        // Map elimina duplicados por clave (name)
+    ).values()
+  );
 
   return (
     <div className="min-h-screen bg-background">
       <SiteHeader />
       <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
-        <div className="text-center mb-8">
-          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold mb-4">Catálogo de Productos</h1>
-          <p className="text-muted-foreground">Los mejores productos para tu casa de ensueño</p>
-        </div>
-        
 
-        {/* Suspense para el CatalogShell (cliente) */}
-        <Suspense fallback={<div className="text-muted-foreground">Cargando catálogo…</div>}>
-          <CatalogShell categories={categories} />
-        </Suspense>
+        {/* Pasamos productos ya cargados al componente cliente (CatalogClient) */}
+        {/* Si más adelante quieres pasar categorías al filtro, puedes pasar derivedCategories */}
+        <CatalogClient products={products} />
+
+        <footer className="mt-8">
+          <StoreInfo />
+        </footer>
       </main>
     </div>
   );

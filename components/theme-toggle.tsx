@@ -33,10 +33,10 @@ export function ThemeToggle() {
 
   return (
     <Button
-      variant="ghost"
-      size="icon"
+      variant="outline"
+      size="sm"
       onClick={toggleTheme}
-      className="w-9 h-9 hover:bg-secondary/20 transition-colors"
+      className="transition-colors"
       aria-label="Toggle theme"
     >
       {theme === "light" ? (

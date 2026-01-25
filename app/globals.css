@@ -161,3 +161,30 @@
     @apply bg-background text-foreground transition-colors duration-300;
   }
 }
+/* shimmer effect */
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.shimmer {
+  background: linear-gradient(90deg,
+    rgba(255,255,255,0.06) 0%,
+    rgba(255,255,255,0.12) 40%,
+    rgba(255,255,255,0.06) 100%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s linear infinite;
+}
+
+/* pequeño fade-in para las tarjetas */
+@keyframes fadein {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.animate-\[fadein_180ms_ease-in-out\] {
+  animation: fadein 180ms ease-in-out;
+}
