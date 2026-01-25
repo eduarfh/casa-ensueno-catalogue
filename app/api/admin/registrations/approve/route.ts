@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { decryptPassword } from "@/lib/crypto";
-import { sendEmail } from "@/lib/email";
+
 
 type ReqBody = { requestId: string };
 
@@ -104,7 +104,7 @@ export async function POST(request: Request) {
         <p>Email: <strong>${createdEmail}</strong></p>
         <p>Si no recuerdas la contraseña o quieres cambiarla, usa "Olvidé mi contraseña" en <a href="${loginUrl}">${loginUrl}</a>.</p>
       `;
-      mailResult = await sendEmail({ to: createdEmail, subject: "Solicitud aprobada", html, text: `Tu solicitud fue aprobada. Inicia sesión en ${loginUrl}` });
+      
     } catch (mailErr) {
       console.warn("[approve] failed to send approval email:", mailErr);
     }
