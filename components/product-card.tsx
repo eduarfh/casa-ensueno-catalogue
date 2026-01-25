@@ -85,7 +85,7 @@ export function ProductCard({
 
   const handleWhatsApp = () => {
     const message = encodeURIComponent(`Hola, me interesa el producto: ${name} - $${priceString}`);
-    const whatsappUrl = `https://wa.me/5352490476?text=${message}`;
+    const whatsappUrl = `https://wa.me/{store.whatsapp_number?text=${message}`;
     if (typeof window !== "undefined") window.open(whatsappUrl, "_blank");
   };
 
@@ -142,12 +142,12 @@ export function ProductCard({
               <span className="text-sm font-semibold text-primary">${priceString}</span>
             </div>
 
-            <div className="mt-2 flex items-center gap-2">
+            {/* <div className="mt-2 flex items-center gap-2">
               <Badge variant={isAvailable ? "default" : "destructive"} className="text-xs py-0.5 px-2">
                 {isAvailable ? "Disponible" : "Agotado"}
               </Badge>
               {displaySeed ? <CategoryBadge category={displayName ?? ""} seed={displaySeed} className="text-xs py-0.5 px-2" /> : null}
-            </div>
+            </div> */}
           </div>
         </Link>
       </div>
@@ -303,11 +303,11 @@ export function ProductCard({
             priority={false}
           />
 
-          <div className="absolute top-2 left-2 z-10">
+          {/* <div className="absolute top-2 left-2 z-10">
             {displayName ? (
               <CategoryBadge category={displayName} seed={displaySeed ?? undefined} className="px-3 py-1 text-xs font-medium" />
             ) : null}
-          </div>
+          </div> */}
 
           <div className="absolute top-2 right-2 z-10">
             {isAvailable ? (
