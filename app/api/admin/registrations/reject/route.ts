@@ -2,7 +2,7 @@
 
 import { NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase/server";
-import { sendEmail } from "@/lib/email";
+
 
 type ReqBody = { requestId: string; reason?: string | null };
 
@@ -59,7 +59,7 @@ export async function POST(request: Request) {
         ${reason ? `<p>Motivo: ${reason}</p>` : ""}
         <p>Si crees que esto es un error, contacta al administrador.</p>
       `;
-      mailResult = await sendEmail({ to: email, subject: "Solicitud rechazada", html, text: `Tu solicitud ha sido rechazada. ${reason || ""}` });
+      
     } catch (mailErr) {
       console.warn("[reject] failed to send email:", mailErr);
     }
