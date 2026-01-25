@@ -327,7 +327,7 @@ export function AdminHeader() {
                 <div className="text-sm text-muted-foreground px-3 py-2 rounded-md">Cargando...</div>
               ) : email ? (
                 <>
-                  <span className="text-sm text-muted-foreground px-3 py-2 rounded-md">{email}</span>
+                  {/* <span className="text-sm text-muted-foreground px-3 py-2 rounded-md">{email}</span> */}
                   <ThemeToggle />
                   <Button
                     variant="outline"

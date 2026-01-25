@@ -339,7 +339,7 @@ export default function CatalogClient({ products: serverProducts }: CatalogClien
   }
 
   return (
-    <main className="container mx-auto px-4 py-6">
+    <main className="container mx-auto px-1 py-1">
       <div className="text-center mb-8">
         <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold mb-4">Catálogo de Productos</h1>
         <p className="text-muted-foreground">Los mejores productos para tu casa de ensueño</p>

@@ -121,7 +121,7 @@ export default async function CatalogPage() {
   return (
     <div className="min-h-screen bg-background">
       <SiteHeader />
-      <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+      <main className="container mx-auto px-1 sm:px-1 lg:px-1 py-1 sm:py-1">
 
         {/* Pasamos productos ya cargados al componente cliente (CatalogClient) */}
         {/* Si más adelante quieres pasar categorías al filtro, puedes pasar derivedCategories */}
