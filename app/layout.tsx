@@ -1,3 +1,4 @@
+// app/layout.tsx
 import type React from "react";
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
@@ -13,21 +14,25 @@ const _geistMono = Geist_Mono({ subsets: ["latin"], variable: "--font-geist-mono
 
 const SITE_URL = "https://casaensueno-catalogue.vercel.app";
 
+// >>> LA URL EXACTA que pediste (con espacios y paréntesis)
 const SHARED_OG_IMAGE_RAW =
   "https://jgxqopmrwuxyfirpvbhz.supabase.co/storage/v1/object/public/casaensueno%20files/logo%20con%20fondo%20recortado%20baja%20calidad%20(1).jpg";
 
-// encodeURI + version param para evitar caché pesado
+// Codificamos para que sea segura en atributos HTML
 const SHARED_OG_IMAGE = encodeURI(SHARED_OG_IMAGE_RAW);
-const ICON_URL = `${SHARED_OG_IMAGE}?v=2`;
+
+// Opcional: si implementas la proxy (recomendada), la usarás aquí:
+// const FAVICON_FALLBACK = "/api/favicon?v=1";
+const FAVICON_FALLBACK = SHARED_OG_IMAGE; // sin proxy: usamos la URL codificada directamente
 
 export const metadata: Metadata = {
   title: "Catálogo de Productos - Hogar y Decoración",
   description: "Descubre nuestro amplio catálogo de útiles para el hogar y decoración con los mejores precios",
   metadataBase: new URL(SITE_URL),
   icons: {
-    icon: ICON_URL,
-    shortcut: ICON_URL,
-    apple: ICON_URL,
+    icon: FAVICON_FALLBACK,
+    shortcut: FAVICON_FALLBACK,
+    apple: FAVICON_FALLBACK,
   },
   openGraph: {
     title: "Catálogo de Productos - Hogar y Decoración",
@@ -68,21 +73,19 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
             `,
           }}
         />
-        {/* Open Graph redundante */}
+        {/* Redundancia para scrapers */}
         <meta property="og:image" content={SHARED_OG_IMAGE} />
+        <meta property="og:image:secure_url" content={SHARED_OG_IMAGE} />
         <meta property="og:image:width" content="1200" />
         <meta property="og:image:height" content="630" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:image" content={SHARED_OG_IMAGE} />
 
-        {/* Favicons / touch icons (uso la misma URL + ?v=2 para bustear cache) */}
-        <link rel="icon" type="image/png" sizes="32x32" href={ICON_URL} />
-        <link rel="icon" type="image/png" sizes="16x16" href={ICON_URL} />
-        <link rel="apple-touch-icon" sizes="180x180" href={ICON_URL} />
-        <link rel="shortcut icon" href={ICON_URL} />
-        {/* manifest si tienes uno (opcional) */}
-        <link rel="manifest" href="/site.webmanifest" />
-        {/* theme color */}
+        {/* Favicons: intento directo a la URL codificada + fallback a /api/favicon si añades la proxy */}
+        <link rel="icon" type="image/png" sizes="32x32" href={SHARED_OG_IMAGE} />
+        <link rel="icon" type="image/png" sizes="16x16" href={SHARED_OG_IMAGE} />
+        <link rel="apple-touch-icon" sizes="180x180" href={SHARED_OG_IMAGE} />
+        <link rel="shortcut icon" href={SHARED_OG_IMAGE} />
         <meta name="theme-color" content="#ffffff" />
       </head>
       <body className={`${_geist.variable} ${_geistMono.variable} font-sans antialiased`}>
