@@ -6,32 +6,28 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { Suspense } from "react";
 import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
-import WhatsAppContactsModal from "@/components/whatsapp-contacts-modal"; // <-- modal global (client)
+import WhatsAppContactsModal from "@/components/whatsapp-contacts-modal";
 
 const _geist = Geist({ subsets: ["latin"], variable: "--font-geist" });
 const _geistMono = Geist_Mono({ subsets: ["latin"], variable: "--font-geist-mono" });
 
 const SITE_URL = "https://casaensueno-catalogue.vercel.app";
 
-// URL exacta que compartiste (con espacios y paréntesis).
 const SHARED_OG_IMAGE_RAW =
   "https://jgxqopmrwuxyfirpvbhz.supabase.co/storage/v1/object/public/casaensueno%20files/logo%20con%20fondo%20recortado%20baja%20calidad%20(1).jpg";
 
-// Codificamos para asegurar que las meta tags contengan una URL válida
+// encodeURI + version param para evitar caché pesado
 const SHARED_OG_IMAGE = encodeURI(SHARED_OG_IMAGE_RAW);
-
-// Para favicon es recomendable usar la misma imagen recortada / cuadrada si la tienes.
-// Aquí usamos la misma URL codificada (puedes cambiarla por una versión recortada si la subes).
-const FAVICON_URL = SHARED_OG_IMAGE;
+const ICON_URL = `${SHARED_OG_IMAGE}?v=2`;
 
 export const metadata: Metadata = {
   title: "Catálogo de Productos - Hogar y Decoración",
   description: "Descubre nuestro amplio catálogo de útiles para el hogar y decoración con los mejores precios",
   metadataBase: new URL(SITE_URL),
   icons: {
-    icon: FAVICON_URL,
-    shortcut: FAVICON_URL,
-    apple: FAVICON_URL,
+    icon: ICON_URL,
+    shortcut: ICON_URL,
+    apple: ICON_URL,
   },
   openGraph: {
     title: "Catálogo de Productos - Hogar y Decoración",
@@ -58,15 +54,10 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="es" suppressHydrationWarning>
       <head>
-        {/* Script inicial para aplicar tema desde localStorage antes de que React hidrate */}
         <script
           dangerouslySetInnerHTML={{
             __html: `
@@ -77,26 +68,31 @@ export default function RootLayout({
             `,
           }}
         />
-        {/* Meta tags redundantes para mejorar compatibilidad con scrapers */}
+        {/* Open Graph redundante */}
         <meta property="og:image" content={SHARED_OG_IMAGE} />
         <meta property="og:image:width" content="1200" />
         <meta property="og:image:height" content="630" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:image" content={SHARED_OG_IMAGE} />
-        <link rel="icon" href={FAVICON_URL} />
+
+        {/* Favicons / touch icons (uso la misma URL + ?v=2 para bustear cache) */}
+        <link rel="icon" type="image/png" sizes="32x32" href={ICON_URL} />
+        <link rel="icon" type="image/png" sizes="16x16" href={ICON_URL} />
+        <link rel="apple-touch-icon" sizes="180x180" href={ICON_URL} />
+        <link rel="shortcut icon" href={ICON_URL} />
+        {/* manifest si tienes uno (opcional) */}
+        <link rel="manifest" href="/site.webmanifest" />
+        {/* theme color */}
+        <meta name="theme-color" content="#ffffff" />
       </head>
       <body className={`${_geist.variable} ${_geistMono.variable} font-sans antialiased`}>
         <Suspense fallback={null}>
-          {/* ThemeProvider controla el tema (usa atributo class para dark mode) */}
           <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
             {children}
           </ThemeProvider>
         </Suspense>
 
-        {/* Modal global de contactos WhatsApp (se muestra sólo al disparar el evento "open-whatsapp-contacts") */}
         <WhatsAppContactsModal />
-
-        {/* Componentes persistentes */}
         <Toaster />
         <Analytics />
       </body>
