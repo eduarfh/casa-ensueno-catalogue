@@ -3,11 +3,13 @@ export const dynamic = "force-dynamic";
 
 import React from "react";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { AdminProductList } from "@/components/admin-product-list";
 import AdminGuard from "@/components/admin-guard";
 import { AdminHeader } from "@/components/admin-header";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { createServerClient } from "@/lib/supabase/server";
 
 type ProductImage = { id: string; image_url: string; display_order?: number };
 type CategoryObj = { name?: string } | null;
@@ -19,17 +21,41 @@ type ProductItemLocal = {
   price?: number | string | null;
   stock?: number;
   available?: boolean | number | string | null;
-  category?: string | null; // prefer product.category string
-  categories?: CategoryObj; // matches AdminProductList expectation (legacy shape)
+  category?: string | null;
+  categories?: CategoryObj;
   product_images?: ProductImage[];
-  product_categories?: any; // raw rows from product_categories if needed
+  product_categories?: any;
 };
 
 export default async function AdminDashboard() {
-  const admin = createAdminClient();
-
   try {
-    // 1) Fetch products with images (no nested product_categories to avoid the missing-FK error)
+    // 0) Verificar sesión usando el cliente ligado al request (lee cookies)
+    const serverSupabase = await createServerClient({ allowSetCookies: true });
+    const { data: userData, error: userErr } = await serverSupabase.auth.getUser();
+
+    if (userErr || !userData?.user) {
+      // No hay sesión -> redirigir a login
+      return redirect("/auth/login");
+    }
+
+    const user = userData.user;
+
+    // 1) Verificar is_admin usando el mismo server client (aplican RLS/AUTH)
+    const { data: adminRow, error: adminErr } = await serverSupabase
+      .from("admin_users")
+      .select("is_admin")
+      .eq("user_id", user.id)
+      .maybeSingle();
+
+    if (adminErr || !adminRow?.is_admin) {
+      // No es admin -> redirigir a login (o a 403 si prefieres)
+      return redirect("/auth/login");
+    }
+
+    // 2) Validado: ahora se puede usar el service-role admin client para las queries
+    const admin = createAdminClient();
+
+    // 3) Obtener productos con product_images
     const { data: productsRaw, error: productsError } = await admin
       .from("products")
       .select(`
@@ -47,20 +73,17 @@ export default async function AdminDashboard() {
     console.log("[AdminDashboard] productsRaw length:", Array.isArray(productsRaw) ? productsRaw.length : productsRaw);
 
     if (productsError) {
-      // Mostrar error al usuario en UI (rendereado más abajo)
       return renderWithError(productsError);
     }
 
     const productsArray = Array.isArray(productsRaw) ? productsRaw : [];
 
-    // If no products, render normally with empty list
     if (productsArray.length === 0) {
       return renderPage([]);
     }
 
-    // 2) Fetch all product_categories for these products (if table exists)
+    // 4) Fetch product_categories (si existe la tabla)
     const productIds = productsArray.map((p: any) => p.id).filter(Boolean);
-
     let productCategoriesRaw: Array<{ product_id: string; category_id: string | number }> = [];
     try {
       const { data: pcData, error: pcErr } = await admin
@@ -69,7 +92,6 @@ export default async function AdminDashboard() {
         .in("product_id", productIds);
 
       if (pcErr) {
-        // Si falla esta consulta, no abortamos: seguimos con products sin categorías pero logueamos
         console.warn("[AdminDashboard] product_categories fetch warning:", pcErr);
       } else {
         productCategoriesRaw = Array.isArray(pcData) ? pcData : [];
@@ -78,7 +100,7 @@ export default async function AdminDashboard() {
       console.warn("[AdminDashboard] product_categories fetch failed:", e);
     }
 
-    // 3) Fetch categories table to map ids -> names
+    // 5) Fetch categories table para mapear ids -> nombres
     let categoriesRaw: Array<{ id: string; id_int?: number; name?: string }> = [];
     try {
       const { data: cats, error: catsErr } = await admin.from("categories").select("id, id_int, name");
@@ -91,7 +113,7 @@ export default async function AdminDashboard() {
       console.warn("[AdminDashboard] categories fetch failed:", e);
     }
 
-    // 4) Build a map to resolve category_id -> name. We will support both UUID(id) and id_int.
+    // 6) Build maps para resolver category_id -> name (UUID y id_int)
     const categoryByUuid = new Map<string, string>();
     const categoryByIdInt = new Map<number, string>();
     for (const c of categoriesRaw) {
@@ -99,27 +121,23 @@ export default async function AdminDashboard() {
       if (typeof c.id_int === "number" && c.name) categoryByIdInt.set(c.id_int, String(c.name));
     }
 
-    // 5) Build a map productId -> array of category names (resolved)
+    // 7) Map productId -> category names
     const productIdToCategoryNames = new Map<string, string[]>();
     for (const pc of productCategoriesRaw) {
       const pid = String(pc.product_id);
       const rawCatId = pc.category_id;
-
       let resolvedName: string | null = null;
 
-      // Try as UUID string
       if (typeof rawCatId === "string") {
         if (categoryByUuid.has(rawCatId)) {
           resolvedName = categoryByUuid.get(rawCatId) ?? null;
         } else {
-          // Maybe the category_id is a numeric string (id_int)
           const asNum = Number(rawCatId);
           if (!Number.isNaN(asNum) && categoryByIdInt.has(asNum)) {
             resolvedName = categoryByIdInt.get(asNum) ?? null;
           }
         }
       } else if (typeof rawCatId === "number") {
-        // Try numeric id_int
         if (categoryByIdInt.has(rawCatId)) resolvedName = categoryByIdInt.get(rawCatId) ?? null;
       }
 
@@ -130,7 +148,7 @@ export default async function AdminDashboard() {
       }
     }
 
-    // 6) Normalize products to the shape expected by AdminProductList
+    // 8) Normalizar productos al shape esperado por AdminProductList
     const products: ProductItemLocal[] = productsArray.map((p: any) => {
       const images: ProductImage[] = Array.isArray(p.product_images)
         ? p.product_images.map((img: any) => ({
@@ -140,19 +158,12 @@ export default async function AdminDashboard() {
           }))
         : [];
 
-      // If product.category field (string) exists prefer it
-      const categoryFromField: string | null = typeof p.category === "string" && p.category.trim() ? p.category.trim() : null;
+      const categoryFromField: string | null =
+        typeof p.category === "string" && p.category.trim() ? p.category.trim() : null;
 
-      // Categories resolved from product_categories mapping
       const resolvedNames = productIdToCategoryNames.get(String(p.id)) ?? [];
-
-      // categories prop expected is single object { name?: string } | null; take first resolved or null
       const firstCatObj: CategoryObj = resolvedNames.length ? { name: resolvedNames[0] } : null;
-
-      // category string we pass to the UI: prefer product.category, else first resolved name, else null
       const categoryString: string | null = categoryFromField ?? (resolvedNames.length ? resolvedNames[0] : null);
-
-      // raw product_categories rows for reference (could be empty)
       const rawPcRows = productCategoriesRaw.filter((r) => String(r.product_id) === String(p.id));
 
       return {
@@ -168,7 +179,7 @@ export default async function AdminDashboard() {
       };
     });
 
-    // Render page with products
+    // 9) Render page con productos
     return renderPage(products);
   } catch (err) {
     console.error("[AdminDashboard] unexpected error:", err);
@@ -177,7 +188,7 @@ export default async function AdminDashboard() {
 }
 
 /**
- * Helper: render page when we have products array
+ * Helper: render page cuando tenemos products array
  */
 function renderPage(products: ProductItemLocal[]) {
   return (
@@ -208,7 +219,7 @@ function renderPage(products: ProductItemLocal[]) {
 }
 
 /**
- * Helper: render a page showing a friendly error (with JSON)
+ * Helper: render a page mostrando un error amigable (con JSON)
  */
 function renderWithError(error: unknown) {
   const json = error instanceof Error ? { message: error.message } : error ?? { message: "Unknown error" };
