@@ -12,7 +12,8 @@ export async function POST(request: Request) {
     const { requestId, reason } = body;
     if (!requestId) return NextResponse.json({ error: "requestId required" }, { status: 400 });
 
-    const supabase = await createServerClient();
+    const supabase = await createServerClient({ allowSetCookies: true });
+
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 

@@ -40,27 +40,31 @@ export default function RegistrationsPage() {
   }, [])
 
   const fetchRequests = async () => {
-    setIsLoading(true)
+    setIsLoading(true);
     try {
-      const { data, error } = await supabase
-        .from("registration_requests")
-        .select("*")
-        .eq("status", "pending")
-        .order("requested_at", { ascending: false })
+      const res = await fetch("/api/admin/registrations", {
+        method: "GET",
+        credentials: "include", // importante: envía cookies
+        headers: { "Content-Type": "application/json" },
+      });
 
-      if (error) throw error
-      setRequests(data || [])
+      const json = await res.json();
+      if (!res.ok) throw new Error(json?.error || `HTTP ${res.status}`);
+
+      // tu endpoint devuelve { requests: [...] }
+      setRequests(json.requests ?? []);
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Error al cargar solicitudes"
+      const message = err instanceof Error ? err.message : "Error al cargar solicitudes";
       toast({
         title: "Error",
         description: message,
         variant: "destructive",
-      })
+      });
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
+
 
   const handleOpenApprove = (request: RegistrationRequest) => {
     setSelectedRequest(request)

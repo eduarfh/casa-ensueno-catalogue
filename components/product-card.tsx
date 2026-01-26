@@ -83,7 +83,6 @@ export function ProductCard({
     }
   };
 
-  // **REEMPLAZADO**: ahora abrimos el modal global mediante evento (no abrimos wa.me directo aquí)
   const handleWhatsApp = () => {
     const payload = { productName: name ?? "", price: priceString };
     if (typeof window !== "undefined") {
@@ -284,7 +283,7 @@ export function ProductCard({
             sizes="(max-width: 768px) 100vw, 25vw"
             style={{ objectFit: "cover" }}
             className={`group-hover:scale-105 transition-transform duration-350 transition-opacity ${imgLoaded ? "opacity-100" : "opacity-0"}`}
-            onLoadingComplete={() => setImgLoaded(true)}
+            onLoad={() => setImgLoaded(true)}
             loading={index === 0 ? "eager" : "lazy"}
             priority={false}
           />

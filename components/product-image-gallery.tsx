@@ -125,7 +125,7 @@ export function ProductImageGallery({ images, autoPlayInterval = 3500, className
           fill
           style={{ objectFit: "cover" }}
           className={`transition-opacity duration-300 ${imgLoaded ? "opacity-100" : "opacity-0"}`}
-          onLoadingComplete={() => setImgLoaded(true)}
+          onLoad={() => setImgLoaded(true)}
         />
       </div>
 
