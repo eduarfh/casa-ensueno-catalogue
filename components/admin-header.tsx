@@ -370,14 +370,14 @@ export function AdminHeader() {
               </div>
             </div>
 
-            {/* Botón X dentro del panel
+            {/* Botón X dentro del panel */}
             <button
               onClick={closeMenu}
               aria-label="Cerrar menú"
               className="absolute right-3 top-1/2 -translate-y-1/2 p-2 rounded-md hover:bg-muted/10 transition"
             >
               <X size={18} />
-            </button> */}
+            </button>
           </div>
         </div>
       </div>

@@ -13,18 +13,25 @@ const _geistMono = Geist_Mono({ subsets: ["latin"], variable: "--font-geist-mono
 
 const SITE_URL = "https://casaensueno-catalogue.vercel.app";
 
-const SHARED_OG_IMAGE = encodeURI(
-  "https://jgxqopmrwuxyfirpvbhz.supabase.co/storage/v1/object/public/casaensueno%20files/logo%20con%20fondo%20recortado%20baja%20calidad%20(1).jpg"
-);
+// URL exacta que compartiste (con espacios y paréntesis).
+const SHARED_OG_IMAGE_RAW =
+  "https://jgxqopmrwuxyfirpvbhz.supabase.co/storage/v1/object/public/casaensueno%20files/logo%20con%20fondo%20recortado%20baja%20calidad%20(1).jpg";
+
+// Codificamos para asegurar que las meta tags contengan una URL válida
+const SHARED_OG_IMAGE = encodeURI(SHARED_OG_IMAGE_RAW);
+
+// Para favicon es recomendable usar la misma imagen recortada / cuadrada si la tienes.
+// Aquí usamos la misma URL codificada (puedes cambiarla por una versión recortada si la subes).
+const FAVICON_URL = SHARED_OG_IMAGE;
 
 export const metadata: Metadata = {
   title: "Catálogo de Productos - Hogar y Decoración",
   description: "Descubre nuestro amplio catálogo de útiles para el hogar y decoración con los mejores precios",
   metadataBase: new URL(SITE_URL),
   icons: {
-    icon: SHARED_OG_IMAGE,
-    shortcut: SHARED_OG_IMAGE,
-    apple: SHARED_OG_IMAGE,
+    icon: FAVICON_URL,
+    shortcut: FAVICON_URL,
+    apple: FAVICON_URL,
   },
   openGraph: {
     title: "Catálogo de Productos - Hogar y Decoración",
@@ -70,6 +77,13 @@ export default function RootLayout({
             `,
           }}
         />
+        {/* Meta tags redundantes para mejorar compatibilidad con scrapers */}
+        <meta property="og:image" content={SHARED_OG_IMAGE} />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:image" content={SHARED_OG_IMAGE} />
+        <link rel="icon" href={FAVICON_URL} />
       </head>
       <body className={`${_geist.variable} ${_geistMono.variable} font-sans antialiased`}>
         <Suspense fallback={null}>
