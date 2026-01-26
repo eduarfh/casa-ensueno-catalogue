@@ -1,65 +1,77 @@
-"use client"
+// components/product-share-buttons.tsx
+"use client";
 
-import { Button } from "@/components/ui/button"
-import { Share2, MessageCircle, Copy } from "lucide-react"
-import { useState } from "react"
-import { useToast } from "@/hooks/use-toast"
+import React, { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Share2, MessageCircle, Copy } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 
 interface ProductShareButtonsProps {
-  productUrl: string
-  productName: string
-  productPrice: number
+  productUrl: string;
+  productName: string;
+  productPrice: number;
+  productImage?: string | null;
 }
 
-export function ProductShareButtons({ productUrl, productName, productPrice }: ProductShareButtonsProps) {
-  const [isSharing, setIsSharing] = useState(false)
-  const { toast } = useToast()
+export default function ProductShareButtons({
+  productUrl,
+  productName,
+  productPrice,
+  productImage,
+}: ProductShareButtonsProps) {
+  const [isSharing, setIsSharing] = useState(false);
+  const { toast } = useToast();
 
   const handleNativeShare = async () => {
     if (!navigator.share) {
-      handleCopyLink()
-      return
+      handleCopyLink();
+      return;
     }
-
-    setIsSharing(true)
+    setIsSharing(true);
     try {
       await navigator.share({
         title: productName,
         text: `Mira este producto: ${productName} - $${productPrice}`,
         url: productUrl,
-      })
-    } catch (error) {
-      if ((error as Error).name !== "AbortError") {
-        console.error("Error sharing:", error)
-      }
+      });
+    } catch (err) {
+      // si el usuario cancela, es normal; solo logueamos errores reales
+      if ((err as Error).name !== "AbortError") console.error("Error sharing:", err);
     } finally {
-      setIsSharing(false)
+      setIsSharing(false);
     }
-  }
+  };
 
   const handleCopyLink = async () => {
     try {
-      await navigator.clipboard.writeText(productUrl)
+      await navigator.clipboard.writeText(productUrl);
       toast({
         title: "Enlace copiado",
         description: "El enlace del producto ha sido copiado al portapapeles",
-      })
-    } catch {
+      });
+    } catch (e) {
       toast({
         title: "Error",
         description: "No se pudo copiar el enlace",
         variant: "destructive",
-      })
+      });
     }
-  }
+  };
 
   const handleWhatsApp = () => {
-    const message = encodeURIComponent(
-      `Hola, me interesa este producto: ${productName}\n$${productPrice}\n${productUrl}`,
-    )
-    const whatsappUrl = `https://wa.me/5352490476?text=${message}`
-    window.open(whatsappUrl, "_blank")
-  }
+    if (typeof window === "undefined") return;
+
+    window.dispatchEvent(
+      new CustomEvent("open-whatsapp-contacts", {
+        detail: {
+          productName,
+          price: Number(productPrice).toFixed(2),
+          url: productUrl,
+          image: productImage ?? undefined,
+        },
+      })
+    );
+  };
 
   return (
     <div className="space-y-4 border-t border-border pt-6">
@@ -72,6 +84,7 @@ export function ProductShareButtons({ productUrl, productName, productPrice }: P
           <Share2 className="w-4 h-4 mr-2" />
           Compartir
         </Button>
+
         <Button
           onClick={handleCopyLink}
           variant="outline"
@@ -80,6 +93,7 @@ export function ProductShareButtons({ productUrl, productName, productPrice }: P
           <Copy className="w-4 h-4 mr-2" />
           Copiar Enlace
         </Button>
+
         <Button
           onClick={handleWhatsApp}
           variant="outline"
@@ -90,5 +104,5 @@ export function ProductShareButtons({ productUrl, productName, productPrice }: P
         </Button>
       </div>
     </div>
-  )
+  );
 }

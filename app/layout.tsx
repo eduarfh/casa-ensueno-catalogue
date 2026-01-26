@@ -1,30 +1,26 @@
-import type React from "react"
-import type { Metadata } from "next"
-import { Geist, Geist_Mono } from "next/font/google"
-import { Analytics } from "@vercel/analytics/next"
-import { ThemeProvider } from "@/components/theme-provider"
-import { Suspense } from "react"
-import "./globals.css"
-import { Toaster } from "@/components/ui/toaster"
+import type React from "react";
+import type { Metadata } from "next";
+import { Geist, Geist_Mono } from "next/font/google";
+import { Analytics } from "@vercel/analytics/next";
+import { ThemeProvider } from "@/components/theme-provider";
+import { Suspense } from "react";
+import "./globals.css";
+import { Toaster } from "@/components/ui/toaster";
+import WhatsAppContactsModal from "@/components/whatsapp-contacts-modal"; // <-- modal global (client)
 
-// Fuentes (next/font/google)
-const _geist = Geist({ subsets: ["latin"], variable: "--font-geist" })
-const _geistMono = Geist_Mono({ subsets: ["latin"], variable: "--font-geist-mono" })
+const _geist = Geist({ subsets: ["latin"], variable: "--font-geist" });
+const _geistMono = Geist_Mono({ subsets: ["latin"], variable: "--font-geist-mono" });
 
-const SITE_URL = "https://casaensueno-catalogue.vercel.app"
+const SITE_URL = "https://casaensueno-catalogue.vercel.app";
 
-// URL de la imagen que quieres usar para OpenGraph / favicon.
-// La usamos con encodeURI para evitar problemas por espacios/caracteres.
 const SHARED_OG_IMAGE = encodeURI(
   "https://jgxqopmrwuxyfirpvbhz.supabase.co/storage/v1/object/public/casaensueno%20files/logo%20con%20fondo%20recortado%20baja%20calidad%20(1).jpg"
-)
+);
 
 export const metadata: Metadata = {
   title: "Catálogo de Productos - Hogar y Decoración",
-  description:
-    "Descubre nuestro amplio catálogo de útiles para el hogar y decoración con los mejores precios",
+  description: "Descubre nuestro amplio catálogo de útiles para el hogar y decoración con los mejores precios",
   metadataBase: new URL(SITE_URL),
-  // favicon / icons (usa la misma imagen como favicon)
   icons: {
     icon: SHARED_OG_IMAGE,
     shortcut: SHARED_OG_IMAGE,
@@ -32,8 +28,7 @@ export const metadata: Metadata = {
   },
   openGraph: {
     title: "Catálogo de Productos - Hogar y Decoración",
-    description:
-      "Descubre nuestro amplio catálogo de útiles para el hogar y decoración con los mejores precios",
+    description: "Descubre nuestro amplio catálogo de útiles para el hogar y decoración con los mejores precios",
     url: SITE_URL,
     siteName: "Casa en Sueño (Catálogo)",
     images: [
@@ -51,16 +46,15 @@ export const metadata: Metadata = {
   twitter: {
     card: "summary_large_image",
     title: "Catálogo de Productos - Hogar y Decoración",
-    description:
-      "Descubre nuestro amplio catálogo de útiles para el hogar y decoración con los mejores precios",
+    description: "Descubre nuestro amplio catálogo de útiles para el hogar y decoración con los mejores precios",
     images: [SHARED_OG_IMAGE],
   },
-}
+};
 
 export default function RootLayout({
   children,
 }: Readonly<{
-  children: React.ReactNode
+  children: React.ReactNode;
 }>) {
   return (
     <html lang="es" suppressHydrationWarning>
@@ -85,10 +79,13 @@ export default function RootLayout({
           </ThemeProvider>
         </Suspense>
 
+        {/* Modal global de contactos WhatsApp (se muestra sólo al disparar el evento "open-whatsapp-contacts") */}
+        <WhatsAppContactsModal />
+
         {/* Componentes persistentes */}
         <Toaster />
         <Analytics />
       </body>
     </html>
-  )
+  );
 }

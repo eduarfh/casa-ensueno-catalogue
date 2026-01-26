@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { ChevronLeft, ShoppingCart } from "lucide-react";
 import { ProductImageGallery } from "@/components/product-image-gallery";
-import { ProductShareButtons } from "@/components/product-share-buttons";
+import ProductShareButtons from "@/components/product-share-buttons";
 import SiteHeader from "@/components/site-header";
 import type { Metadata } from "next";
 import StoreInfo from "@/components/store-info";
@@ -15,6 +15,17 @@ interface ParamsShape {
   params: Promise<{
     id: string;
   }>;
+}
+
+/**
+ * Convierte una URL relativa (p.ej. path en storage) en una URL absoluta usando NEXT_PUBLIC_BASE_URL.
+ * Si la URL ya es absoluta (http(s)://) la devuelve tal cual.
+ */
+function makeAbsoluteUrl(maybeUrl?: string | null) {
+  if (!maybeUrl) return undefined;
+  if (/^https?:\/\//i.test(maybeUrl)) return maybeUrl;
+  const base = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
+  return `${base.replace(/\/$/, "")}/${maybeUrl.replace(/^\//, "")}`;
 }
 
 export async function generateMetadata({ params }: ParamsShape): Promise<Metadata> {
@@ -30,7 +41,7 @@ export async function generateMetadata({ params }: ParamsShape): Promise<Metadat
       description,
       price,
       available,
-      product_images(image_url),
+      product_images(id, image_url, display_order),
       category
     `)
     .eq("id", id)
@@ -42,6 +53,16 @@ export async function generateMetadata({ params }: ParamsShape): Promise<Metadat
     };
   }
 
+  // elegir la primera imagen ordenada por display_order (si existe)
+  const firstImage =
+    Array.isArray(product.product_images) && product.product_images.length > 0
+      ? product.product_images
+          .slice()
+          .sort((a: any, b: any) => (a.display_order || 0) - (b.display_order || 0))[0]
+      : undefined;
+
+  const firstImageUrl = makeAbsoluteUrl(firstImage?.image_url ?? undefined);
+
   return {
     title: product.name,
     description: product.description || `${product.name} - $${product.price ?? 0}`,
@@ -49,6 +70,13 @@ export async function generateMetadata({ params }: ParamsShape): Promise<Metadat
       title: product.name,
       description: product.description || `${product.name} - $${product.price ?? 0}`,
       type: "website",
+      images: firstImageUrl ? [firstImageUrl] : undefined,
+    },
+    twitter: {
+      card: firstImageUrl ? "summary_large_image" : "summary",
+      title: product.name,
+      description: product.description || `${product.name} - $${product.price ?? 0}`,
+      // no es obligatorio poner "images" en twitter; la metadata og suele ser suficiente
     },
   };
 }
@@ -75,7 +103,16 @@ export default async function ProductPage({ params }: ParamsShape) {
     notFound();
   }
 
-  const productUrl = `${process.env.NEXT_PUBLIC_BASE_URL ?? "http://localhost:3000"}/product/${id}`;
+  // URL absoluta de la página del producto (no es la URL de supabase/storage)
+  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
+  const productUrl = `${baseUrl.replace(/\/$/, "")}/product/${id}`;
+
+  // obtener la primera imagen (si hay) y construir su URL absoluta
+  const firstImage = (product.product_images || [])
+    .slice()
+    .sort((a: any, b: any) => (a.display_order || 0) - (b.display_order || 0))[0];
+
+  const firstImageUrl = makeAbsoluteUrl(firstImage?.image_url);
 
   return (
     <div className="min-h-screen bg-background">
@@ -118,12 +155,7 @@ export default async function ProductPage({ params }: ParamsShape) {
                   ${Number(product.price ?? 0).toFixed(2)}{" "}
                   <span className="text-foreground">CUP</span>
                 </span>
-
-
-
               </div>
-
-
             </div>
 
             <Card className="p-5 bg-muted/50 border-muted">
@@ -160,10 +192,12 @@ export default async function ProductPage({ params }: ParamsShape) {
               productUrl={productUrl}
               productName={product.name}
               productPrice={Number(product.price ?? 0)}
+              productImage={firstImageUrl ?? undefined}
             />
           </div>
         </div>
       </main>
+
       <footer>
         <StoreInfo />
       </footer>

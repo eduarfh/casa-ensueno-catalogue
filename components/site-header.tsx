@@ -97,38 +97,19 @@ export default function SiteHeader({ user = null }: SiteHeaderProps) {
               <div className="flex items-center gap-2">
                 <Link
                   href="/catalog"
-                  className="text-xs sm:text-sm font-medium hover:text-primary transition-colors px-2 py-1"
+                  className="text-sm font-medium hover:text-primary transition-colors px-3 py-2 rounded-md"
+
                 >
-                  Catálogo
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="bg-transparent"
+                  >
+                    <PackageSearch className="h-4 w-4" />
+                  </Button>
                 </Link>
 
-                {user ? (
-                  <>
-                    <Link
-                      href="/admin"
-                      className="text-xs sm:text-sm font-medium hover:text-primary transition-colors px-2 py-1"
-                    >
-                      Dashboard
-                    </Link>
-                    <Link
-                      href="/auth/logout"
-                      className="text-xs sm:text-sm font-medium hover:text-primary transition-colors px-2 py-1"
-                    >
-                      Salir
-                    </Link>
-                  </>
-                ) : (
-
-                  <Link
-                    href="/auth/login"
-                    className="text-xs sm:text-sm font-medium hover:text-primary transition-colors px-2 py-1"
-                  >
-                    Admin
-                  </Link>
-
-                )}
-
-
+                
                 <div className="inline-flex items-center px-1">
                   <ThemeToggle />
                 </div>
@@ -194,7 +175,7 @@ export default function SiteHeader({ user = null }: SiteHeaderProps) {
               </Link>
 
 
-              
+
 
 
               <div

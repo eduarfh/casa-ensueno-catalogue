@@ -86,7 +86,6 @@ export default function StoreInfo() {
   const address = store.address ?? "Calle 68 entre 9na y 11na, Miramar, Playa";
   const lat = store.lat ?? "23.106806";
   const lng = store.lng ?? "-82.431900";
-  const mapsEmbedSrc = `https://maps.google.com/maps?q=${lat},${lng}&z=16&output=embed`;
 
   // --- Developer credit UI ---
   const devName = "Eduardo Enrique Fonseca Heredia";
@@ -218,19 +217,22 @@ export default function StoreInfo() {
     const url = buildMapsLink();
 
     try {
-      // Creamos un <a> seguro para forzar que SOLO se abra en una nueva pestaña
       const a = document.createElement("a");
       a.href = url;
       a.target = "_blank";
       a.rel = "noopener noreferrer";
-      // oculto y temporal en DOM para que click() funcione en todos los navegadores
       a.style.display = "none";
       document.body.appendChild(a);
       a.click();
       a.remove();
     } catch {
-      // fallback: si algo falla, redirigimos la pestaña actual
       window.location.href = url;
+    }
+  };
+
+  const openContactsModal = () => {
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("open-whatsapp-contacts", { detail: {} }));
     }
   };
 
@@ -245,18 +247,18 @@ export default function StoreInfo() {
   };
 
   return (
-    <section className="container mx-auto px-4 py-8">
-      <Card className="border-2">
+    <section className="container mx-auto px-1 py-4">
+      <Card className="border-1">
         <CardHeader>
           <CardTitle className="text-2xl md:text-3xl">Visítanos o contáctanos</CardTitle>
         </CardHeader>
 
-        <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
+        <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-3 items-start">
           {/* Horario */}
           <div className="flex flex-col gap-3">
             <div className="inline-flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-[#FFD4E5]/30 dark:bg-[#FFD4E5]/20">
-                <Clock className="h-5 w-5 text-[#F49F51]" />
+              <div className="p-2 rounded-lg bg-yellow-100 dark:bg-[#eab308]/20">
+                <Clock className="h-5 w-5 text-yellow-500" />
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Horario</p>
@@ -267,49 +269,25 @@ export default function StoreInfo() {
 
           {/* Contacto */}
           <div className="flex flex-col gap-3">
+
             <div className="inline-flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-[#BEE4E7]/30 dark:bg-[#BEE4E7]/20">
-                <Phone className="h-5 w-5 text-[#95C7C3]" />
+              <div className="p-2 rounded-lg bg-emerald-100 dark:bg-[#059669]/20">
+                <Phone className="h-5 w-5 text-emerald-600" />
               </div>
-
               <div>
-                <p className="text-sm text-muted-foreground">Contacto</p>
-                <p className="font-semibold text-foreground">Gabriela Silva</p>
-                <div className="mt-1 flex items-center gap-2">
-                  <a href={telLink} className="text-sm text-muted-foreground underline">
-                    {phoneDisplay}
-                  </a>
-                </div>
+                <p className="text-sm text-muted-foreground">Contactos</p>
+                <Button onClick={openContactsModal} variant="outline" className="text-sm bg-transparent dark:bg-[#059669]/20">
+                  Ver contactos
+                </Button>
               </div>
-            </div>
-
-            <div className="flex gap-2 flex-wrap">
-              <Button
-                asChild
-                variant="outline"
-                className="border-[#25D366] text-[#25D366] hover:bg-[#25D366] hover:text-white"
-                aria-label="Chatear por WhatsApp con Gabriela"
-              >
-                <a href={whatsappLink} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2">
-                  <span className="inline-flex items-center justify-center w-5 h-5 flex-shrink-0">
-                    <MessageCircle className="h-4 w-4 md:h-3 md:w-3" />
-                  </span>
-
-                  <span className="font-medium">WhatsApp</span>
-                </a>
-              </Button>
-
-              <Button variant="ghost" onClick={() => copyToClipboard(phoneDisplay)} className="text-sm" aria-label="Copiar número">
-                Copiar número
-              </Button>
             </div>
           </div>
 
           {/* Dirección + Mapa */}
           <div className="flex flex-col gap-3">
             <div className="inline-flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-[#F7CCAD]/30 dark:bg-[#F7CCAD]/20">
-                <MapPin className="h-5 w-5 text-[#F7CCAD]" />
+              <div className="p-2 rounded-lg bg-red-100 dark:bg-[#dc2626]/20">
+                <MapPin className="h-5 w-5 text-red-600" />
               </div>
 
               <div>
@@ -325,7 +303,7 @@ export default function StoreInfo() {
               <Button
                 onClick={openMaps}
                 variant="outline"
-                className="flex-1 inline-flex items-center justify-center gap-2"
+                className="flex-1 inline-flex items-center justify-center gap-2 dark:bg-[#dc2626]/20"
                 aria-label="Abrir en la app de mapas"
               >
                 <Map className="w-5 h-5" />
@@ -335,11 +313,9 @@ export default function StoreInfo() {
                 </span>
               </Button>
             </div>
-
-            {/* Small note removed iframe + copy button for compactness */}
           </div>
 
-          {/* Footer / Créditos (single row spanning all columns) */}
+          {/* Footer / Créditos */}
           <div className="col-span-full mt-6 pt-4 border-t border-muted/20">
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
               <div className="flex items-center gap-3 min-w-0">
@@ -360,7 +336,6 @@ export default function StoreInfo() {
               </div>
 
               <div className="flex items-center gap-3">
-                {/* Instagram */}
                 <a href={instagramLink} target="_blank" rel="noreferrer noopener" className="inline-flex items-center gap-2 text-sm text-[var(--color-muted-foreground,rgba(0,0,0,0.6))] hover:text-[var(--color-foreground,#111)] transition-colors">
                   <span className="inline-flex items-center justify-center w-8 h-8 rounded-md" aria-hidden>
                     <InstagramIcon />
@@ -368,7 +343,6 @@ export default function StoreInfo() {
                   <span className="hidden sm:inline">Instagram</span>
                 </a>
 
-                {/* Facebook */}
                 <a href={facebookLink} target="_blank" rel="noreferrer noopener" className="inline-flex items-center gap-2 text-sm text-[var(--color-muted-foreground,rgba(0,0,0,0.6))] hover:text-[var(--color-foreground,#111)] transition-colors">
                   <span className="inline-flex items-center justify-center w-8 h-8 rounded-md" aria-hidden>
                     <FacebookIcon />
@@ -376,7 +350,6 @@ export default function StoreInfo() {
                   <span className="hidden sm:inline">Facebook</span>
                 </a>
 
-                {/* Email */}
                 <a href={mailLink} className="inline-flex items-center gap-2 text-sm text-[var(--color-muted-foreground,rgba(0,0,0,0.6))] hover:text-[var(--color-foreground,#111)] transition-colors">
                   <span className="inline-flex items-center justify-center w-8 h-8 rounded-md" aria-hidden>
                     <GmailIcon />
@@ -386,7 +359,6 @@ export default function StoreInfo() {
               </div>
             </div>
 
-            {/* Small copyright line */}
             <div className="mt-3 text-xs text-muted-foreground">© {new Date().getFullYear()} Dulces Sueños. Todos los derechos reservados.</div>
           </div>
         </CardContent>

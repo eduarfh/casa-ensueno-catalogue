@@ -1,9 +1,9 @@
-// components/admin/store-form.tsx
 "use client";
 import React, { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { notify } from "@/lib/notify";
+import AdminStoreWhatsApp from "./admin-store-whatsapp"; // nuevo componente de gestión
 
 type StoreInfoRow = {
   id?: string | null;
@@ -31,6 +31,7 @@ export default function AdminStoreForm() {
 
   const [loading, setLoading] = useState<boolean>(true);
   const [saving, setSaving] = useState<boolean>(false);
+  const [showWhatsAppManager, setShowWhatsAppManager] = useState(false);
 
   useEffect(() => {
     let mounted = true;
@@ -79,7 +80,6 @@ export default function AdminStoreForm() {
         hours: form.hours ?? "",
       };
 
-      // LLAMADA AL ENDPOINT SERVER-SIDE (no enviamos secretos desde el cliente)
       const res = await fetch("/api/admin/save-store", {
         method: "POST",
         headers: {
@@ -89,7 +89,6 @@ export default function AdminStoreForm() {
       });
 
       if (!res.ok) {
-        // si ocurre 401/500/otro lo mostramos y devolvemos el body para debug
         const text = await res.text().catch(() => "");
         console.error("Save failed:", res.status, text);
         notify("error", "Error al guardar la información.");
@@ -107,6 +106,12 @@ export default function AdminStoreForm() {
       notify("error", "Ocurrió un error inesperado.");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const openContactsModalPreview = () => {
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("open-whatsapp-contacts", { detail: {} }));
     }
   };
 
@@ -177,7 +182,20 @@ export default function AdminStoreForm() {
           >
             Restaurar valores
           </Button>
+
+          
+
+          {/* Nuevo: mostrar/ocultar gestor admin inline */}
+          <Button onClick={() => setShowWhatsAppManager((v) => !v)} variant="secondary">
+            {showWhatsAppManager ? "Cerrar gestor" : "Gestionar contactos"}
+          </Button>
         </div>
+
+        {showWhatsAppManager ? (
+          <div className="mt-4">
+            <AdminStoreWhatsApp />
+          </div>
+        ) : null}
       </CardContent>
     </Card>
   );

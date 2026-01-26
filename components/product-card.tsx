@@ -83,10 +83,12 @@ export function ProductCard({
     }
   };
 
+  // **REEMPLAZADO**: ahora abrimos el modal global mediante evento (no abrimos wa.me directo aquí)
   const handleWhatsApp = () => {
-    const message = encodeURIComponent(`Hola, me interesa el producto: ${name} - $${priceString}`);
-    const whatsappUrl = `https://wa.me/{store.whatsapp_number?text=${message}`;
-    if (typeof window !== "undefined") window.open(whatsappUrl, "_blank");
+    const payload = { productName: name ?? "", price: priceString };
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("open-whatsapp-contacts", { detail: payload }));
+    }
   };
 
   const extractCategory = (item: Category | string | null | undefined): { name: string; seed: string } | null => {
@@ -123,7 +125,6 @@ export function ProductCard({
 
   const normalizedImgs: string[] = imgs.length ? imgs : ["/placeholder.svg"];
 
-  // compact mode (usado en otros contextos; lo dejamos intacto)
   if (compact) {
     const imgSrc = normalizedImgs[0] ?? "/placeholder.svg";
     const isAvailable = available === true || available === 1 || available === "1";
@@ -141,13 +142,6 @@ export function ProductCard({
               <span className="text-xs text-muted-foreground line-clamp-1">{displayName ?? "Sin categoría"}</span>
               <span className="text-sm font-semibold text-primary">${priceString}</span>
             </div>
-
-            {/* <div className="mt-2 flex items-center gap-2">
-              <Badge variant={isAvailable ? "default" : "destructive"} className="text-xs py-0.5 px-2">
-                {isAvailable ? "Disponible" : "Agotado"}
-              </Badge>
-              {displaySeed ? <CategoryBadge category={displayName ?? ""} seed={displaySeed} className="text-xs py-0.5 px-2" /> : null}
-            </div> */}
           </div>
         </Link>
       </div>
@@ -188,7 +182,7 @@ export function ProductCard({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [normalizedImgs.length]);
 
-  // swipe/drag logic + prevent link navigation on drag
+  // swipe/drag logic
   const draggingRef = useRef(false);
   useEffect(() => {
     const el = containerRef.current;
@@ -212,7 +206,6 @@ export function ProductCard({
         else setIndex((i) => (i - 1 + normalizedImgs.length) % normalizedImgs.length);
       }
       dx = 0;
-      // small timeout to avoid immediate click after drag
       setTimeout(() => {
         draggingRef.current = false;
       }, 50);
@@ -232,8 +225,8 @@ export function ProductCard({
   const showControls = normalizedImgs.length > 1;
   const isAvailable = available === true || available === 1 || available === "1";
 
-  // --- AUTOPLAY (catalog: rápido) ---
-  const AUTOPLAY_INTERVAL = 1200; // ms (catalogo: rápido)
+  // autoplay quick catalog mode
+  const AUTOPLAY_INTERVAL = 1200;
   const autoplayRef = useRef<number | null>(null);
   const [isInteracting, setIsInteracting] = useState(false);
 
@@ -253,26 +246,20 @@ export function ProductCard({
     };
   }, [showControls, isInteracting, normalizedImgs.length]);
 
-  // pause/resume helpers
   const pauseAutoplay = () => setIsInteracting(true);
   const resumeAutoplay = () => setIsInteracting(false);
 
-  // Prevent navigation if user was dragging
   const onImageLinkClick = (e: React.MouseEvent) => {
     if (draggingRef.current) {
       e.preventDefault();
       e.stopPropagation();
       return;
     }
-    // otherwise let Link work normally
   };
 
   return (
     <Card
       className={
-        // Escala ligera en móvil para que se vea igual que desktop pero algo más pequeño.
-        // - scale-95 por defecto (mobile), md:scale-100 para pantallas medianas en adelante (tablet/desktop).
-        // - padding y text sizes responsivos para mantener proporciones.
         "overflow-hidden hover:shadow-lg transition-all duration-200 hover:border-primary/40 bg-card group p-2 md:p-3 gap-2 rounded-md h-full transform-gpu scale-95 md:scale-100"
       }
     >
@@ -287,7 +274,6 @@ export function ProductCard({
           onMouseLeave={resumeAutoplay}
           onFocus={pauseAutoplay}
           onBlur={resumeAutoplay}
-          // pointerdown sets interacting to true until pointerup (helps for touch)
           onPointerDown={() => setIsInteracting(true)}
           onPointerUp={() => setTimeout(() => setIsInteracting(false), 150)}
         >
@@ -302,12 +288,6 @@ export function ProductCard({
             loading={index === 0 ? "eager" : "lazy"}
             priority={false}
           />
-
-          {/* <div className="absolute top-2 left-2 z-10">
-            {displayName ? (
-              <CategoryBadge category={displayName} seed={displaySeed ?? undefined} className="px-3 py-1 text-xs font-medium" />
-            ) : null}
-          </div> */}
 
           <div className="absolute top-2 right-2 z-10">
             {isAvailable ? (
