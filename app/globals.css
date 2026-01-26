@@ -55,6 +55,7 @@
   --sidebar-accent-foreground: oklch(24% 0.002 120);
   --sidebar-border: oklch(86% 0.04 80);
   --sidebar-ring: oklch(84% 0.04 130);
+  --font-sans: var(--font-jakarta);
 }
 
 .dark {
