@@ -1,27 +1,21 @@
-// app/layout.tsx
-import type React from "react"
-import type { Metadata } from "next"
-import { Suspense } from "react"
+import type React from "react";
+import type { Metadata } from "next";
+import { Geist, Geist_Mono } from "next/font/google";
+import { Analytics } from "@vercel/analytics/next";
+import { ThemeProvider } from "@/components/theme-provider";
+import { Suspense } from "react";
+import "./globals.css";
+import { Toaster } from "@/components/ui/toaster";
+import WhatsAppContactsModal from "@/components/whatsapp-contacts-modal";
 
-// Fuentes modernas nativas de Next.js
-import { Geist, Geist_Mono } from "next/font/google"
+const _geist = Geist({ subsets: ["latin"], variable: "--font-geist" });
+const _geistMono = Geist_Mono({ subsets: ["latin"], variable: "--font-geist-mono" });
 
-import { Analytics } from "@vercel/analytics/next"
-import { ThemeProvider } from "@/components/theme-provider"
-import { Toaster } from "@/components/ui/toaster"
+const SITE_URL = "https://casaensueno-catalogue.vercel.app";
 
-import "./globals.css"
-
-// Carga de fuentes
-const geist = Geist({ subsets: ["latin"], variable: "--font-geist" })
-const geistMono = Geist_Mono({ subsets: ["latin"], variable: "--font-geist-mono" })
-
-const SITE_URL = "https://casaensueno-catalogue.vercel.app"
-
-// Imagen OG / favicon (codificada para evitar errores)
-const SHARED_OG_IMAGE = encodeURI(
-  "https://jgxqopmrwuxyfirpvbhz.supabase.co/storage/v1/object/public/casaensueno%20files/logo%20con%20fondo%20recortado%20baja%20calidad%20(1).jpg"
-)
+// URL única para favicon y OG image
+const SHARED_IMAGE =
+  "https://jgxqopmrwuxyfirpvbhz.supabase.co/storage/v1/object/public/casaensueno%20files/logo.jpg";
 
 export const metadata: Metadata = {
   title: "Catálogo de Productos - Hogar y Decoración",
@@ -30,9 +24,9 @@ export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
 
   icons: {
-    icon: SHARED_OG_IMAGE,
-    shortcut: SHARED_OG_IMAGE,
-    apple: SHARED_OG_IMAGE,
+    icon: SHARED_IMAGE,
+    shortcut: SHARED_IMAGE,
+    apple: SHARED_IMAGE,
   },
 
   openGraph: {
@@ -43,7 +37,7 @@ export const metadata: Metadata = {
     siteName: "Casa en Sueño (Catálogo)",
     images: [
       {
-        url: SHARED_OG_IMAGE,
+        url: SHARED_IMAGE,
         width: 1200,
         height: 630,
         alt: "Casa en Sueño - Miniatura del catálogo",
@@ -59,44 +53,24 @@ export const metadata: Metadata = {
     title: "Catálogo de Productos - Hogar y Decoración",
     description:
       "Descubre nuestro amplio catálogo de útiles para el hogar y decoración con los mejores precios",
-    images: [SHARED_OG_IMAGE],
+    images: [SHARED_IMAGE],
   },
-}
+};
 
-export default function RootLayout({
-  children,
-}: Readonly<{ children: React.ReactNode }>) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="es" suppressHydrationWarning>
-      <head>
-        {/* Aplica el tema antes de la hidratación */}
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `
-              try {
-                const theme = localStorage.getItem('theme') || 'light';
-                document.documentElement.classList.toggle('dark', theme === 'dark');
-              } catch (e) {}
-            `,
-          }}
-        />
-      </head>
-
-      <body className={`${geist.variable} ${geistMono.variable} font-sans antialiased`}>
+      <body className={`${_geist.variable} ${_geistMono.variable} font-sans antialiased`}>
         <Suspense fallback={null}>
-          <ThemeProvider
-            attribute="class"
-            defaultTheme="system"
-            enableSystem
-            disableTransitionOnChange
-          >
+          <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
             {children}
           </ThemeProvider>
         </Suspense>
 
+        <WhatsAppContactsModal />
         <Toaster />
         <Analytics />
       </body>
     </html>
-  )
+  );
 }

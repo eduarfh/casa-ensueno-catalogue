@@ -160,12 +160,15 @@ export function ProductCard({
     setImgLoaded(false);
   }, [index]);
 
+  // prev/next handlers now preventDefault and stop propagation when event provided. <-- CHANGED
   const prev = (e?: React.MouseEvent) => {
     e?.stopPropagation();
+    e?.preventDefault();
     setIndex((i) => (i - 1 + normalizedImgs.length) % normalizedImgs.length);
   };
   const next = (e?: React.MouseEvent) => {
     e?.stopPropagation();
+    e?.preventDefault();
     setIndex((i) => (i + 1) % normalizedImgs.length);
   };
 
@@ -225,7 +228,7 @@ export function ProductCard({
   const isAvailable = available === true || available === 1 || available === "1";
 
   // autoplay quick catalog mode
-  const AUTOPLAY_INTERVAL = 1200;
+  const AUTOPLAY_INTERVAL = 4500; // <-- CHANGED: increased interval to 3000ms
   const autoplayRef = useRef<number | null>(null);
   const [isInteracting, setIsInteracting] = useState(false);
 
@@ -249,12 +252,30 @@ export function ProductCard({
   const resumeAutoplay = () => setIsInteracting(false);
 
   const onImageLinkClick = (e: React.MouseEvent) => {
+    // If user was dragging, prevent navigation. <-- existing logic
     if (draggingRef.current) {
       e.preventDefault();
       e.stopPropagation();
       return;
     }
+    // Also prevent navigation if the click originated from a control (button, svg inside a button, etc.)
+    const target = e.target as HTMLElement | null;
+    try {
+      if (target) {
+        // closest will handle clicks in SVG paths, icons, etc.
+        if (target.closest("button, [role='button'], .no-link")) {
+          e.preventDefault();
+          e.stopPropagation();
+          return;
+        }
+      }
+    } catch (err) {
+      // ignore
+    }
   };
+
+  const onImageLinkPointerDown = () => setIsInteracting(true);
+  const onImageLinkPointerUp = () => setTimeout(() => setIsInteracting(false), 150);
 
   return (
     <Card
@@ -262,7 +283,14 @@ export function ProductCard({
         "overflow-hidden hover:shadow-lg transition-all duration-200 hover:border-primary/40 bg-card group p-2 md:p-3 gap-2 rounded-md h-full transform-gpu scale-95 md:scale-100"
       }
     >
-      <Link href={`/product/${id}`} className="block relative overflow-hidden bg-muted aspect-[4/3]" aria-label={`Ver ${name}`} onClick={onImageLinkClick}>
+      <Link
+        href={`/product/${id}`}
+        className="block relative overflow-hidden bg-muted aspect-[4/3]"
+        aria-label={`Ver ${name}`}
+        onClick={onImageLinkClick}
+        onPointerDown={onImageLinkPointerDown}
+        onPointerUp={onImageLinkPointerUp}
+      >
         <div
           ref={containerRef}
           className="w-full h-full relative"
@@ -307,6 +335,14 @@ export function ProductCard({
                 aria-label="Imagen anterior"
                 className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/30 hover:bg-black/50 text-white p-1.5 rounded-full focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary"
                 type="button"
+                onPointerDown={(e) => {
+                  e.stopPropagation();
+                  setIsInteracting(true);
+                }}
+                onPointerUp={(e) => {
+                  e.stopPropagation();
+                  setTimeout(() => setIsInteracting(false), 150);
+                }}
               >
                 <ChevronLeft className="w-4 h-4" />
               </button>
@@ -316,6 +352,14 @@ export function ProductCard({
                 aria-label="Siguiente imagen"
                 className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/30 hover:bg-black/50 text-white p-1.5 rounded-full focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary"
                 type="button"
+                onPointerDown={(e) => {
+                  e.stopPropagation();
+                  setIsInteracting(true);
+                }}
+                onPointerUp={(e) => {
+                  e.stopPropagation();
+                  setTimeout(() => setIsInteracting(false), 150);
+                }}
               >
                 <ChevronRight className="w-4 h-4" />
               </button>
@@ -328,6 +372,7 @@ export function ProductCard({
                       key={i}
                       onClick={(e) => {
                         e.stopPropagation();
+                        e.preventDefault(); // <-- CHANGED: prevent the Link navigation
                         setIndex(i);
                       }}
                       aria-label={`Ir a la imagen ${i + 1}`}
