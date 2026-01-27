@@ -28,7 +28,7 @@ export default function CatalogClient({ products: serverProducts }: CatalogClien
   // filtros locales
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState<string>("");
-  const [availableOnly, setAvailableOnly] = useState<boolean>(false);
+  const [availableOnly, setAvailableOnly] = useState<boolean>(true);
 
   // UI / control
   const [isLoading, setIsLoading] = useState<boolean>(

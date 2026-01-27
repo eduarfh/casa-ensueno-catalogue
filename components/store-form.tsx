@@ -171,7 +171,7 @@ export default function AdminStoreForm() {
   return (
     <Card
       // Nota: flex-col + max height permiten que el CardContent haga scroll
-      className="border-2 max-h-[80vh] md:max-h-[70vh] flex flex-col"
+      className="border-1 max-h-[80vh] md:max-h-[70vh] flex flex-col"
       aria-busy={loading || saving}
     >
       <CardHeader>
@@ -181,81 +181,23 @@ export default function AdminStoreForm() {
       {/* CardContent con overflow auto para scroll interno.
           min-h-0 es necesario dentro de contenedores flex para que el overflow funcione */}
       <CardContent
-        className="space-y-4 overflow-auto min-h-0 p-4"
+        className="space-y-2 overflow-auto min-h-0 px-6"
         style={{ WebkitOverflowScrolling: "touch" }}
       >
         {/* Form grid: responsive 1 / 2 / 3 columnas según ancho */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          {/* Label */}
-          <div className="flex flex-col">
-            <label htmlFor={`${id}-label`} className="text-xs text-muted-foreground mb-1">
-              Etiqueta (nombre)
-            </label>
-            <input
-              id={`${id}-label`}
-              className="input"
-              value={form.label ?? ""}
-              onChange={(e) => handleChange("label", e.target.value)}
-              onFocus={handleFocus}
-              disabled={loading}
-              aria-invalid={!!errors.label}
-              aria-describedby={errors.label ? `${id}-label-error` : undefined}
-            />
-            {errors.label ? <p id={`${id}-label-error`} className="text-xs text-destructive mt-1">{errors.label}</p> : null}
-          </div>
-
-          {/* Phone display */}
-          <div className="flex flex-col">
-            <label htmlFor={`${id}-phone_display`} className="text-xs text-muted-foreground mb-1">
-              Teléfono (mostrar)
-            </label>
-            <input
-              id={`${id}-phone_display`}
-              className="input"
-              value={form.phone_display ?? ""}
-              onChange={(e) => handleChange("phone_display", e.target.value)}
-              onFocus={handleFocus}
-              disabled={loading}
-            />
-          </div>
-
-          {/* WhatsApp */}
-          <div className="flex flex-col">
-            <label htmlFor={`${id}-whatsapp_number`} className="text-xs text-muted-foreground mb-1">
-              WhatsApp (solo dígitos, sin + ni espacios)
-            </label>
-            <input
-              id={`${id}-whatsapp_number`}
-              className="input"
-              inputMode="numeric"
-              value={form.whatsapp_number ?? ""}
-              onChange={(e) => handleChange("whatsapp_number", e.target.value.replace(/\D/g, ""))}
-              onFocus={handleFocus}
-              disabled={loading}
-              aria-invalid={!!errors.whatsapp_number}
-              aria-describedby={errors.whatsapp_number ? `${id}-whatsapp-error` : undefined}
-            />
-            {errors.whatsapp_number ? <p id={`${id}-whatsapp-error`} className="text-xs text-destructive mt-1">{errors.whatsapp_number}</p> : null}
-            <div className="mt-2 flex gap-2">
-              {/* Preview contacts modal action (small, opcional) */}
-              <Button size="sm" variant="ghost" onClick={openContactsModalPreview} disabled={loading || saving}>
-                Ver contactos
-              </Button>
-            </div>
-          </div>
-
-          {/* Hours */}
-          <div className="flex flex-col">
+          <div className="flex flex-col sm:col-span-2 lg:col-span-3">
             <label htmlFor={`${id}-hours`} className="text-xs text-muted-foreground mb-1">
               Horario (texto)
             </label>
-            <input
+            <textarea
               id={`${id}-hours`}
-              className="input"
+              className="input textarea"
               value={form.hours ?? ""}
               onChange={(e) => handleChange("hours", e.target.value)}
               onFocus={handleFocus}
               disabled={loading}
+              rows={3}
             />
           </div>
 
@@ -264,13 +206,14 @@ export default function AdminStoreForm() {
             <label htmlFor={`${id}-address`} className="text-xs text-muted-foreground mb-1">
               Dirección
             </label>
-            <input
+            <textarea
               id={`${id}-address`}
-              className="input"
+              className="input textarea"
               value={form.address ?? ""}
               onChange={(e) => handleChange("address", e.target.value)}
               onFocus={handleFocus}
               disabled={loading}
+              rows={3}
             />
           </div>
 
@@ -279,15 +222,16 @@ export default function AdminStoreForm() {
             <label htmlFor={`${id}-lat`} className="text-xs text-muted-foreground mb-1">
               Lat
             </label>
-            <input
+            <textarea
               id={`${id}-lat`}
-              className="input"
+              className="input textarea"
               value={form.lat ?? ""}
               onChange={(e) => handleChange("lat", e.target.value)}
               onFocus={handleFocus}
               disabled={loading}
               aria-invalid={!!errors.lat}
               aria-describedby={errors.lat ? `${id}-lat-error` : undefined}
+              rows={1}
             />
             {errors.lat ? <p id={`${id}-lat-error`} className="text-xs text-destructive mt-1">{errors.lat}</p> : null}
           </div>
@@ -296,15 +240,16 @@ export default function AdminStoreForm() {
             <label htmlFor={`${id}-lng`} className="text-xs text-muted-foreground mb-1">
               Lng
             </label>
-            <input
+            <textarea
               id={`${id}-lng`}
-              className="input"
+              className="input textarea"
               value={form.lng ?? ""}
               onChange={(e) => handleChange("lng", e.target.value)}
               onFocus={handleFocus}
               disabled={loading}
               aria-invalid={!!errors.lng}
               aria-describedby={errors.lng ? `${id}-lng-error` : undefined}
+              rows={1}
             />
             {errors.lng ? <p id={`${id}-lng-error`} className="text-xs text-destructive mt-1">{errors.lng}</p> : null}
           </div>
