@@ -5,10 +5,11 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Share2, MessageCircle, ChevronLeft, ChevronRight } from "lucide-react";
+import { Share2, MessageCircle } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import CategoryBadge from "@/components/category-badge";
+import ImageCarousel from "@/components/image-carousel";
 
 interface Category {
   id?: string;
@@ -117,7 +118,7 @@ export function ProductCard({
     ? images
         .map((it) => {
           if (!it) return "";
-          return typeof it === "string" ? it : (it as any).url ?? "";
+          return typeof it === "string" ? it : (it as any).url ?? (it as any).image_url ?? "";
         })
         .filter(Boolean)
     : [];
@@ -147,122 +148,24 @@ export function ProductCard({
     );
   }
 
-  // full card
-  const [index, setIndex] = useState(0);
+  // Full card (uses ImageCarousel)
   const containerRef = useRef<HTMLDivElement | null>(null);
-  const [imgLoaded, setImgLoaded] = useState(false);
-
-  useEffect(() => {
-    setIndex(0);
-  }, [images]);
-
-  useEffect(() => {
-    setImgLoaded(false);
-  }, [index]);
-
-  // prev/next handlers now preventDefault and stop propagation when event provided. <-- CHANGED
-  const prev = (e?: React.MouseEvent) => {
-    e?.stopPropagation();
-    e?.preventDefault();
-    setIndex((i) => (i - 1 + normalizedImgs.length) % normalizedImgs.length);
-  };
-  const next = (e?: React.MouseEvent) => {
-    e?.stopPropagation();
-    e?.preventDefault();
-    setIndex((i) => (i + 1) % normalizedImgs.length);
-  };
-
-  useEffect(() => {
-    const handler = (ev: KeyboardEvent) => {
-      if (!containerRef.current) return;
-      if (!containerRef.current.contains(document.activeElement)) return;
-      if (ev.key === "ArrowLeft") prev();
-      if (ev.key === "ArrowRight") next();
-    };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [normalizedImgs.length]);
-
-  // swipe/drag logic
-  const draggingRef = useRef(false);
-  useEffect(() => {
-    const el = containerRef.current;
-    if (!el || normalizedImgs.length < 2) return;
-    let startX = 0;
-    let dx = 0;
-    const onPointerDown = (e: PointerEvent) => {
-      startX = e.clientX;
-      draggingRef.current = false;
-      try {
-        el.setPointerCapture?.((e as any).pointerId);
-      } catch {}
-    };
-    const onPointerMove = (e: PointerEvent) => {
-      dx = e.clientX - startX;
-      if (Math.abs(dx) > 8) draggingRef.current = true;
-    };
-    const onPointerUp = () => {
-      if (Math.abs(dx) > 40) {
-        if (dx < 0) setIndex((i) => (i + 1) % normalizedImgs.length);
-        else setIndex((i) => (i - 1 + normalizedImgs.length) % normalizedImgs.length);
-      }
-      dx = 0;
-      setTimeout(() => {
-        draggingRef.current = false;
-      }, 50);
-    };
-    el.addEventListener("pointerdown", onPointerDown);
-    el.addEventListener("pointermove", onPointerMove);
-    el.addEventListener("pointerup", onPointerUp);
-    el.addEventListener("pointercancel", onPointerUp);
-    return () => {
-      el.removeEventListener("pointerdown", onPointerDown);
-      el.removeEventListener("pointermove", onPointerMove);
-      el.removeEventListener("pointerup", onPointerUp);
-      el.removeEventListener("pointercancel", onPointerUp);
-    };
-  }, [normalizedImgs.length]);
+  const [isInteracting, setIsInteracting] = useState(false);
 
   const showControls = normalizedImgs.length > 1;
   const isAvailable = available === true || available === 1 || available === "1";
 
-  // autoplay quick catalog mode
-  const AUTOPLAY_INTERVAL = 4500; // <-- CHANGED: increased interval to 3000ms
-  const autoplayRef = useRef<number | null>(null);
-  const [isInteracting, setIsInteracting] = useState(false);
+  // autoplay interval (ms)
+  const AUTOPLAY_INTERVAL = 4500;
 
-  useEffect(() => {
-    if (!showControls) return;
-    if (isInteracting) return;
-
-    const id = window.setInterval(() => {
-      setIndex((i) => (i + 1) % normalizedImgs.length);
-    }, AUTOPLAY_INTERVAL);
-    autoplayRef.current = id;
-    return () => {
-      if (autoplayRef.current) {
-        clearInterval(autoplayRef.current);
-        autoplayRef.current = null;
-      }
-    };
-  }, [showControls, isInteracting, normalizedImgs.length]);
-
-  const pauseAutoplay = () => setIsInteracting(true);
-  const resumeAutoplay = () => setIsInteracting(false);
-
+  // Prevent navigation on click when dragging or clicking controls
   const onImageLinkClick = (e: React.MouseEvent) => {
-    // If user was dragging, prevent navigation. <-- existing logic
-    if (draggingRef.current) {
-      e.preventDefault();
-      e.stopPropagation();
-      return;
-    }
-    // Also prevent navigation if the click originated from a control (button, svg inside a button, etc.)
+    if ((e as any).defaultPrevented) return;
+    // If we detected a drag (we set isInteracting while pointer moving), prevent navigation.
+    // also prevent navigation if the click originated from a control (button, [role='button'], .no-link)
     const target = e.target as HTMLElement | null;
     try {
       if (target) {
-        // closest will handle clicks in SVG paths, icons, etc.
         if (target.closest("button, [role='button'], .no-link")) {
           e.preventDefault();
           e.stopPropagation();
@@ -274,8 +177,27 @@ export function ProductCard({
     }
   };
 
+  // pointer down/up to mark interaction (pauses autoplay)
   const onImageLinkPointerDown = () => setIsInteracting(true);
   const onImageLinkPointerUp = () => setTimeout(() => setIsInteracting(false), 150);
+
+  // Keyboard navigation: delegate to the carousel's prev/next buttons by clicking them
+  useEffect(() => {
+    const handler = (ev: KeyboardEvent) => {
+      if (!containerRef.current) return;
+      if (!containerRef.current.contains(document.activeElement)) return;
+      if (ev.key === "ArrowLeft") {
+        const prevBtn = containerRef.current.querySelector<HTMLButtonElement>('button[aria-label="Imagen anterior"]');
+        prevBtn?.click();
+      }
+      if (ev.key === "ArrowRight") {
+        const nextBtn = containerRef.current.querySelector<HTMLButtonElement>('button[aria-label="Siguiente imagen"]');
+        nextBtn?.click();
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, []);
 
   return (
     <Card
@@ -297,23 +219,17 @@ export function ProductCard({
           tabIndex={0}
           aria-roledescription="carousel"
           aria-label={`${name} imágenes`}
-          onMouseEnter={pauseAutoplay}
-          onMouseLeave={resumeAutoplay}
-          onFocus={pauseAutoplay}
-          onBlur={resumeAutoplay}
-          onPointerDown={() => setIsInteracting(true)}
-          onPointerUp={() => setTimeout(() => setIsInteracting(false), 150)}
+          onMouseEnter={() => setIsInteracting(true)}
+          onMouseLeave={() => setIsInteracting(false)}
+          onFocus={() => setIsInteracting(true)}
+          onBlur={() => setIsInteracting(false)}
         >
-          <Image
-            src={normalizedImgs[index] ?? "/placeholder.svg"}
-            alt={`${name} imagen ${index + 1}`}
-            fill
-            sizes="(max-width: 768px) 100vw, 25vw"
-            style={{ objectFit: "cover" }}
-            className={`group-hover:scale-105 transition-transform duration-350 transition-opacity ${imgLoaded ? "opacity-100" : "opacity-0"}`}
-            onLoad={() => setImgLoaded(true)}
-            loading={index === 0 ? "eager" : "lazy"}
-            priority={false}
+          <ImageCarousel
+            images={normalizedImgs}
+            alt={name || "Producto"}
+            autoRotate={showControls && !isInteracting}
+            interval={AUTOPLAY_INTERVAL}
+            className="w-full h-full"
           />
 
           <div className="absolute top-2 right-2 z-10">
@@ -327,63 +243,6 @@ export function ProductCard({
               </Badge>
             )}
           </div>
-
-          {showControls && (
-            <>
-              <button
-                onClick={prev}
-                aria-label="Imagen anterior"
-                className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/30 hover:bg-black/50 text-white p-1.5 rounded-full focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary"
-                type="button"
-                onPointerDown={(e) => {
-                  e.stopPropagation();
-                  setIsInteracting(true);
-                }}
-                onPointerUp={(e) => {
-                  e.stopPropagation();
-                  setTimeout(() => setIsInteracting(false), 150);
-                }}
-              >
-                <ChevronLeft className="w-4 h-4" />
-              </button>
-
-              <button
-                onClick={next}
-                aria-label="Siguiente imagen"
-                className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/30 hover:bg-black/50 text-white p-1.5 rounded-full focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary"
-                type="button"
-                onPointerDown={(e) => {
-                  e.stopPropagation();
-                  setIsInteracting(true);
-                }}
-                onPointerUp={(e) => {
-                  e.stopPropagation();
-                  setTimeout(() => setIsInteracting(false), 150);
-                }}
-              >
-                <ChevronRight className="w-4 h-4" />
-              </button>
-
-              <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-2">
-                {normalizedImgs.map((_, i) => {
-                  const isActive = i === index;
-                  return (
-                    <button
-                      key={i}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        e.preventDefault(); // <-- CHANGED: prevent the Link navigation
-                        setIndex(i);
-                      }}
-                      aria-label={`Ir a la imagen ${i + 1}`}
-                      className={`w-2 h-2 rounded-full ${isActive ? "bg-white" : "bg-white/50"}`}
-                      type="button"
-                    />
-                  );
-                })}
-              </div>
-            </>
-          )}
         </div>
       </Link>
 

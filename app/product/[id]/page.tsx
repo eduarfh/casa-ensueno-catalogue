@@ -5,7 +5,8 @@ import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { ChevronLeft, ShoppingCart } from "lucide-react";
-import { ProductImageGallery } from "@/components/product-image-gallery";
+// import { ProductImageGallery } from "@/components/product-image-gallery";
+import ImageCarousel from "@/components/image-carousel";
 import ProductShareButtons from "@/components/product-share-buttons";
 import SiteHeader from "@/components/site-header";
 import type { Metadata } from "next";
@@ -76,7 +77,6 @@ export async function generateMetadata({ params }: ParamsShape): Promise<Metadat
       card: firstImageUrl ? "summary_large_image" : "summary",
       title: product.name,
       description: product.description || `${product.name} - $${product.price ?? 0}`,
-      // no es obligatorio poner "images" en twitter; la metadata og suele ser suficiente
     },
   };
 }
@@ -114,6 +114,14 @@ export default async function ProductPage({ params }: ParamsShape) {
 
   const firstImageUrl = makeAbsoluteUrl(firstImage?.image_url);
 
+  // Mapear product_images a string[] de URLs absolutas para ImageCarousel
+  const imageUrls: string[] =
+    (product.product_images || [])
+      .slice()
+      .sort((a: any, b: any) => (a.display_order || 0) - (b.display_order || 0))
+      .map((img: any) => makeAbsoluteUrl(img.image_url) ?? "")
+      .filter(Boolean) || [];
+
   return (
     <div className="min-h-screen bg-background">
       <SiteHeader />
@@ -129,16 +137,12 @@ export default async function ProductPage({ params }: ParamsShape) {
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
           <div>
-            <ProductImageGallery
-              images={
-                (product.product_images || [])
-                  .slice()
-                  .sort((a: any, b: any) => (a.display_order || 0) - (b.display_order || 0))
-                  .map((img: any) => ({
-                    id: String(img.id ?? ""),
-                    url: img.image_url,
-                  })) || []
-              }
+            <ImageCarousel
+              images={imageUrls.length ? imageUrls : undefined}
+              alt={product.name ?? "Producto"}
+              autoRotate={true}
+              interval={4500}
+              minHeight={300}
             />
           </div>
 
