@@ -22,12 +22,12 @@ type StoreInfoRow = {
 
 export default function StoreInfo() {
   const [store, setStore] = useState<StoreInfoRow>({
-    label: "Dulces Sueños",
+    label: "Casa Ensueño",
     phone_display: "+53 59158599",
     whatsapp_number: "5359158599",
     address: "Calle 68 entre 9na y 11na, Miramar, Playa",
-    lat: "23.106806",
-    lng: "-82.431900",
+    lat: "",
+    lng: "",
     hours: "Lun / Sáb • 10:00 am / 6:00 pm",
   });
 
@@ -359,7 +359,7 @@ export default function StoreInfo() {
               </div>
             </div>
 
-            <div className="mt-3 text-xs text-muted-foreground">© {new Date().getFullYear()} Dulces Sueños. Todos los derechos reservados.</div>
+            <div className="mt-3 text-xs text-muted-foreground">© {new Date().getFullYear()} Casa Ensueño. Todos los derechos reservados.</div>
           </div>
         </CardContent>
       </Card>

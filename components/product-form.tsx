@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { X, Upload, Plus, Trash, ChevronDown } from "lucide-react";
+import { X, Upload, ChevronDown } from "lucide-react";
 import Image from "next/image";
 
 type Category = {
@@ -19,7 +19,7 @@ type Category = {
 
 interface ProductFormProps {
   product?: any; // server data (product.category: string)
-  categories: (Category | string)[]; // lista inicial desde server
+  categories?: (Category | string)[]; // lista inicial desde server (opcional)
 }
 
 export function ProductForm({ product, categories: initialCategories = [] }: ProductFormProps) {
@@ -53,9 +53,8 @@ export function ProductForm({ product, categories: initialCategories = [] }: Pro
   const comboboxRef = useRef<HTMLDivElement | null>(null);
   const listRef = useRef<HTMLUListElement | null>(null);
 
-  const [showNewCategoryInput, setShowNewCategoryInput] = useState(false);
   const [customCategoryName, setCustomCategoryName] = useState("");
-  const [creatingCategory, setCreatingCategory] = useState(false);
+  const [creatingCategoryLocally, setCreatingCategoryLocally] = useState(false);
   const [deletingCategoryId, setDeletingCategoryId] = useState<string | null>(null);
 
   const [images, setImages] = useState<{ id?: string; url: string; file?: File }[]>(
@@ -68,10 +67,10 @@ export function ProductForm({ product, categories: initialCategories = [] }: Pro
 
   const MAX_BYTES_CLIENT = 500 * 1024; // 500KB
 
-  // Inicializar categorías y selección
+  // Inicializar categorías desde el prop y desde la API (categorías únicas en products)
   useEffect(() => {
     setCategories(normalizedFromProp);
-
+    // si product tiene categoría, la pre-selecciono (mantengo tu lógica)
     const prodCat = product?.category ?? null;
     if (prodCat) {
       const prodCatStr = String(prodCat).trim();
@@ -106,6 +105,41 @@ export function ProductForm({ product, categories: initialCategories = [] }: Pro
     }));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [product, normalizedFromProp]);
+
+  // Fetch categorías únicas desde products (server-side) al montar
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const res = await fetch("/api/products?onlyCategories=1", { credentials: "same-origin" });
+        if (!res.ok) {
+          // no obligo error visible, solo log
+          console.warn("[ProductForm] no se pudieron obtener categorías: ", await res.text().catch(() => ""));
+          return;
+        }
+        const data = await res.json().catch(() => ({}));
+        const remoteCats: string[] = Array.isArray(data?.categories) ? data.categories : [];
+        if (!mounted) return;
+        setCategories((prev) => {
+          const existingNames = new Set(prev.map((p) => p.name.toLowerCase()));
+          const newCats: Category[] = [];
+          for (const c of remoteCats) {
+            if (!c) continue;
+            if (!existingNames.has(String(c).toLowerCase())) {
+              newCats.push({ id: String(c), name: String(c) });
+              existingNames.add(String(c).toLowerCase());
+            }
+          }
+          return [...prev, ...newCats];
+        });
+      } catch (err) {
+        console.error("[ProductForm] fetch categories error:", err);
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   // cerrar combobox si clic fuera
   useEffect(() => {
@@ -169,45 +203,38 @@ export function ProductForm({ product, categories: initialCategories = [] }: Pro
 
   const removeImage = (index: number) => setImages((prev) => prev.filter((_, i) => i !== index));
 
-  const createCategory = async () => {
+  // Crear categoría *localmente* (no persistir en la tabla categories)
+  const createLocalCategory = () => {
+    const name = (customCategoryName || formData.category || "").trim();
+    if (!name) {
+      toast({ title: "Nombre vacío", description: "Ingresa el nombre de la categoría", variant: "destructive" });
+      return;
+    }
+    setCreatingCategoryLocally(true);
     try {
-      const name = customCategoryName?.trim();
-      if (!name) {
-        toast({ title: "Nombre vacío", description: "Ingresa el nombre de la categoría", variant: "destructive" });
-        return;
-      }
-      setCreatingCategory(true);
-
-      const res = await fetch("/api/categories", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "same-origin",
-        body: JSON.stringify({ name }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data?.error || data?.message || `HTTP ${res.status}`);
-
-      const newCatId = data?.id ?? data?.uuid ?? (data?.id_int ? String(data.id_int) : null) ?? String(name);
-      const newCatName = data?.name ?? name;
-      const newCat: Category = { id: String(newCatId), name: newCatName };
-
+      const syntheticId = name;
       setCategories((prev) => {
-        const without = prev.filter((c) => String(c.id) !== newCat.id && String(c.name).toLowerCase() !== newCatName.toLowerCase());
-        return [...without, newCat];
+        // prevenir duplicados por nombre (case-insensitive)
+        if (prev.find((p) => p.name.toLowerCase() === name.toLowerCase())) return prev;
+        return [...prev, { id: syntheticId, name }];
       });
-      setSelectedCategoryId(String(newCat.id));
-      setFormData((prev) => ({ ...prev, category: newCatName }));
+      setSelectedCategoryId(syntheticId);
+      setFormData((prev) => ({ ...prev, category: name }));
+      setIsCustomCategory(false);
       setCustomCategoryName("");
-      setShowNewCategoryInput(false);
-      toast({ title: "Categoría creada", description: `Categoría "${newCat.name}" creada con éxito` });
-    } catch (err: unknown) {
-      toast({ title: "Error", description: err instanceof Error ? err.message : "No se pudo crear la categoría", variant: "destructive" });
-      console.error("[createCategory]", err);
+      toast({
+        title: "Categoría añadida al formulario",
+        description: `La categoría "${name}" será enviada al crear el producto.`,
+      });
+    } catch (err) {
+      console.error("[createLocalCategory]", err);
+      toast({ title: "Error", description: "No se pudo crear la categoría localmente", variant: "destructive" });
     } finally {
-      setCreatingCategory(false);
+      setCreatingCategoryLocally(false);
     }
   };
 
+  // Eliminar categoría remota (sigue siendo opcional; si la tabla categories existe y tienes endpoint)
   const deleteCategory = async (catId: string) => {
     try {
       const cat = categories.find((c) => c.id === catId);
@@ -240,7 +267,7 @@ export function ProductForm({ product, categories: initialCategories = [] }: Pro
     e.preventDefault();
     setIsSubmitting(true);
     try {
-      const uploadedImages: { url: string; display_order: number }[] = [];
+      const uploadedImages: { url?: string; path?: string; display_order: number }[] = [];
       for (let i = 0; i < images.length; i++) {
         const image = images[i];
         if (image.id && !image.file) {
@@ -280,7 +307,7 @@ export function ProductForm({ product, categories: initialCategories = [] }: Pro
       // Permitir tanto selectedCategoryId (id o synthetic) como texto en formData.category cuando se usa custom
       if (!selectedCategoryId && !formData.category) throw new Error("Selecciona o crea una categoría para el producto.");
 
-      const categoryPayload = isCustomCategory ? formData.category : selectedCategoryId ?? formData.category;
+      const categoryPayload = formData.category ? formData.category : selectedCategoryId ?? formData.category;
 
       const payload: any = {
         name: formData.name,
@@ -348,7 +375,7 @@ export function ProductForm({ product, categories: initialCategories = [] }: Pro
           </div>
         </div>
 
-        {/* ====== NUEVA SECCIÓN DE CATEGORÍA (combobox + crear inline) ====== */}
+        {/* ====== NUEVA SECCIÓN DE CATEGORÍA (combobox + crear inline LOCAL) ====== */}
         <div className="space-y-2">
           <div className="flex items-center justify-between">
             <Label htmlFor="category">Categoría</Label>
@@ -372,13 +399,16 @@ export function ProductForm({ product, categories: initialCategories = [] }: Pro
               <Input
                 id="category"
                 value={formData.category}
-                onChange={(e) => setFormData((prev) => ({ ...prev, category: e.target.value }))}
+                onChange={(e) => {
+                  setFormData((prev) => ({ ...prev, category: e.target.value }));
+                  setCustomCategoryName(e.target.value);
+                }}
                 placeholder="Escribe una nueva categoría"
                 required
               />
-              {/* botón opcional para crear en tabla categories si quieres persistirla ahora */}
-              <Button type="button" onClick={() => { setCustomCategoryName(formData.category); setShowNewCategoryInput(true); }}>
-                Guardar
+              {/* Guardar localmente en el formulario (no persiste en DB hasta crear el producto) */}
+              <Button type="button" onClick={createLocalCategory} disabled={creatingCategoryLocally || !String(formData.category).trim()}>
+                {creatingCategoryLocally ? "Guardando..." : "Añadir"}
               </Button>
             </div>
           ) : (
@@ -420,9 +450,7 @@ export function ProductForm({ product, categories: initialCategories = [] }: Pro
                         role="option"
                         aria-selected={formData.category === cat}
                         onClick={() => handleSelectCategory(cat)}
-                        className={`px-3 py-2 rounded cursor-pointer text-sm hover:bg-slate-100 dark:hover:bg-slate-800 ${
-                          formData.category === cat ? "bg-slate-50 dark:bg-slate-800 font-medium" : ""
-                        }`}
+                        className={`px-3 py-2 rounded cursor-pointer text-sm hover:bg-slate-100 dark:hover:bg-slate-800 ${formData.category === cat ? "bg-slate-50 dark:bg-slate-800 font-medium" : ""}`}
                       >
                         {cat}
                       </li>
@@ -434,35 +462,7 @@ export function ProductForm({ product, categories: initialCategories = [] }: Pro
               <input type="hidden" name="category" value={formData.category} />
             </div>
           )}
-
-          
         </div>
-
-        {/* Si el usuario quiere crear vía API una categoría nueva desde el modal inline */}
-        {showNewCategoryInput && (
-          <div className="flex gap-2 items-center mb-3">
-            <Input
-              placeholder="Nombre de la nueva categoría (ej. Sala)"
-              value={customCategoryName}
-              onChange={(e) => setCustomCategoryName(e.target.value)}
-              disabled={creatingCategory}
-            />
-            <Button type="button" onClick={createCategory} disabled={creatingCategory || !customCategoryName.trim()} className="flex items-center gap-2">
-              {creatingCategory ? "Creando..." : "Crear"}
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => {
-                setShowNewCategoryInput(false);
-                setCustomCategoryName("");
-              }}
-              disabled={creatingCategory}
-            >
-              Cancelar
-            </Button>
-          </div>
-        )}
         {/* ====== FIN SECCIÓN CATEGORÍA ====== */}
       </Card>
 

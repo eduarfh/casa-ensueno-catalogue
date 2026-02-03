@@ -1,4 +1,3 @@
-// app/admin/page.tsx
 export const dynamic = "force-dynamic";
 
 import React from "react";
@@ -10,6 +9,8 @@ import AdminGuard from "@/components/admin-guard";
 import { AdminHeader } from "@/components/admin-header";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createServerClient } from "@/lib/supabase/server";
+import StoreInfo from "@/components/store-info";
+import StorageUsageCard from "@/components/storage-usage-card";
 
 type ProductImage = { id: string; image_url: string; display_order?: number };
 type CategoryObj = { name?: string } | null;
@@ -82,7 +83,8 @@ export default async function AdminDashboard() {
       return renderPage([]);
     }
 
-    // 4) Fetch product_categories (si existe la tabla)
+    // 4) (OPCIONAL) Fetch product_categories (si necesitas la relación)
+    //    Dejamos la consulta a product_categories —pero NO consultamos categories para evitar PGRST205.
     const productIds = productsArray.map((p: any) => p.id).filter(Boolean);
     let productCategoriesRaw: Array<{ product_id: string; category_id: string | number }> = [];
     try {
@@ -100,68 +102,25 @@ export default async function AdminDashboard() {
       console.warn("[AdminDashboard] product_categories fetch failed:", e);
     }
 
-    // 5) Fetch categories table para mapear ids -> nombres
-    let categoriesRaw: Array<{ id: string; id_int?: number; name?: string }> = [];
-    try {
-      const { data: cats, error: catsErr } = await admin.from("categories").select("id, id_int, name");
-      if (catsErr) {
-        console.warn("[AdminDashboard] categories fetch warning:", catsErr);
-      } else {
-        categoriesRaw = Array.isArray(cats) ? cats : [];
-      }
-    } catch (e) {
-      console.warn("[AdminDashboard] categories fetch failed:", e);
-    }
+    // NOTA: no se hace fetch a la tabla `categories` aquí porque en tu instancia parece no existir
+    // y eso generaba los warnings PGRST205. Si en el futuro la tabla existe, podemos reintroducir
+    // la resolución id -> name.
 
-    // 6) Build maps para resolver category_id -> name (UUID y id_int)
-    const categoryByUuid = new Map<string, string>();
-    const categoryByIdInt = new Map<number, string>();
-    for (const c of categoriesRaw) {
-      if (c.id && c.name) categoryByUuid.set(String(c.id), String(c.name));
-      if (typeof c.id_int === "number" && c.name) categoryByIdInt.set(c.id_int, String(c.name));
-    }
-
-    // 7) Map productId -> category names
-    const productIdToCategoryNames = new Map<string, string[]>();
-    for (const pc of productCategoriesRaw) {
-      const pid = String(pc.product_id);
-      const rawCatId = pc.category_id;
-      let resolvedName: string | null = null;
-
-      if (typeof rawCatId === "string") {
-        if (categoryByUuid.has(rawCatId)) {
-          resolvedName = categoryByUuid.get(rawCatId) ?? null;
-        } else {
-          const asNum = Number(rawCatId);
-          if (!Number.isNaN(asNum) && categoryByIdInt.has(asNum)) {
-            resolvedName = categoryByIdInt.get(asNum) ?? null;
-          }
-        }
-      } else if (typeof rawCatId === "number") {
-        if (categoryByIdInt.has(rawCatId)) resolvedName = categoryByIdInt.get(rawCatId) ?? null;
-      }
-
-      if (resolvedName) {
-        const arr = productIdToCategoryNames.get(pid) ?? [];
-        arr.push(resolvedName);
-        productIdToCategoryNames.set(pid, arr);
-      }
-    }
-
-    // 8) Normalizar productos al shape esperado por AdminProductList
+    // 5) Normalizar productos al shape esperado por AdminProductList
     const products: ProductItemLocal[] = productsArray.map((p: any) => {
       const images: ProductImage[] = Array.isArray(p.product_images)
         ? p.product_images.map((img: any) => ({
-          id: String(img?.id ?? ""),
-          image_url: img?.image_url ?? "",
-          display_order: typeof img?.display_order === "number" ? img.display_order : 0,
-        }))
+            id: String(img?.id ?? ""),
+            image_url: img?.image_url ?? "",
+            display_order: typeof img?.display_order === "number" ? img.display_order : 0,
+          }))
         : [];
 
       const categoryFromField: string | null =
         typeof p.category === "string" && p.category.trim() ? p.category.trim() : null;
 
-      const resolvedNames = productIdToCategoryNames.get(String(p.id)) ?? [];
+      // como no tenemos la tabla categories, no resolvemos nombres desde product_categories.
+      const resolvedNames: string[] = []; // vacío por ahora
       const firstCatObj: CategoryObj = resolvedNames.length ? { name: resolvedNames[0] } : null;
       const categoryString: string | null = categoryFromField ?? (resolvedNames.length ? resolvedNames[0] : null);
       const rawPcRows = productCategoriesRaw.filter((r) => String(r.product_id) === String(p.id));
@@ -179,7 +138,7 @@ export default async function AdminDashboard() {
       };
     });
 
-    // 9) Render page con productos
+    // 6) Render page con productos
     return renderPage(products);
   } catch (err) {
     console.error("[AdminDashboard] unexpected error:", err);
@@ -201,9 +160,9 @@ function renderPage(products: ProductItemLocal[]) {
             <h1 className="text-3xl font-bold mb-2">Dashboard de Administración</h1>
             <p className="text-muted-foreground">Gestiona los productos e información del catálogo</p>
           </div>
-
         </div>
 
+        <StorageUsageCard />
         <AdminGuard>
           <div className="flex items-center justify-between mb-4">
             <div className="text-sm text-muted-foreground">
@@ -211,16 +170,11 @@ function renderPage(products: ProductItemLocal[]) {
             </div>
 
             <Button variant="outline" size="sm">
-              <Link
-                href="/admin/products/new"
-                className="text-xs sm:text-sm font-medium transition-colors px-2 py-1"
-              >
+              <Link href="/admin/products/new" className="text-xs sm:text-sm font-medium transition-colors px-2 py-1">
                 Crear Producto
               </Link>
             </Button>
           </div>
-
-
 
           <AdminProductList products={products} />
         </AdminGuard>
@@ -244,7 +198,6 @@ function renderWithError(error: unknown) {
             <h1 className="text-3xl font-bold mb-2">Dashboard de Administración</h1>
             <p className="text-muted-foreground">Gestiona tus productos y catálogo</p>
           </div>
-
         </div>
 
         <AdminGuard>
