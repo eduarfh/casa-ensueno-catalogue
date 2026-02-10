@@ -348,8 +348,9 @@ export function ProductForm({ product, categories: initialCategories = [] }: Pro
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-8">
-      <Card className="p-6 space-y-6">
+    <div className="flex justify-center items-center min-h-screen">
+      <form onSubmit={handleSubmit} className="space-y-8 w-full max-w-2xl px-4">
+        <Card className="p-6 space-y-6">
         <div className="space-y-2">
           <Label htmlFor="name">Nombre del Producto</Label>
           <Input id="name" name="name" value={formData.name} onChange={handleInputChange} placeholder="Ej: Lámpara" required disabled={isSubmitting} />
@@ -512,7 +513,8 @@ export function ProductForm({ product, categories: initialCategories = [] }: Pro
           {isSubmitting ? "Guardando..." : product ? "Actualizar Producto" : "Crear Producto"}
         </Button>
       </div>
-    </form>
+      </form>
+    </div>
   );
 }
 

@@ -188,3 +188,67 @@ export async function PUT(request: Request, context: { params: any }) {
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
+
+export async function DELETE(request: Request, context: { params: any }) {
+  try {
+    // IMPORTANT: await params because Next can pass it as a Promise
+    const { params } = context;
+    const { id: productId } = (await params) as { id: string };
+
+    if (!productId) {
+      return NextResponse.json({ error: "Missing product id" }, { status: 400 });
+    }
+
+    // server client para auth (usa cookies)
+    const supabase = await createServerClient({ allowSetCookies: true });
+
+    // obtener usuario
+    const { data: userData, error: userErr } = await supabase.auth.getUser();
+    if (userErr) {
+      console.error("[products/:id/DELETE] auth.getUser error:", userErr);
+      return NextResponse.json({ error: "Auth error" }, { status: 500 });
+    }
+    const user = userData?.user ?? null;
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    // revisar si es admin
+    const adminCheck = createAdminClient();
+    const { data: adminRow, error: adminErr } = await adminCheck
+      .from("admin_users")
+      .select("is_admin")
+      .eq("user_id", user.id)
+      .maybeSingle();
+
+    if (adminErr) {
+      console.error("[products/:id/DELETE] admin lookup error:", adminErr);
+      return NextResponse.json({ error: "Error checking admin", details: adminErr.message }, { status: 500 });
+    }
+    if (!adminRow?.is_admin) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    const admin = createAdminClient();
+
+    // Eliminar registros de product_images
+    const { error: delImagesErr } = await admin.from("product_images").delete().eq("product_id", productId);
+    if (delImagesErr) {
+      console.error("[products/:id/DELETE] error deleting product_images records:", delImagesErr);
+      return NextResponse.json({ error: "Error deleting product images", details: delImagesErr.message }, { status: 500 });
+    }
+
+    // Eliminar el producto
+    const { error: delProductErr } = await admin.from("products").delete().eq("id", productId);
+    if (delProductErr) {
+      console.error("[products/:id/DELETE] error deleting product:", delProductErr);
+      return NextResponse.json({ error: "Error deleting product", details: delProductErr.message }, { status: 500 });
+    }
+
+    return NextResponse.json({ ok: true, productId }, { status: 200 });
+  } catch (err: unknown) {
+    console.error("[products/:id/DELETE] unexpected error:", err);
+    const message = err instanceof Error ? err.message : "Unknown server error";
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
+}

@@ -110,10 +110,10 @@ export default async function AdminDashboard() {
     const products: ProductItemLocal[] = productsArray.map((p: any) => {
       const images: ProductImage[] = Array.isArray(p.product_images)
         ? p.product_images.map((img: any) => ({
-            id: String(img?.id ?? ""),
-            image_url: img?.image_url ?? "",
-            display_order: typeof img?.display_order === "number" ? img.display_order : 0,
-          }))
+          id: String(img?.id ?? ""),
+          image_url: img?.image_url ?? "",
+          display_order: typeof img?.display_order === "number" ? img.display_order : 0,
+        }))
         : [];
 
       const categoryFromField: string | null =
@@ -155,29 +155,36 @@ function renderPage(products: ProductItemLocal[]) {
       <AdminHeader />
 
       <main className="container mx-auto px-1 py-8">
-        <div className="flex items-center justify-between mb-8">
+        <div className="flex items-start justify-between mb-8">
           <div>
             <h1 className="text-3xl font-bold mb-2">Dashboard de Administración</h1>
             <p className="text-muted-foreground">Gestiona los productos e información del catálogo</p>
           </div>
+
         </div>
 
-        <StorageUsageCard />
+
         <AdminGuard>
-          <div className="flex items-center justify-between mb-4">
-            <div className="text-sm text-muted-foreground">
-              {Array.isArray(products) ? `Productos encontrados: ${products.length}` : "Productos: 0"}
+          <div className="space-y-6">
+            <div className="flex items-center justify-between mb-4">
+              <div className="text-sm text-muted-foreground">
+                {Array.isArray(products) ? `Productos encontrados: ${products.length}` : "Productos: 0"}
+              </div>
+
+              <Button variant="outline" size="sm">
+                <Link href="/admin/products/new" className="text-xs sm:text-sm font-medium transition-colors px-2 py-1">
+                  Crear Producto
+                </Link>
+              </Button>
             </div>
 
-            <Button variant="outline" size="sm">
-              <Link href="/admin/products/new" className="text-xs sm:text-sm font-medium transition-colors px-2 py-1">
-                Crear Producto
-              </Link>
-            </Button>
+            <AdminProductList products={products} />
+            <StorageUsageCard />
           </div>
-
-          <AdminProductList products={products} />
         </AdminGuard>
+
+
+
       </main>
     </div>
   );
