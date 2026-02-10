@@ -84,7 +84,7 @@ export function ImageCarousel({
             src="/placeholder.svg"
             alt={alt}
             fill
-            className="object-cover"
+            className="object-contain"
             priority={false}
           />
         </div>
@@ -100,7 +100,7 @@ export function ImageCarousel({
             src={urls[0] || "/placeholder.svg"}
             alt={alt}
             fill
-            className="object-cover transition-opacity duration-500"
+            className="object-contain transition-opacity duration-500"
             priority={true}
           />
         </div>
@@ -115,7 +115,7 @@ export function ImageCarousel({
           src={urls[currentIndex] || "/placeholder.svg"}
           alt={`${alt} - imagen ${currentIndex + 1}`}
           fill
-          className="object-cover transition-opacity duration-500"
+          className="object-contain transition-opacity duration-500"
           priority={currentIndex === 0}
         />
       </div>
