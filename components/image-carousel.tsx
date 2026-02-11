@@ -120,37 +120,36 @@ export function ImageCarousel({
         />
       </div>
 
-      {/* Botones */}
-      <Button
-        variant="ghost"
-        size="icon"
-        className="absolute left-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity bg-white/80 hover:bg-white/90 dark:bg-black/80 dark:hover:bg-black/90"
+      {/* Botones de navegación */}
+      <button
         onClick={goToPrevious}
         aria-label="Imagen anterior"
+        className="absolute left-3 top-1/2 -translate-y-1/2 z-20 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-200 p-2 rounded-full bg-black/60 hover:bg-black/80 text-white hover:text-white shadow-lg"
       >
-        <ChevronLeft className="h-4 w-4" />
-      </Button>
+        <ChevronLeft className="h-5 w-5" />
+      </button>
 
-      <Button
-        variant="ghost"
-        size="icon"
-        className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity bg-white/80 hover:bg-white/90 dark:bg-black/80 dark:hover:bg-black/90"
+      <button
         onClick={goToNext}
         aria-label="Siguiente imagen"
+        className="absolute right-3 top-1/2 -translate-y-1/2 z-20 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-200 p-2 rounded-full bg-black/60 hover:bg-black/80 text-white hover:text-white shadow-lg"
       >
-        <ChevronRight className="h-4 w-4" />
-      </Button>
+        <ChevronRight className="h-5 w-5" />
+      </button>
 
       {/* Indicadores */}
-      <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1 z-10">
+      <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-2 z-10 bg-black/40 px-3 py-2 rounded-full backdrop-blur-sm">
         {urls.map((_, index) => (
           <button
             key={index}
-            className={`w-2 h-2 rounded-full transition-all ${
-              index === currentIndex ? "bg-white w-4" : "bg-white/50 hover:bg-white/75"
+            className={`transition-all duration-200 rounded-full ${
+              index === currentIndex 
+                ? "bg-white w-2 h-2" 
+                : "bg-white/60 hover:bg-white/80 w-2 h-2"
             }`}
             onClick={() => setCurrentIndex(index)}
             aria-label={`Ir a imagen ${index + 1}`}
+            aria-current={index === currentIndex}
           />
         ))}
       </div>
