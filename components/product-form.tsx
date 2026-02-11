@@ -66,6 +66,7 @@ export function ProductForm({ product, categories: initialCategories = [] }: Pro
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const MAX_BYTES_CLIENT = 500 * 1024; // 500KB
+  const MAX_IMAGES = 20;
 
   // Inicializar categorías desde el prop y desde la API (categorías únicas en products)
   useEffect(() => {
@@ -184,6 +185,26 @@ export function ProductForm({ product, categories: initialCategories = [] }: Pro
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     if (!files.length) return;
+
+    // Validar límite de imágenes
+    const remainingSlots = MAX_IMAGES - images.length;
+    if (remainingSlots <= 0) {
+      toast({
+        title: "Límite de imágenes alcanzado",
+        description: `Ya has alcanzado el máximo de ${MAX_IMAGES} imágenes por producto.`,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (files.length > remainingSlots) {
+      toast({
+        title: "Demasiadas imágenes",
+        description: `Solo puedes subir ${remainingSlots} más imagen${remainingSlots !== 1 ? "s" : ""}. Máximo ${MAX_IMAGES} por producto.`,
+        variant: "destructive",
+      });
+      return;
+    }
 
     const accepted: { id?: string; url: string; file?: File }[] = [];
     for (const f of files) {
@@ -468,15 +489,19 @@ export function ProductForm({ product, categories: initialCategories = [] }: Pro
       </Card>
 
       <Card className="p-6 space-y-4">
-        <h3 className="font-semibold text-lg">Imágenes del Producto</h3>
+        <div className="flex items-center justify-between">
+          <h3 className="font-semibold text-lg">Imágenes del Producto</h3>
+          <span className="text-sm text-muted-foreground">{images.length}/{MAX_IMAGES}</span>
+        </div>
 
-        <label className="flex items-center justify-center w-full p-4 border-2 border-dashed border-border rounded-lg cursor-pointer hover:border-primary transition-colors">
+        <label className={`flex items-center justify-center w-full p-4 border-2 border-dashed rounded-lg transition-colors ${images.length >= MAX_IMAGES ? "border-muted-foreground bg-muted/30 cursor-not-allowed opacity-50" : "border-border cursor-pointer hover:border-primary"}`}>
           <div className="flex flex-col items-center gap-2">
             <Upload className="w-6 h-6 text-muted-foreground" />
             <span className="text-sm text-muted-foreground">Haz clic para subir imágenes</span>
             <span className="text-xs text-muted-foreground">Máx {Math.round(MAX_BYTES_CLIENT / 1024)} KB por imagen</span>
+            {images.length >= MAX_IMAGES && <span className="text-xs text-destructive font-medium">Límite de {MAX_IMAGES} imágenes alcanzado</span>}
           </div>
-          <input type="file" multiple accept="image/*" onChange={handleImageUpload} disabled={isSubmitting} className="hidden" />
+          <input type="file" multiple accept="image/*" onChange={handleImageUpload} disabled={isSubmitting || images.length >= MAX_IMAGES} className="hidden" />
         </label>
 
         {images.length > 0 && (
