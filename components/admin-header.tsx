@@ -178,57 +178,7 @@ export function AdminHeader() {
 
                     <span className="text-sm text-muted-foreground px-3 py-2 rounded-md">{email}</span>
 
-                    <Link
-                      href="/admin/registrations"
-                      className="text-xs sm:text-sm font-medium transition-colors px-2 py-1"
-                    >
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="bg-transparent transition-colors"
-                      >
-                        <List className="h-4 w-4" />
-                      </Button>
-                    </Link>
 
-                    <Dialog open={isStoreDialogOpen} onOpenChange={setIsStoreDialogOpen}>
-                      <DialogTrigger asChild>
-                        <Button variant="outline" size="sm" className="flex items-center gap-2">
-                          <Settings className="h-4 w-4" />
-                        </Button>
-                      </DialogTrigger>
-
-                      <DialogContent className="sm:max-w-3xl max-w-full store-dialog">
-                        <DialogHeader>
-                          <div className="flex items-start justify-between w-full">
-                            <div>
-                              <DialogTitle className="text-lg font-semibold">Configuración de la tienda</DialogTitle>
-                              <p className="text-xs text-muted-foreground">Edita los datos que se muestran en la tienda y el contacto.</p>
-                            </div>
-                            <div className="ml-4">
-                              <Button variant="ghost" size="sm" onClick={() => setIsStoreDialogOpen(false)}>Cerrar</Button>
-                            </div>
-                          </div>
-                        </DialogHeader>
-
-                        <div className="mt-4">
-                          <AdminStoreForm />
-                        </div>
-                      </DialogContent>
-                    </Dialog>
-                    <div className="inline-flex items-center px-1">
-                      <ThemeToggle />
-                    </div>
-
-
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={handleLogout}
-                      className="text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 bg-transparent"
-                    >
-                      <LogOut className="h-4 w-4" />
-                    </Button>
                   </>
                 ) : (
                   <Link
@@ -238,6 +188,57 @@ export function AdminHeader() {
                     Iniciar sesión
                   </Link>
                 )}
+                <Link
+                  href="/admin/registrations"
+                  className="text-xs sm:text-sm font-medium transition-colors px-2 py-1"
+                >
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="bg-transparent transition-colors"
+                  >
+                    <List className="h-4 w-4" />
+                  </Button>
+                </Link>
+
+                <Dialog open={isStoreDialogOpen} onOpenChange={setIsStoreDialogOpen}>
+                  <DialogTrigger asChild>
+                    <Button variant="outline" size="sm" className="flex items-center gap-2">
+                      <Settings className="h-4 w-4" />
+                    </Button>
+                  </DialogTrigger>
+
+                  <DialogContent className="sm:max-w-3xl max-w-full store-dialog">
+                    <DialogHeader>
+                      <div className="flex items-start justify-between w-full">
+                        <div>
+                          <DialogTitle className="text-lg font-semibold">Configuración de la tienda</DialogTitle>
+                          <p className="text-xs text-muted-foreground">Edita los datos que se muestran en la tienda y el contacto.</p>
+                        </div>
+                        <div className="ml-4">
+                          <Button variant="ghost" size="sm" onClick={() => setIsStoreDialogOpen(false)}>Cerrar</Button>
+                        </div>
+                      </div>
+                    </DialogHeader>
+
+                    <div className="mt-4">
+                      <AdminStoreForm />
+                    </div>
+                  </DialogContent>
+                </Dialog>
+                <div className="inline-flex items-center px-1">
+                  <ThemeToggle />
+                </div>
+
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleLogout}
+                  className="text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 bg-transparent"
+                >
+                  <LogOut className="h-4 w-4" />
+                </Button>
               </div>
             </nav>
 
@@ -328,18 +329,7 @@ export function AdminHeader() {
               ) : email ? (
                 <>
                   {/* <span className="text-sm text-muted-foreground px-3 py-2 rounded-md">{email}</span> */}
-                  <ThemeToggle />
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      closeMenu();
-                      handleLogout();
-                    }}
-                    className="text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 bg-transparent"
-                  >
-                    <LogOut className="h-4 w-4" />
-                  </Button>
+
 
                 </>
               ) : (
@@ -351,7 +341,18 @@ export function AdminHeader() {
                   Iniciar sesión
                 </Link>
               )}
-
+              <ThemeToggle />
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  closeMenu();
+                  handleLogout();
+                }}
+                className="text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 bg-transparent"
+              >
+                <LogOut className="h-4 w-4" />
+              </Button>
 
 
               <div

@@ -19,23 +19,25 @@ export default async function NewProductPage() {
     <div className="min-h-screen bg-background">
       <AdminHeader />
 
-      <main className="container mx-auto px-4 py-8">
-        <Link
-          href="/admin"
-          className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-6 transition-colors"
-        >
-          <ChevronLeft className="w-4 h-4" />
-          Volver al dashboard
-        </Link>
+      <main className="flex items-center justify-center min-h-[calc(100vh-80px)] px-4">
+        <div className="w-full max-w-2xl">
+          <Link
+            href="/admin"
+            className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-6 transition-colors"
+          >
+            <ChevronLeft className="w-4 h-4" />
+            Volver al dashboard
+          </Link>
 
-        <AdminGuard>
-          <div className="max-w-2xl">
-            <h1 className="text-3xl font-bold mb-2">Crear Nuevo Producto</h1>
-            <p className="text-muted-foreground mb-8">Agrega un nuevo producto a tu catálogo</p>
+          <AdminGuard>
+            <div>
+              <h1 className="text-3xl font-bold mb-2">Crear Nuevo Producto</h1>
+              <p className="text-muted-foreground mb-8">Agrega un nuevo producto a tu catálogo</p>
 
-            <ProductForm categories={categoriesForClient || []} />
-          </div>
-        </AdminGuard>
+              <ProductForm categories={categoriesForClient || []} />
+            </div>
+          </AdminGuard>
+        </div>
       </main>
     </div>
   );

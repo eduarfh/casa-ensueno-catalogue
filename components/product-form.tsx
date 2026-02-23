@@ -370,7 +370,7 @@ export function ProductForm({ product, categories: initialCategories = [] }: Pro
 
   return (
     <div className="flex justify-center items-center min-h-screen">
-      <form onSubmit={handleSubmit} className="space-y-8 w-full max-w-2xl px-4">
+      <form onSubmit={handleSubmit} className="space-y-6 w-full max-w-2xl px-4">
         <Card className="p-6 space-y-6">
         <div className="space-y-2">
           <Label htmlFor="name">Nombre del Producto</Label>

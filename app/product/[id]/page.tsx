@@ -143,6 +143,7 @@ export default async function ProductPage({ params }: ParamsShape) {
               autoRotate={true}
               interval={4500}
               minHeight={300}
+              adaptiveHeight={true}
             />
           </div>
 
@@ -162,7 +163,7 @@ export default async function ProductPage({ params }: ParamsShape) {
               </div>
             </div>
 
-            <Card className="p-5 bg-muted/50 border-muted">
+            <Card className="p-5 bg-muted/10 border-muted">
               <h3 className="font-semibold mb-4 flex items-center gap-2">
                 <ShoppingCart className="w-5 h-5 text-secondary" />
                 Información del Producto

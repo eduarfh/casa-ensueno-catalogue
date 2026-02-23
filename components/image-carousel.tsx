@@ -28,6 +28,7 @@ interface ImageCarouselProps {
   interval?: number; // ms
   className?: string;
   minHeight?: number; // opcional para controlar altura mínima (px)
+  adaptiveHeight?: boolean; // si true, ajusta altura según dimensiones de imagen
 }
 
 export function ImageCarousel({
@@ -37,11 +38,13 @@ export function ImageCarousel({
   interval = 3000,
   className = "",
   minHeight = 160,
+  adaptiveHeight = false,
 }: ImageCarouselProps) {
   // Normalize: images puede ser null | undefined | string[]
   const urls = (images ?? []).filter(Boolean);
 
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [imageDimensions, setImageDimensions] = useState<{ width: number; height: number } | null>(null);
 
   // Mantener índice válido cuando cambia la cantidad de imágenes
   useEffect(() => {
@@ -53,6 +56,26 @@ export function ImageCarousel({
     // setCurrentIndex(0);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [urls.length]);
+
+  // Obtener dimensiones de la imagen actual si adaptiveHeight está habilitado
+  useEffect(() => {
+    if (!adaptiveHeight || urls.length === 0) {
+      setImageDimensions(null);
+      return;
+    }
+
+    const currentUrl = urls[currentIndex];
+    if (!currentUrl) return;
+
+    const img = new window.Image();
+    img.onload = () => {
+      setImageDimensions({ width: img.naturalWidth, height: img.naturalHeight });
+    };
+    img.onerror = () => {
+      setImageDimensions(null);
+    };
+    img.src = currentUrl;
+  }, [currentIndex, urls, adaptiveHeight]);
 
   // Auto-rotación
   useEffect(() => {
@@ -75,16 +98,26 @@ export function ImageCarousel({
 
   const containerClass = `relative group ${className}`;
 
+  // Calcular altura basada en dimensiones si adaptiveHeight está habilitado
+  let containerStyle: React.CSSProperties = { minHeight };
+  if (adaptiveHeight && imageDimensions) {
+    const aspectRatio = imageDimensions.width / imageDimensions.height;
+    // Usar un ancho máximo razonable (ej: 600px) para calcular la altura
+    const maxWidth = 600;
+    const calculatedHeight = maxWidth / aspectRatio;
+    containerStyle = { height: calculatedHeight, minHeight: minHeight };
+  }
+
   // Placeholder si no hay imágenes
   if (urls.length === 0) {
     return (
-      <div className={containerClass}>
+      <div className={containerClass} style={containerStyle}>
         <div className="relative w-full h-full" style={{ minHeight }}>
           <Image
             src="/placeholder.svg"
             alt={alt}
             fill
-            className="object-contain"
+            className="object-cover"
             priority={false}
           />
         </div>
@@ -94,13 +127,13 @@ export function ImageCarousel({
 
   if (urls.length === 1) {
     return (
-      <div className={containerClass}>
+      <div className={containerClass} style={containerStyle}>
         <div className="relative w-full h-full" style={{ minHeight }}>
           <Image
             src={urls[0] || "/placeholder.svg"}
             alt={alt}
             fill
-            className="object-contain transition-opacity duration-500"
+            className="object-cover transition-opacity duration-500"
             priority={true}
           />
         </div>
@@ -109,13 +142,13 @@ export function ImageCarousel({
   }
 
   return (
-    <div className={containerClass}>
+    <div className={containerClass} style={containerStyle}>
       <div className="relative w-full h-full" style={{ minHeight }}>
         <Image
           src={urls[currentIndex] || "/placeholder.svg"}
           alt={`${alt} - imagen ${currentIndex + 1}`}
           fill
-          className="object-contain transition-opacity duration-500"
+          className="object-cover transition-opacity duration-500"
           priority={currentIndex === 0}
         />
       </div>

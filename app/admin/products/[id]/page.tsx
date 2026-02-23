@@ -54,24 +54,26 @@ export default async function EditProductPage({ params }: Props) {
     <div className="min-h-screen bg-background">
       <AdminHeader />
 
-      <main className="container mx-auto px-4 py-8">
-        <Link
-          href="/admin"
-          className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-6 transition-colors"
-        >
-          <ChevronLeft className="w-4 h-4" />
-          Volver al dashboard
-        </Link>
+      <main className="flex items-center justify-center min-h-[calc(100vh-80px)] px-4">
+        <div className="w-full max-w-2xl">
+          <Link
+            href="/admin"
+            className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-6 transition-colors"
+          >
+            <ChevronLeft className="w-4 h-4" />
+            Volver al dashboard
+          </Link>
 
-        <div className="max-w-2xl">
-          <h1 className="text-3xl font-bold mb-2">{isNewProduct ? "Crear Producto" : "Editar Producto"}</h1>
-          <p className="text-muted-foreground mb-8">
-            {isNewProduct ? "Agrega un nuevo producto al catálogo" : "Actualiza la información del producto"}
-          </p>
+          <div>
+            <h1 className="text-3xl font-bold mb-2">{isNewProduct ? "Crear Producto" : "Editar Producto"}</h1>
+            <p className="text-muted-foreground mb-8">
+              {isNewProduct ? "Agrega un nuevo producto al catálogo" : "Actualiza la información del producto"}
+            </p>
 
-          <AdminGuard>
-            <ProductForm product={product || undefined} categories={categoriesForClient || []} />
-          </AdminGuard>
+            <AdminGuard>
+              <ProductForm product={product || undefined} categories={categoriesForClient || []} />
+            </AdminGuard>
+          </div>
         </div>
       </main>
     </div>
