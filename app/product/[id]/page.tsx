@@ -136,14 +136,14 @@ export default async function ProductPage({ params }: ParamsShape) {
         </Link>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          <div>
+          <div className="w-full h-80 sm:h-96 md:h-[500px] lg:h-[600px]">
             <ImageCarousel
               images={imageUrls.length ? imageUrls : undefined}
               alt={product.name ?? "Producto"}
               autoRotate={true}
               interval={4500}
-              minHeight={300}
-              adaptiveHeight={true}
+              minHeight={320}
+              adaptiveHeight={false}
             />
           </div>
 

@@ -5,7 +5,7 @@
 // - devuelve { background: '#rrggbb', textColor: '#rrggbb' }
 
 const VARIATION_STEPS = 3
-const VARIATION_STRENGTH = 0.18
+const VARIATION_STRENGTH = 0.12
 
 const babyVars = [
   "--baby-blue",
@@ -26,14 +26,14 @@ const mainPaletteVars = [
   "--color-popover",
 ]
 
-// Fallback palette (suave)
+// Fallback palette (tonos muy tenues y suaves)
 const fallbackPalette = [
-  "#bee4e7",
-  "#f49f51",
-  "#ffd4e5",
-  "#95c7c3",
-  "#f490b9",
-  "#f7ccad",
+  "#d4e8eb",
+  "#f5d4b8",
+  "#f5e5f0",
+  "#d4e5e3",
+  "#f0d9e8",
+  "#f5e0d4",
 ]
 
 const hashString = (str: string) => {
@@ -209,8 +209,8 @@ const hslToHexLocal = (h:number,s:number,l:number) => {
 
 /* clamp pastel */
 const clampPastel = (h:number,s:number,l:number) => {
-  const sC = Math.max(0.18, Math.min(0.58, s))
-  const lC = Math.max(0.58, Math.min(0.86, l))
+  const sC = Math.max(0.15, Math.min(0.40, s))
+  const lC = Math.max(0.70, Math.min(0.88, l))
   const hN = ((h%360) + 360) % 360
   return { h: hN, s: sC, l: lC }
 }
@@ -242,8 +242,8 @@ const getTextHexForBackground = (hexOrRgb:string) => {
 /* pastel hash fallback */
 const colorFromHashPastel = (seed:string) => {
   const h = hashString(seed) % 360
-  const s = 0.30 + ((hashString(seed + "s") % 20) / 100)
-  const l = 0.66 + ((hashString(seed + "l") % 12) / 100)
+  const s = 0.20 + ((hashString(seed + "s") % 15) / 100)
+  const l = 0.72 + ((hashString(seed + "l") % 10) / 100)
   const cl = clampPastel(h,s,l)
   return hslToHexLocal(cl.h, cl.s, cl.l)
 }

@@ -45,7 +45,7 @@ export function CategoryFilter({
 
   return (
     // añadimos min-h para evitar que el header de filtros cambie de altura cuando cambia el contenido
-    <div className="w-full overflow-x-auto pb-2 pt-1 md:px-1 min-h-[56px]">
+    <div className="w-full overflow-x-auto pb-2 pt-1 md:py-6 min-h-[56px]">
       <div className="flex gap-2 min-w-max px-4 md:px-0 md:flex-wrap md:justify-center">
         <Button
           variant={selectedCategory === null ? "default" : "outline"}

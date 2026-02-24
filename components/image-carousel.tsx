@@ -96,16 +96,20 @@ export function ImageCarousel({
     setCurrentIndex((prev) => (prev + 1) % urls.length);
   };
 
-  const containerClass = `relative group ${className}`;
+  const containerClass = `relative group w-full h-full ${className}`;
+  const currentUrl = urls[currentIndex] || "/placeholder.svg";
 
   // Calcular altura basada en dimensiones si adaptiveHeight está habilitado
-  let containerStyle: React.CSSProperties = { minHeight };
+  let containerStyle: React.CSSProperties = {};
   if (adaptiveHeight && imageDimensions) {
     const aspectRatio = imageDimensions.width / imageDimensions.height;
     // Usar un ancho máximo razonable (ej: 600px) para calcular la altura
     const maxWidth = 600;
     const calculatedHeight = maxWidth / aspectRatio;
     containerStyle = { height: calculatedHeight, minHeight: minHeight };
+  } else if (!adaptiveHeight) {
+    // Si no es adaptiveHeight, usar minHeight como fallback
+    containerStyle = { minHeight };
   }
 
   // Placeholder si no hay imágenes
@@ -113,11 +117,23 @@ export function ImageCarousel({
     return (
       <div className={containerClass} style={containerStyle}>
         <div className="relative w-full h-full" style={{ minHeight }}>
+          {/* Fondo glasmorfismo */}
+          <div className="absolute inset-0">
+            <Image
+              src="/placeholder.svg"
+              alt={alt}
+              fill
+              className="object-cover blur-2xl scale-110 opacity-40"
+              priority={false}
+            />
+            <div className="absolute inset-0 bg-gradient-to-br from-white/10 via-transparent to-black/10 backdrop-blur-md" />
+          </div>
+          {/* Imagen principal */}
           <Image
             src="/placeholder.svg"
             alt={alt}
             fill
-            className="object-cover"
+            className="object-contain relative z-10"
             priority={false}
           />
         </div>
@@ -129,11 +145,23 @@ export function ImageCarousel({
     return (
       <div className={containerClass} style={containerStyle}>
         <div className="relative w-full h-full" style={{ minHeight }}>
+          {/* Fondo glasmorfismo */}
+          <div className="absolute inset-0">
+            <Image
+              src={urls[0] || "/placeholder.svg"}
+              alt={alt}
+              fill
+              className="object-cover blur-2xl scale-110 opacity-40"
+              priority={false}
+            />
+            <div className="absolute inset-0 bg-gradient-to-br from-white/10 via-transparent to-black/10 backdrop-blur-md" />
+          </div>
+          {/* Imagen principal */}
           <Image
             src={urls[0] || "/placeholder.svg"}
             alt={alt}
             fill
-            className="object-cover transition-opacity duration-500"
+            className="object-contain transition-opacity duration-500 relative z-10"
             priority={true}
           />
         </div>
@@ -144,11 +172,23 @@ export function ImageCarousel({
   return (
     <div className={containerClass} style={containerStyle}>
       <div className="relative w-full h-full" style={{ minHeight }}>
+        {/* Fondo glasmorfismo */}
+        <div className="absolute inset-0">
+          <Image
+            src={currentUrl}
+            alt={alt}
+            fill
+            className="object-cover blur-2xl scale-110 opacity-40"
+            priority={false}
+          />
+          <div className="absolute inset-0 bg-gradient-to-br from-white/10 via-transparent to-black/10 backdrop-blur-md" />
+        </div>
+        {/* Imagen principal */}
         <Image
-          src={urls[currentIndex] || "/placeholder.svg"}
+          src={currentUrl}
           alt={`${alt} - imagen ${currentIndex + 1}`}
           fill
-          className="object-cover transition-opacity duration-500"
+          className="object-contain transition-opacity duration-500 relative z-10"
           priority={currentIndex === 0}
         />
       </div>
