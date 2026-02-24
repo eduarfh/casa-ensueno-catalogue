@@ -508,10 +508,16 @@ export function ProductForm({ product, categories: initialCategories = [] }: Pro
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
             {images.map((image, index) => (
               <div key={index} className="relative group">
-                <div className="relative aspect-square rounded-lg overflow-hidden bg-muted">
-                  <Image src={image.url || "/placeholder.svg"} alt={`Product image ${index + 1}`} fill className="object-cover" />
+                <div className="relative aspect-square rounded-lg overflow-hidden">
+                  {/* Fondo glasmorfismo */}
+                  <div className="absolute inset-0">
+                    <Image src={image.url || "/placeholder.svg"} alt={`Product image ${index + 1}`} fill className="object-cover blur-2xl scale-110 opacity-40" />
+                    <div className="absolute inset-0 bg-gradient-to-br from-white/10 via-transparent to-black/10 backdrop-blur-md" />
+                  </div>
+                  {/* Imagen principal */}
+                  <Image src={image.url || "/placeholder.svg"} alt={`Product image ${index + 1}`} fill className="object-contain relative z-10" />
                   {uploadingImages.includes(index) && (
-                    <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                    <div className="absolute inset-0 bg-black/50 flex items-center justify-center z-20">
                       <div className="animate-spin rounded-full h-6 w-6 border-2 border-white border-t-transparent" />
                     </div>
                   )}
@@ -519,7 +525,7 @@ export function ProductForm({ product, categories: initialCategories = [] }: Pro
                 <button
                   type="button"
                   onClick={() => removeImage(index)}
-                  className="absolute -top-2 -right-2 bg-destructive text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                  className="absolute -top-2 -right-2 bg-destructive text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity z-30"
                   disabled={isSubmitting}
                 >
                   <X className="w-4 h-4" />
