@@ -52,7 +52,7 @@ export function ProductCard({
       ? Number(price)
       : Number(price ?? 0);
   const displayPrice = Number.isFinite(rawPrice) ? rawPrice : 0;
-  const priceString = displayPrice.toFixed(2);
+  const priceString = displayPrice % 1 === 0 ? displayPrice.toString() : displayPrice.toFixed(2);
 
   const productUrl =
     typeof window !== "undefined" ? `${window.location.origin}/product/${id}` : `/product/${id}`;
@@ -207,7 +207,7 @@ export function ProductCard({
     >
       <Link
         href={`/product/${id}`}
-        className="block relative overflow-hidden bg-muted aspect-[4/3]"
+        className="block relative overflow-hidden bg-muted aspect-[3/4]"
         aria-label={`Ver ${name}`}
         onClick={onImageLinkClick}
         onPointerDown={onImageLinkPointerDown}
@@ -254,7 +254,7 @@ export function ProductCard({
         </div>
 
         <div className="flex items-center justify-between">
-          <span className="text-lg md:text-xl font-semibold text-primary">${priceString}</span>
+          <span className="text-lg md:text-xl font-semibold text-primary">{priceString} CUP</span>
         </div>
 
         <div className="flex gap-2 mt-2">

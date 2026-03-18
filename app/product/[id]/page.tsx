@@ -136,14 +136,13 @@ export default async function ProductPage({ params }: ParamsShape) {
         </Link>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          <div className="w-full h-80 sm:h-96 md:h-[500px] lg:h-[600px]">
+          <div>
             <ImageCarousel
               images={imageUrls.length ? imageUrls : undefined}
               alt={product.name ?? "Producto"}
               autoRotate={true}
               interval={4500}
-              minHeight={320}
-              adaptiveHeight={false}
+              minHeight={300}
             />
           </div>
 
@@ -157,13 +156,13 @@ export default async function ProductPage({ params }: ParamsShape) {
 
               <div className="flex items-baseline gap-3 py-4">
                 <span className="text-5xl font-bold text-primary">
-                  ${Number(product.price ?? 0).toFixed(2)}{" "}
+                  ${Number(product.price ?? 0) % 1 === 0 ? Number(product.price ?? 0).toString() : Number(product.price ?? 0).toFixed(2)}{" "}
                   <span className="text-foreground">CUP</span>
                 </span>
               </div>
             </div>
 
-            <Card className="p-5 bg-muted/10 border-muted">
+            <Card className="p-5 bg-muted/50 border-muted">
               <h3 className="font-semibold mb-4 flex items-center gap-2">
                 <ShoppingCart className="w-5 h-5 text-secondary" />
                 Información del Producto
