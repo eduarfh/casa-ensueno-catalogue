@@ -7,9 +7,7 @@
     "dev": "next dev",
     "lint": "eslint .",
     "start": "next start",
-    "init-admin": "node scripts/init-admin-credentials.js",
-    "generate-hash": "node scripts/generate-password-hash.js",
-    "postinstall": "node scripts/init-admin-credentials.js"
+    "generate-hash": "node scripts/generate-password-hash.js"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
