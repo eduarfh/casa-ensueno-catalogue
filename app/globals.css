@@ -189,3 +189,45 @@
 .animate-\[fadein_180ms_ease-in-out\] {
   animation: fadein 180ms ease-in-out;
 }
+
+/* Estilos personalizados para scrollbar con soporte de modo oscuro */
+.scrollbar-custom {
+  scrollbar-width: thin;
+  scrollbar-color: oklch(72% 0 0) oklch(99.2% 0.002 120);
+}
+
+.dark .scrollbar-custom {
+  scrollbar-color: oklch(35% 0 0) oklch(15% 0.002 120);
+}
+
+/* Para navegadores webkit (Chrome, Safari, Edge) */
+.scrollbar-custom::-webkit-scrollbar {
+  height: 8px;
+  width: 8px;
+}
+
+.scrollbar-custom::-webkit-scrollbar-track {
+  background: oklch(99.2% 0.002 120);
+  border-radius: 4px;
+}
+
+.scrollbar-custom::-webkit-scrollbar-thumb {
+  background: oklch(72% 0 0);
+  border-radius: 4px;
+}
+
+.scrollbar-custom::-webkit-scrollbar-thumb:hover {
+  background: oklch(62% 0 0);
+}
+
+.dark .scrollbar-custom::-webkit-scrollbar-track {
+  background: oklch(15% 0.002 120);
+}
+
+.dark .scrollbar-custom::-webkit-scrollbar-thumb {
+  background: oklch(35% 0 0);
+}
+
+.dark .scrollbar-custom::-webkit-scrollbar-thumb:hover {
+  background: oklch(45% 0 0);
+}

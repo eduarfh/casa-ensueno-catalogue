@@ -2,7 +2,7 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 
-const BUCKET = "casaensueno-files";
+const BUCKET = "casaensueno files";
 const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 /** Extrae path del storage según tipos de URL de supabase (public / signed) */

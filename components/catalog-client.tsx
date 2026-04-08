@@ -28,12 +28,10 @@ export default function CatalogClient({ products: serverProducts }: CatalogClien
   // filtros locales
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState<string>("");
-  const [availableOnly, setAvailableOnly] = useState<boolean>(true);
+  const [availableOnly, setAvailableOnly] = useState<boolean>(false); // Cambiado a false para mostrar todos los productos por defecto
 
   // UI / control
-  const [isLoading, setIsLoading] = useState<boolean>(
-    !Array.isArray(serverProducts) || serverProducts.length === 0
-  );
+  const [isLoading, setIsLoading] = useState<boolean>(false);
 
   // animación ligera al filtrar
   const [isFiltering, setIsFiltering] = useState(false);
@@ -286,9 +284,9 @@ export default function CatalogClient({ products: serverProducts }: CatalogClien
     };
   }, [searchQuery]);
 
-  // If serverProducts is undefined/null -> treat as loading and show skeleton
+  // If serverProducts is undefined/null -> treat as loading
   useEffect(() => {
-    setIsLoading(!Array.isArray(serverProducts) || serverProducts.length === 0);
+    setIsLoading(!Array.isArray(serverProducts));
   }, [serverProducts]);
 
   // ----------------- Layout grouping by category (for mobile grouped view and desktop grouped view) -----------------
@@ -302,12 +300,28 @@ export default function CatalogClient({ products: serverProducts }: CatalogClien
     return groups;
   }, [filteredProducts]);
 
-  // Obtener lista de categorías ordenadas alfabéticamente
+  // Obtener lista de categorías ordenadas por fecha del producto más reciente
   const sortedCategories = useMemo(() => {
-    return Object.keys(productsByCategory).sort((a, b) =>
-      a.localeCompare(b, "es", { sensitivity: "base" })
-    );
-  }, [productsByCategory]);
+    // Si hay categoría seleccionada, no necesitamos ordenar
+    if (selectedCategory) {
+      return Object.keys(productsByCategory);
+    }
+
+    // Calcular la fecha más reciente de cada categoría
+    const categoryDates = Object.keys(productsByCategory).map((category) => {
+      const products = productsByCategory[category];
+      const mostRecentDate = products.reduce((latest, product) => {
+        const productDate = (product as any).created_at ? new Date((product as any).created_at).getTime() : 0;
+        return Math.max(latest, productDate);
+      }, 0);
+      return { category, mostRecentDate };
+    });
+
+    // Ordenar categorías por fecha más reciente (descendente)
+    return categoryDates
+      .sort((a, b) => b.mostRecentDate - a.mostRecentDate)
+      .map((item) => item.category);
+  }, [productsByCategory, selectedCategory]);
 
   // Helper para renderizar cada producto con animación ligera
   function renderProductArticle(product: Product, compact?: boolean) {
@@ -334,7 +348,7 @@ export default function CatalogClient({ products: serverProducts }: CatalogClien
 
   // ----------------- Render -----------------
   // Si no hay productos iniciales (servidor no envió productos) mostramos skeleton global
-  if (!Array.isArray(serverProducts) || serverProducts.length === 0) {
+  if (!Array.isArray(serverProducts)) {
     return <CatalogLoading />;
   }
 
@@ -355,7 +369,7 @@ export default function CatalogClient({ products: serverProducts }: CatalogClien
         </div>
       </div>
 
-      <div className="mb-8">
+      <div className="mb-6">
         <CategoryFilter
           selectedCategory={selectedCategory}
           onSelectCategory={setSelectedCategory}
@@ -421,7 +435,12 @@ export default function CatalogClient({ products: serverProducts }: CatalogClien
 
       {filteredProducts.length === 0 && !isLoading && (
         <div className="text-center py-12">
-          <p className="text-muted-foreground text-lg">No se encontraron productos</p>
+          <p className="text-muted-foreground text-lg mb-4">No se encontraron productos</p>
+          {(selectedCategory || searchQuery || availableOnly) && (
+            <p className="text-sm text-muted-foreground">
+              Intenta ajustar los filtros para ver más productos
+            </p>
+          )}
         </div>
       )}
 

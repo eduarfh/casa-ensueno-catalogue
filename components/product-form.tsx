@@ -11,6 +11,7 @@ import { Card } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { X, Upload, ChevronDown } from "lucide-react";
 import Image from "next/image";
+import { getStoragePublicUrl } from "@/lib/storage-utils";
 
 type Category = {
   id: string;
@@ -57,10 +58,14 @@ export function ProductForm({ product, categories: initialCategories = [] }: Pro
   const [creatingCategoryLocally, setCreatingCategoryLocally] = useState(false);
   const [deletingCategoryId, setDeletingCategoryId] = useState<string | null>(null);
 
-  const [images, setImages] = useState<{ id?: string; url: string; file?: File }[]>(
+  const [images, setImages] = useState<{ id?: string; url: string; path?: string; file?: File }[]>(
     product?.product_images
       ?.sort((a: any, b: any) => (a.display_order || 0) - (b.display_order || 0))
-      .map((img: any) => ({ id: img.id, url: img.image_url })) || []
+      .map((img: any) => ({ 
+        id: img.id, 
+        path: img.image_url, // Store the path from DB
+        url: getStoragePublicUrl(img.image_url) || img.image_url // Display URL
+      })) || []
   );
   const [uploadingImages, setUploadingImages] = useState<number[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -292,7 +297,8 @@ export function ProductForm({ product, categories: initialCategories = [] }: Pro
       for (let i = 0; i < images.length; i++) {
         const image = images[i];
         if (image.id && !image.file) {
-          uploadedImages.push({ url: image.url, display_order: i });
+          // For existing images, send the path (stored in image.path from DB)
+          uploadedImages.push({ path: image.path || image.url, display_order: i });
           continue;
         }
         if (image.file) {
@@ -314,13 +320,14 @@ export function ProductForm({ product, categories: initialCategories = [] }: Pro
             setUploadingImages((prev) => prev.filter((idx) => idx !== i));
             throw new Error(serverMsg);
           }
-          if (!data?.url) {
-            const serverMsg = data?.error || data?.details || "No se recibió URL de la imagen subida";
+          if (!data?.path) {
+            const serverMsg = data?.error || data?.details || "No se recibió path de la imagen subida";
             toast({ title: "Error al subir imagen", description: serverMsg, variant: "destructive" });
             setUploadingImages((prev) => prev.filter((idx) => idx !== i));
             throw new Error(serverMsg);
           }
-          uploadedImages.push({ url: data.url, display_order: i });
+          // Store the path instead of the full URL for consistency with storage deletion
+          uploadedImages.push({ path: data.path, display_order: i });
           setUploadingImages((prev) => prev.filter((idx) => idx !== i));
         }
       }

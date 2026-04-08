@@ -1,25 +1,10 @@
 // app/api/products/route.ts
 import { NextResponse } from "next/server";
-import { createServerClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { cookies } from "next/headers";
 
 const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-const BUCKET = "casaensueno-files"; // ajusta si hace falta
-
-function extractPathFromStorageUrl(url: string, bucket: string) {
-  try {
-    const u = new URL(url);
-    const idx = u.pathname.indexOf(`/storage/v1/object/public/${bucket}/`);
-    if (idx !== -1) return u.pathname.slice(idx + `/storage/v1/object/public/${bucket}/`.length);
-    const idx2 = u.pathname.indexOf(`/object/sign/${bucket}/`);
-    if (idx2 !== -1) return decodeURIComponent(u.pathname.slice(idx2 + `/object/sign/${bucket}/`.length));
-    const part = u.pathname.split(`/${bucket}/`);
-    if (part.length > 1) return part[1];
-    return null;
-  } catch {
-    return null;
-  }
-}
+const BUCKET = "casaensueno files"; // nombre del bucket con espacio
 
 /**
  * HEAD -> devuelve lo mismo que GET sin cuerpo.
@@ -42,7 +27,7 @@ export async function OPTIONS(request: Request) {
 
 /**
  * GET -> si ?onlyCategories=1 devuelve categorías únicas (sin exigir auth).
- * Si no hay onlyCategories, intenta devolver productos del usuario (requiere auth).
+ * Si no hay onlyCategories, devuelve todos los productos.
  */
 export async function GET(request: Request) {
   try {
@@ -63,16 +48,10 @@ export async function GET(request: Request) {
       return NextResponse.json({ categories: unique }, { status: 200 });
     }
 
-    // Si no piden solo categories, intentamos devolver productos del usuario (si está autenticado)
-    const supabase = await createServerClient({ allowSetCookies: true });
-    const { data: userData } = await supabase.auth.getUser();
-    const user = userData?.user;
-    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
+    // Devolver todos los productos (sin filtrar por usuario)
     const { data: products, error: pErr } = await admin
       .from("products")
       .select("*")
-      .eq("owner_id", user.id)
       .order("created_at", { ascending: false });
 
     if (pErr) {
@@ -92,10 +71,13 @@ export async function GET(request: Request) {
  */
 export async function POST(request: Request) {
   try {
-    const supabase = await createServerClient({ allowSetCookies: true });
-    const { data: userData } = await supabase.auth.getUser();
-    const user = userData?.user;
-    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    // Verificar sesión de admin usando cookies
+    const cookieStore = await cookies();
+    const session = cookieStore.get('admin-session');
+
+    if (!session?.value) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
 
     const body = await request.json().catch(() => ({}));
     const { name, description, price, available, category, images } = body ?? {};
@@ -138,7 +120,6 @@ export async function POST(request: Request) {
         description,
         price: Number.parseFloat(price ?? 0),
         available: !!available,
-        owner_id: user.id,
         category: categoryName,
       })
       .select()
@@ -154,15 +135,8 @@ export async function POST(request: Request) {
         if (!img) continue;
         if (img.path && typeof img.path === "string") {
           imageRecords.push({ product_id: product.id, image_url: img.path, display_order: img.display_order ?? 0 });
-          continue;
-        }
-        if (img.url && typeof img.url === "string") {
-          const extracted = extractPathFromStorageUrl(img.url, BUCKET);
-          if (extracted) {
-            imageRecords.push({ product_id: product.id, image_url: extracted, display_order: img.display_order ?? 0 });
-            continue;
-          }
-          imageRecords.push({ product_id: product.id, image_url: img.url, display_order: img.display_order ?? 0 });
+        } else if (typeof img === "string") {
+          imageRecords.push({ product_id: product.id, image_url: img, display_order: 0 });
         }
       }
 

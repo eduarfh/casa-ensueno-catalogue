@@ -1,9 +1,9 @@
-import React from "react";
 import SiteHeader from "@/components/site-header";
 import { createServerClient } from "@/lib/supabase/server";
 import CatalogClient from "@/components/catalog-client";
 import StoreInfo from "@/components/store-info";
 import CatalogLoading from "./loading";
+import { getStoragePublicUrl } from "@/lib/storage-utils";
 
 export const dynamic = "force-dynamic";
 
@@ -20,13 +20,7 @@ export default async function CatalogPage() {
 
     if (productsError) {
       console.error("[catalog] Error fetching products:", productsError);
-      // Si falla la carga de productos, mostramos el skeleton (CatalogLoading)
-      return (
-        <div className="min-h-screen bg-background">
-          <SiteHeader />
-          <CatalogLoading />
-        </div>
-      );
+      return <CatalogLoading />;
     }
 
     const { data: dbImages, error: imagesError } = await supabase
@@ -36,23 +30,17 @@ export default async function CatalogPage() {
 
     if (imagesError) {
       console.error("[catalog] Error fetching product images:", imagesError);
-      // continuamos sin abortar; usaremos placeholder para productos sin imágenes
     }
 
-    // Si dbProducts es undefined/null -> mostrar skeleton
     if (!dbProducts) {
-      return (
-        <div className="min-h-screen bg-background">
-          <SiteHeader />
-          <CatalogLoading />
-        </div>
-      );
+      return <CatalogLoading />;
     }
 
     products = (dbProducts || []).map((product: any) => {
       const productImages = (dbImages || [])
         .filter((img: any) => img.product_id === product.id)
-        .map((img: any) => img.image_url);
+        .map((img: any) => getStoragePublicUrl(img.image_url) ?? "")
+        .filter(Boolean);
 
       // Normalizar price a number (si viene string), y proteger contra NaN
       const rawPrice = product.price ?? 0;
@@ -86,35 +74,17 @@ export default async function CatalogPage() {
     });
   } catch (err) {
     console.error("[catalog] Failed to load products:", err);
-    return (
-      <div className="min-h-screen bg-background">
-        <SiteHeader />
-        <CatalogLoading />
-      </div>
-    );
+    return <CatalogLoading />;
   }
 
-  // Si no hay productos (array vacío) consideramos mostrar el skeleton para indicar carga
-  if (!products || products.length === 0) {
-    return (
-      <div className="min-h-screen bg-background">
-        <SiteHeader />
-        <CatalogLoading />
-      </div>
-    );
-  }
-
-  // --- Opcional: derivar lista única de categorías desde los productos ---
-  // Útil si quieres pasar una lista de categorías a algún componente de filtros
+  // Derivar lista única de categorías desde los productos
   const derivedCategories = Array.from(
     new Map(
       products
         .map((p) => {
-          // normalizar nombre de categoría como string no vacío
           const name = (p.category ?? "Sin categoría").toString().trim() || "Sin categoría";
           return [name, { id: name, name }] as const;
         })
-        // Map elimina duplicados por clave (name)
     ).values()
   );
 
@@ -122,11 +92,7 @@ export default async function CatalogPage() {
     <div className="min-h-screen bg-background">
       <SiteHeader />
       <main className="container mx-auto px-1 sm:px-1 lg:px-1 py-8 sm:py-8">
-
-        {/* Pasamos productos ya cargados al componente cliente (CatalogClient) */}
-        {/* Si más adelante quieres pasar categorías al filtro, puedes pasar derivedCategories */}
         <CatalogClient products={products} />
-
         <footer className="mt-8">
           <StoreInfo />
         </footer>

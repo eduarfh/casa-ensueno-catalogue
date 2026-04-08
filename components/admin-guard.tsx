@@ -18,7 +18,7 @@ export default function AdminGuard({ children }: Props) {
 
     async function checkServer() {
       try {
-        const res = await fetch("/api/admin/check", {
+        const res = await fetch("/api/auth/admin-check", {
           method: "GET",
           credentials: "same-origin",
           headers: { "Content-Type": "application/json" },

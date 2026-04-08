@@ -1,21 +1,31 @@
 // app/admin/products/[id]/page.tsx
 export const dynamic = "force-dynamic";
 
-import { createServerClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { redirect } from "next/navigation";
+import { cookies } from "next/headers";
 import Link from "next/link";
 import { ProductForm } from "@/components/product-form";
 import { ChevronLeft } from "lucide-react";
 import AdminGuard from "@/components/admin-guard";
 import { AdminHeader } from "@/components/admin-header";
+import { getStoragePublicUrl } from "@/lib/storage-utils";
 
 interface Props {
   params: Promise<{ id: string }>;
 }
 
 export default async function EditProductPage({ params }: Props) {
+  // Verificar sesión de admin usando cookies
+  const cookieStore = await cookies();
+  const session = cookieStore.get('admin-session');
+
+  if (!session?.value) {
+    return redirect("/auth/login");
+  }
+
   const { id } = await params;
-  const supabase = await createServerClient();
+  const supabase = createAdminClient();
 
   const isNewProduct = id === "new";
 

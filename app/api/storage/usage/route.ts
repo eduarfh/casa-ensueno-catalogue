@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
+import { getStoragePublicUrl } from "@/lib/storage-utils"
 
 function getSupabaseAdminClient() {
   const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -67,7 +68,11 @@ export async function GET() {
       if (it.size && Number.isFinite(it.size) && it.size > 0) {
         usedBytes += Number(it.size)
       } else if (it.image_url) {
-        urlsToHead.push(it.image_url)
+        // Convert path to full URL for HEAD request
+        const fullUrl = getStoragePublicUrl(it.image_url);
+        if (fullUrl) {
+          urlsToHead.push(fullUrl);
+        }
       }
     }
 

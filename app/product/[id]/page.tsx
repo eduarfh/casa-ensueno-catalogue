@@ -11,22 +11,12 @@ import ProductShareButtons from "@/components/product-share-buttons";
 import SiteHeader from "@/components/site-header";
 import type { Metadata } from "next";
 import StoreInfo from "@/components/store-info";
+import { getStoragePublicUrl } from "@/lib/storage-utils";
 
 interface ParamsShape {
   params: Promise<{
     id: string;
   }>;
-}
-
-/**
- * Convierte una URL relativa (p.ej. path en storage) en una URL absoluta usando NEXT_PUBLIC_BASE_URL.
- * Si la URL ya es absoluta (http(s)://) la devuelve tal cual.
- */
-function makeAbsoluteUrl(maybeUrl?: string | null) {
-  if (!maybeUrl) return undefined;
-  if (/^https?:\/\//i.test(maybeUrl)) return maybeUrl;
-  const base = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
-  return `${base.replace(/\/$/, "")}/${maybeUrl.replace(/^\//, "")}`;
 }
 
 export async function generateMetadata({ params }: ParamsShape): Promise<Metadata> {
@@ -62,7 +52,7 @@ export async function generateMetadata({ params }: ParamsShape): Promise<Metadat
           .sort((a: any, b: any) => (a.display_order || 0) - (b.display_order || 0))[0]
       : undefined;
 
-  const firstImageUrl = makeAbsoluteUrl(firstImage?.image_url ?? undefined);
+  const firstImageUrl = getStoragePublicUrl(firstImage?.image_url ?? undefined);
 
   return {
     title: product.name,
@@ -112,14 +102,14 @@ export default async function ProductPage({ params }: ParamsShape) {
     .slice()
     .sort((a: any, b: any) => (a.display_order || 0) - (b.display_order || 0))[0];
 
-  const firstImageUrl = makeAbsoluteUrl(firstImage?.image_url);
+  const firstImageUrl = getStoragePublicUrl(firstImage?.image_url);
 
   // Mapear product_images a string[] de URLs absolutas para ImageCarousel
   const imageUrls: string[] =
     (product.product_images || [])
       .slice()
       .sort((a: any, b: any) => (a.display_order || 0) - (b.display_order || 0))
-      .map((img: any) => makeAbsoluteUrl(img.image_url) ?? "")
+      .map((img: any) => getStoragePublicUrl(img.image_url) ?? "")
       .filter(Boolean) || [];
 
   return (

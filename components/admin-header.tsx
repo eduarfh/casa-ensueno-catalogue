@@ -1,32 +1,15 @@
 // components/admin-header.tsx
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { List, LogOut, Menu, Settings, UserCheck, X } from "lucide-react";
-import {
-  Dialog,
-  DialogTrigger,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from "@/components/ui/dialog";
+import { LogOut, Menu, Settings, X, Key } from "lucide-react";
 import { Button } from "./ui/button";
-import AdminStoreForm from "./store-form";
-
-type AdminCheckResp = {
-  ok?: boolean;
-  isAdmin?: boolean;
-  user?: { id?: string; email?: string } | null;
-  error?: string;
-};
 
 export function AdminHeader() {
-  const [isStoreDialogOpen, setIsStoreDialogOpen] = useState(false);
-  const [email, setEmail] = useState<string | null>(null);
+  const [username, setUsername] = useState<string | null>(null);
   const [checking, setChecking] = useState(true);
   const [open, setOpen] = useState(false);
 
@@ -41,7 +24,7 @@ export function AdminHeader() {
     async function fetchUser() {
       try {
         setChecking(true);
-        const res = await fetch("/api/admin/check", {
+        const res = await fetch("/api/auth/admin-check", {
           method: "GET",
           credentials: "same-origin",
           headers: { "Content-Type": "application/json" },
@@ -50,20 +33,29 @@ export function AdminHeader() {
         if (!mounted) return;
 
         if (!res.ok) {
-          setEmail(null);
+          setUsername(null);
           setChecking(false);
           return;
         }
 
-        const json = (await res.json()) as AdminCheckResp;
-        if (json?.isAdmin && json?.user?.email) {
-          setEmail(json.user.email ?? null);
+        const json = await res.json();
+        if (json?.isAdmin) {
+          // Obtener el nombre de usuario
+          const credRes = await fetch("/api/auth/admin-credentials", {
+            method: "GET",
+            credentials: "same-origin",
+          });
+          
+          if (credRes.ok) {
+            const credData = await credRes.json();
+            if (mounted) setUsername(credData.username || null);
+          }
         } else {
-          setEmail(null);
+          if (mounted) setUsername(null);
         }
       } catch (err) {
-        console.warn("[AdminHeader] fetch /api/admin/check failed:", err);
-        if (mounted) setEmail(null);
+        console.warn("[AdminHeader] fetch admin session failed:", err);
+        if (mounted) setUsername(null);
       } finally {
         if (mounted) setChecking(false);
       }
@@ -114,22 +106,22 @@ export function AdminHeader() {
 
   const handleLogout = async () => {
     try {
-      // Clear server cookies / session
-      await fetch("/api/auth/clear-session", {
+      // Clear admin session
+      await fetch("/api/auth/admin-logout", {
         method: "POST",
         credentials: "same-origin",
       }).catch((e) => {
-        console.warn("[AdminHeader] clear-session failed:", e);
+        console.warn("[AdminHeader] admin-logout failed:", e);
       });
 
       // reset local state so UI updates immediately
-      setEmail(null);
+      setUsername(null);
 
       // full navigation to ensure SSR shows logged-out state
-      window.location.href = "/";
+      window.location.href = "/auth/login";
     } catch (err) {
       console.error("[AdminHeader] logout unexpected:", err);
-      window.location.href = "/";
+      window.location.href = "/auth/login";
     }
   };
 
@@ -142,7 +134,7 @@ export function AdminHeader() {
             <div className="relative flex-shrink-0 rounded-2xl overflow-hidden w-20 h-20 sm:w-20 sm:h-20 md:w-24 md:h-24">
               <Link href="/" aria-label="Casa Ensueño - Inicio">
                 <Image
-                  src="https://jgxqopmrwuxyfirpvbhz.supabase.co/storage/v1/object/public/casaensueno%20files/logo.jpg"
+                  src="https://zvdwytdadegzwjxgvspz.supabase.co/storage/v1/object/public/casaensueno%20files/logo%20con%20fondo%20recortado%20baja%20calidad.jpg"
                   alt="Logo Casa Ensueño"
                   fill
                   className="object-contain"
@@ -170,15 +162,15 @@ export function AdminHeader() {
               <div className="flex items-center gap-2">
 
 
-                {/* Mantener botones originales: si hay sesión mostrar email + Salir; si no, link a login */}
+                {/* Mostrar usuario o link de login */}
                 {checking ? (
                   <div className="text-sm text-muted-foreground px-2 py-1">Cargando...</div>
-                ) : email ? (
+                ) : username ? (
                   <>
-
-                    <span className="text-sm text-muted-foreground px-3 py-2 rounded-md">{email}</span>
-
-
+                    <div className="flex items-center gap-2 px-3 py-1.5 rounded-md bg-muted/50 border border-border/50">
+                      <span className="text-xs font-medium text-muted-foreground">Admin:</span>
+                      <span className="text-sm font-semibold">{username}</span>
+                    </div>
                   </>
                 ) : (
                   <Link
@@ -188,7 +180,8 @@ export function AdminHeader() {
                     Iniciar sesión
                   </Link>
                 )}
-                <Link
+                {/* Botón de registrations deshabilitado */}
+                {/* <Link
                   href="/admin/registrations"
                   className="text-xs sm:text-sm font-medium transition-colors px-2 py-1"
                 >
@@ -199,33 +192,33 @@ export function AdminHeader() {
                   >
                     <List className="h-4 w-4" />
                   </Button>
+                </Link> */}
+
+                <Link
+                  href="/admin/settings"
+                  className="text-xs sm:text-sm font-medium transition-colors px-2 py-1"
+                >
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="bg-transparent transition-colors"
+                  >
+                    <Key className="h-4 w-4" />
+                  </Button>
                 </Link>
 
-                <Dialog open={isStoreDialogOpen} onOpenChange={setIsStoreDialogOpen}>
-                  <DialogTrigger asChild>
-                    <Button variant="outline" size="sm" className="flex items-center gap-2">
-                      <Settings className="h-4 w-4" />
-                    </Button>
-                  </DialogTrigger>
-
-                  <DialogContent className="sm:max-w-3xl max-w-full store-dialog">
-                    <DialogHeader>
-                      <div className="flex items-start justify-between w-full">
-                        <div>
-                          <DialogTitle className="text-lg font-semibold">Configuración de la tienda</DialogTitle>
-                          <p className="text-xs text-muted-foreground">Edita los datos que se muestran en la tienda y el contacto.</p>
-                        </div>
-                        <div className="ml-4">
-                          <Button variant="ghost" size="sm" onClick={() => setIsStoreDialogOpen(false)}>Cerrar</Button>
-                        </div>
-                      </div>
-                    </DialogHeader>
-
-                    <div className="mt-4">
-                      <AdminStoreForm />
-                    </div>
-                  </DialogContent>
-                </Dialog>
+                <Link
+                  href="/admin/store"
+                  className="text-xs sm:text-sm font-medium transition-colors px-2 py-1"
+                >
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="bg-transparent transition-colors"
+                  >
+                    <Settings className="h-4 w-4" />
+                  </Button>
+                </Link>
                 <div className="inline-flex items-center px-1">
                   <ThemeToggle />
                 </div>
@@ -285,7 +278,8 @@ export function AdminHeader() {
             {/* Links centrados */}
             <div className="flex items-center gap-2">
 
-              <Link
+              {/* Botón de registrations deshabilitado */}
+              {/* <Link
                 href="/admin/registrations"
                 className="text-xs sm:text-sm font-medium hover:text-primary transition-colors px-2 py-1"
               >
@@ -296,41 +290,42 @@ export function AdminHeader() {
                 >
                   <List className="h-4 w-4" />
                 </Button>
+              </Link> */}
+
+              <Link
+                href="/admin/settings"
+                className="text-xs sm:text-sm font-medium hover:text-primary transition-colors px-2 py-1"
+              >
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="bg-transparent"
+                >
+                  <Key className="h-4 w-4" />
+                </Button>
               </Link>
 
-              <Dialog open={isStoreDialogOpen} onOpenChange={setIsStoreDialogOpen}>
-                <DialogTrigger asChild>
-                  <Button variant="outline" size="sm" className="flex items-center gap-2">
-                    <Settings className="h-4 w-4" />
-                  </Button>
-                </DialogTrigger>
-
-                <DialogContent className="sm:max-w-3xl max-w-full store-dialog">
-                  <DialogHeader>
-                    <div className="flex items-start justify-between w-full">
-                      <div>
-                        <DialogTitle className="text-lg font-semibold">Configuración de la tienda</DialogTitle>
-                        <p className="text-xs text-muted-foreground">Edita los datos que se muestran en la tienda y el contacto.</p>
-                      </div>
-                      <div className="ml-4">
-                        <Button variant="ghost" size="sm" onClick={() => setIsStoreDialogOpen(false)}>Cerrar</Button>
-                      </div>
-                    </div>
-                  </DialogHeader>
-
-                  <div className="mt-4">
-                    <AdminStoreForm />
-                  </div>
-                </DialogContent>
-              </Dialog>
+              <Link
+                href="/admin/store"
+                className="text-xs sm:text-sm font-medium hover:text-primary transition-colors px-2 py-1"
+              >
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="bg-transparent"
+                >
+                  <Settings className="h-4 w-4" />
+                </Button>
+              </Link>
 
               {checking ? (
                 <div className="text-sm text-muted-foreground px-3 py-2 rounded-md">Cargando...</div>
-              ) : email ? (
+              ) : username ? (
                 <>
-                  {/* <span className="text-sm text-muted-foreground px-3 py-2 rounded-md">{email}</span> */}
-
-
+                  <div className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-muted/50 border border-border/50">
+                    <span className="text-[10px] font-medium text-muted-foreground">Admin:</span>
+                    <span className="text-xs font-semibold">{username}</span>
+                  </div>
                 </>
               ) : (
                 <Link

@@ -1,36 +1,11 @@
 // app/api/products/[id]/route.ts
 import { NextResponse } from "next/server";
-import { createServerClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { cookies } from "next/headers";
 
 const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-// Ajusta al nombre exacto de tu bucket
-const BUCKET = "casaensueno-files";
-
-/** Extrae el path en el bucket a partir de distintas formas de URL de Supabase */
-function extractPathFromStorageUrl(url: string, bucket: string) {
-  try {
-    const u = new URL(url);
-    // patrón public: /storage/v1/object/public/<bucket>/<path>
-    const publicPrefix = `/storage/v1/object/public/${bucket}/`;
-    const idx = u.pathname.indexOf(publicPrefix);
-    if (idx !== -1) {
-      return decodeURIComponent(u.pathname.slice(idx + publicPrefix.length));
-    }
-    // patrón sign: /object/sign/<bucket>/... (varía por versiones)
-    const signPrefix = `/object/sign/${bucket}/`;
-    const idx2 = u.pathname.indexOf(signPrefix);
-    if (idx2 !== -1) {
-      return decodeURIComponent(u.pathname.slice(idx2 + signPrefix.length));
-    }
-    // fallback simple: split por /<bucket>/
-    const parts = u.pathname.split(`/${bucket}/`);
-    if (parts.length > 1) return decodeURIComponent(parts[1]);
-    return null;
-  } catch {
-    return null;
-  }
-}
+// Nombre del bucket (con espacio)
+const BUCKET = "casaensueno files";
 
 export async function PUT(request: Request, context: { params: any }) {
   try {
@@ -42,39 +17,20 @@ export async function PUT(request: Request, context: { params: any }) {
       return NextResponse.json({ error: "Missing product id" }, { status: 400 });
     }
 
-    // server client para auth (usa cookies)
-    const supabase = await createServerClient({ allowSetCookies: true });
+    // Verificar sesión de admin usando cookies
+    const cookieStore = await cookies();
+    const session = cookieStore.get('admin-session');
 
-    // obtener usuario
-    const { data: userData, error: userErr } = await supabase.auth.getUser();
-    if (userErr) {
-      console.error("[products/:id/PUT] auth.getUser error:", userErr);
-      return NextResponse.json({ error: "Auth error" }, { status: 500 });
-    }
-    const user = userData?.user ?? null;
-    if (!user) {
+    if (!session?.value) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    // revisar si es admin
-    const adminCheck = createAdminClient();
-    const { data: adminRow, error: adminErr } = await adminCheck
-      .from("admin_users")
-      .select("is_admin")
-      .eq("user_id", user.id)
-      .maybeSingle();
-
-    if (adminErr) {
-      console.error("[products/:id/PUT] admin lookup error:", adminErr);
-      return NextResponse.json({ error: "Error checking admin", details: adminErr.message }, { status: 500 });
-    }
-    if (!adminRow?.is_admin) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     // leer body
     const body = await request.json().catch(() => ({}));
     const { name, description, price, available, category, images } = body ?? {};
+
+    console.log("[products/:id/PUT] Received body:", JSON.stringify({ name, description, price, available, category, imagesCount: images?.length }));
+    console.log("[products/:id/PUT] Images received:", JSON.stringify(images, null, 2));
 
     if (!name && description === undefined && price === undefined && available === undefined && category === undefined && images === undefined) {
       return NextResponse.json({ error: "Nothing to update" }, { status: 400 });
@@ -127,37 +83,81 @@ export async function PUT(request: Request, context: { params: any }) {
 
     // --- Si images viene en el body: reemplazar imágenes del producto ---
     if (images !== undefined) {
-      // Primero borrar todas las imágenes existentes (puedes cambiar a borrado selectivo si prefieres)
+      console.log("[products/:id/PUT] ===== STARTING IMAGE UPDATE PROCESS =====");
+      
+      // Obtener las imágenes existentes antes de borrarlas
+      const { data: existingImages, error: fetchErr } = await admin
+        .from("product_images")
+        .select("image_url")
+        .eq("product_id", productId);
+
+      if (fetchErr) {
+        console.error("[products/:id/PUT] error fetching existing images:", fetchErr);
+      }
+
+      console.log("[products/:id/PUT] Existing images from DB:", JSON.stringify(existingImages, null, 2));
+
+      // Crear un Set con las nuevas imágenes (paths) para comparar
+      const newImagePaths = new Set<string>();
+      if (Array.isArray(images) && images.length) {
+        for (const img of images) {
+          if (!img) continue;
+          if (typeof img === "string") {
+            newImagePaths.add(img);
+          } else if (img.path && typeof img.path === "string") {
+            newImagePaths.add(img.path);
+          }
+        }
+      }
+
+      console.log("[products/:id/PUT] New image paths:", Array.from(newImagePaths));
+
+      // Identificar imágenes a eliminar del storage
+      const imagesToDelete: string[] = [];
+      if (existingImages && Array.isArray(existingImages)) {
+        for (const img of existingImages) {
+          const imagePath = img.image_url;
+          
+          // Si la imagen existente no está en las nuevas, marcarla para eliminar
+          if (!newImagePaths.has(imagePath)) {
+            console.log("[products/:id/PUT] Image marked for deletion:", imagePath);
+            imagesToDelete.push(imagePath);
+          }
+        }
+      }
+
+      console.log("[products/:id/PUT] Total images to delete:", imagesToDelete.length);
+
+      // Eliminar imágenes del storage
+      if (imagesToDelete.length > 0) {
+        console.log("[products/:id/PUT] Deleting images from storage:", imagesToDelete);
+        const { data: deleteData, error: storageErr } = await admin.storage
+          .from(BUCKET)
+          .remove(imagesToDelete);
+
+        if (storageErr) {
+          console.error("[products/:id/PUT] error deleting images from storage:", storageErr);
+        } else {
+          console.log("[products/:id/PUT] Successfully deleted images from storage. Response:", deleteData);
+        }
+      }
+
+      // Borrar registros de product_images de la base de datos
       const { error: delErr } = await admin.from("product_images").delete().eq("product_id", productId);
       if (delErr) {
         console.error("[products/:id/PUT] error deleting existing product_images:", delErr);
-        // no abortamos: seguimos para poder intentar insertar nuevas si vienen
       }
 
+      // Insertar nuevas imágenes
       if (Array.isArray(images) && images.length) {
         const imageRecords: { product_id: string; image_url: string; display_order?: number }[] = [];
 
         for (const img of images) {
           if (!img) continue;
           if (typeof img === "string") {
-            // si nos pasan una string simple la tratamos como path
             imageRecords.push({ product_id: productId, image_url: img, display_order: 0 });
-            continue;
-          }
-          // si es objeto { path } o { url }
-          if (img.path && typeof img.path === "string") {
+          } else if (img.path && typeof img.path === "string") {
             imageRecords.push({ product_id: productId, image_url: img.path, display_order: img.display_order ?? 0 });
-            continue;
-          }
-          if (img.url && typeof img.url === "string") {
-            const extracted = extractPathFromStorageUrl(img.url, BUCKET);
-            if (extracted) {
-              imageRecords.push({ product_id: productId, image_url: extracted, display_order: img.display_order ?? 0 });
-              continue;
-            }
-            // fallback: guardar la url completa (no ideal, pero evita pérdida)
-            imageRecords.push({ product_id: productId, image_url: img.url, display_order: img.display_order ?? 0 });
-            continue;
           }
         }
 
@@ -165,7 +165,6 @@ export async function PUT(request: Request, context: { params: any }) {
           const { error: insErr } = await admin.from("product_images").insert(imageRecords);
           if (insErr) {
             console.error("[products/:id/PUT] insert images error:", insErr);
-            // devolvemos error si no se pudieron insertar
             return NextResponse.json({ error: "Error inserting images", details: insErr.message }, { status: 500 });
           }
         }
@@ -199,37 +198,44 @@ export async function DELETE(request: Request, context: { params: any }) {
       return NextResponse.json({ error: "Missing product id" }, { status: 400 });
     }
 
-    // server client para auth (usa cookies)
-    const supabase = await createServerClient({ allowSetCookies: true });
+    // Verificar sesión de admin usando cookies
+    const cookieStore = await cookies();
+    const session = cookieStore.get('admin-session');
 
-    // obtener usuario
-    const { data: userData, error: userErr } = await supabase.auth.getUser();
-    if (userErr) {
-      console.error("[products/:id/DELETE] auth.getUser error:", userErr);
-      return NextResponse.json({ error: "Auth error" }, { status: 500 });
-    }
-    const user = userData?.user ?? null;
-    if (!user) {
+    if (!session?.value) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // revisar si es admin
-    const adminCheck = createAdminClient();
-    const { data: adminRow, error: adminErr } = await adminCheck
-      .from("admin_users")
-      .select("is_admin")
-      .eq("user_id", user.id)
-      .maybeSingle();
-
-    if (adminErr) {
-      console.error("[products/:id/DELETE] admin lookup error:", adminErr);
-      return NextResponse.json({ error: "Error checking admin", details: adminErr.message }, { status: 500 });
-    }
-    if (!adminRow?.is_admin) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
-
     const admin = createAdminClient();
+
+    // Obtener las imágenes del producto antes de eliminarlo
+    const { data: productImages, error: fetchImagesErr } = await admin
+      .from("product_images")
+      .select("image_url")
+      .eq("product_id", productId);
+
+    if (fetchImagesErr) {
+      console.error("[products/:id/DELETE] error fetching product images:", fetchImagesErr);
+    }
+
+    // Eliminar imágenes del storage
+    if (productImages && Array.isArray(productImages) && productImages.length > 0) {
+      const imagePaths = productImages.map(img => img.image_url).filter(Boolean);
+      
+      if (imagePaths.length > 0) {
+        console.log("[products/:id/DELETE] Deleting images from storage:", imagePaths);
+        const { error: storageErr } = await admin.storage
+          .from(BUCKET)
+          .remove(imagePaths);
+
+        if (storageErr) {
+          console.error("[products/:id/DELETE] error deleting images from storage:", storageErr);
+          // No abortamos, continuamos con la eliminación del producto
+        } else {
+          console.log("[products/:id/DELETE] Successfully deleted images from storage");
+        }
+      }
+    }
 
     // Eliminar registros de product_images
     const { error: delImagesErr } = await admin.from("product_images").delete().eq("product_id", productId);

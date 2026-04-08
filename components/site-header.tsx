@@ -69,7 +69,7 @@ export default function SiteHeader({ user = null }: SiteHeaderProps) {
             <div className="relative flex-shrink-0 rounded-2xl overflow-hidden w-20 h-20 sm:w-20 sm:h-20 md:w-24 md:h-24">
               <Link href="/" aria-label="Casa Ensueño - Inicio">
                 <Image
-                  src="https://jgxqopmrwuxyfirpvbhz.supabase.co/storage/v1/object/public/casaensueno%20files/logo.jpg"
+                  src="https://zvdwytdadegzwjxgvspz.supabase.co/storage/v1/object/public/casaensueno%20files/logo%20con%20fondo%20recortado%20baja%20calidad.jpg"
                   alt="Logo Casa Ensueño"
                   fill
                   className="object-contain"
@@ -95,7 +95,7 @@ export default function SiteHeader({ user = null }: SiteHeaderProps) {
             {/* Nav visible en sm+ */}
             <nav className="hidden sm:flex items-center gap-2 sm:gap-4">
               <div className="flex items-center gap-2">
-                <Link
+                {/* <Link
                   href="/catalog"
                   className="text-sm font-medium hover:text-primary transition-colors px-3 py-2 rounded-md"
 
@@ -107,7 +107,7 @@ export default function SiteHeader({ user = null }: SiteHeaderProps) {
                   >
                     <PackageSearch className="h-4 w-4" />
                   </Button>
-                </Link>
+                </Link> */}
 
                 
                 <div className="inline-flex items-center px-1">

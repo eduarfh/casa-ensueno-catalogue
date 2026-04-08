@@ -6,10 +6,20 @@ import { ProductForm } from "@/components/product-form";
 import { ChevronLeft } from "lucide-react";
 import AdminGuard from "@/components/admin-guard";
 import { AdminHeader } from "@/components/admin-header";
-import { createServerClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { redirect } from "next/navigation";
+import { cookies } from "next/headers";
 
 export default async function NewProductPage() {
-  const supabase = await createServerClient();
+  // Verificar sesión de admin usando cookies
+  const cookieStore = await cookies();
+  const session = cookieStore.get('admin-session');
+
+  if (!session?.value) {
+    return redirect("/auth/login");
+  }
+
+  const supabase = createAdminClient();
 
   const { data: categories } = await supabase.from("categories").select("id_int, name").order("name");
 
