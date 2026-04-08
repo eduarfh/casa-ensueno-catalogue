@@ -526,7 +526,7 @@ export function ProductForm({ product, categories: initialCategories = [] }: Pro
                 <button
                   type="button"
                   onClick={() => removeImage(index)}
-                  className="absolute -top-2 -right-2 bg-destructive text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                  className="absolute -top-2 -right-2 bg-destructive text-white rounded-full p-1 shadow-lg md:opacity-0 md:group-hover:opacity-100 transition-opacity"
                   disabled={isSubmitting}
                 >
                   <X className="w-4 h-4" />
