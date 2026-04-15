@@ -43,7 +43,15 @@ export default function AdminStoreForm() {
     const load = async () => {
       try {
         setLoading(true);
-        const res = await fetch("/api/store-info");
+        // Agregar timestamp para evitar caché
+        const timestamp = new Date().getTime();
+        const res = await fetch(`/api/store-info?t=${timestamp}`, {
+          cache: 'no-store',
+          headers: {
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache'
+          }
+        });
         if (!mounted) return;
         if (!res.ok) {
           console.error("Failed to load store-info:", await res.text());
@@ -153,7 +161,15 @@ export default function AdminStoreForm() {
   const reloadValues = async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/store-info");
+      // Agregar timestamp para evitar caché
+      const timestamp = new Date().getTime();
+      const res = await fetch(`/api/store-info?t=${timestamp}`, {
+        cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache'
+        }
+      });
       if (res.ok) {
         const data = await res.json();
         if (data) setForm(data);

@@ -38,7 +38,15 @@ export default function WhatsAppContactsModal() {
   const fetchContacts = async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/store-whatsapp");
+      // Agregar timestamp para evitar caché
+      const timestamp = new Date().getTime();
+      const res = await fetch(`/api/store-whatsapp?t=${timestamp}`, {
+        cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache'
+        }
+      });
       if (!res.ok) {
         setContacts([]);
         return;
@@ -56,7 +64,15 @@ export default function WhatsAppContactsModal() {
   // intentar deducir country code desde store-info (heurística)
   const fetchStoreDefaultCountry = async () => {
     try {
-      const res = await fetch("/api/store-info");
+      // Agregar timestamp para evitar caché
+      const timestamp = new Date().getTime();
+      const res = await fetch(`/api/store-info?t=${timestamp}`, {
+        cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache'
+        }
+      });
       if (!res.ok) return null;
       const data = await res.json();
       const maybe = (data?.whatsapp_number ?? data?.phone_display ?? "") as string;

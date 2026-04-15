@@ -2,6 +2,10 @@
 import { NextResponse } from "next/server";
 import { createServerSupabase } from "@/lib/supabase/server";
 
+// Deshabilitar caché para esta ruta
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 export async function GET() {
   try {
     const supabase = await createServerSupabase(); // <-- tu helper

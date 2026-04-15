@@ -1,6 +1,7 @@
 // app/api/admin/save-store/route.ts
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { revalidatePath } from "next/cache";
 
 type StoreInfoRow = {
   id?: string | null;
@@ -18,6 +19,8 @@ type StoreInfoRow = {
 export async function POST(request: Request) {
   try {
     const body = await request.json().catch(() => ({}));
+    
+    // Preparar payload con updated_at explícito
     const payload: Partial<StoreInfoRow> = {
       label: body.label ?? null,
       phone_display: body.phone_display ?? null,
@@ -26,53 +29,71 @@ export async function POST(request: Request) {
       lat: body.lat ?? null,
       lng: body.lng ?? null,
       hours: body.hours ?? null,
+      updated_at: new Date().toISOString(), // Forzar actualización del timestamp
     };
 
     const admin = createAdminClient();
 
-    // 1) Leer la fila existente (si existe). No usamos generics para evitar problemas de tipado.
-    const readResp = await admin.from("store_info").select("*").order("updated_at", { ascending: false }).limit(1);
-    const existingArrRaw = (readResp as any).data;
-    const readErr = (readResp as any).error;
+    // 1) Leer la fila existente (si existe)
+    const { data: existingData, error: readErr } = await admin
+      .from("store_info")
+      .select("*")
+      .order("updated_at", { ascending: false })
+      .limit(1)
+      .single();
 
-    if (readErr) {
+    if (readErr && readErr.code !== 'PGRST116') { // PGRST116 = no rows returned
       console.error("[POST /api/admin/save-store] read error:", readErr);
-      return NextResponse.json({ error: "DB read error" }, { status: 500 });
+      return NextResponse.json({ error: "DB read error", details: readErr }, { status: 500 });
     }
-
-    const existing = Array.isArray(existingArrRaw) && existingArrRaw.length > 0 ? (existingArrRaw[0] as StoreInfoRow) : null;
 
     let resultRow: StoreInfoRow | null = null;
 
-    if (existing && existing.id) {
+    if (existingData && existingData.id) {
       // 2a) UPDATE por id y devolver la fila actualizada
-      const updateResp = await admin.from("store_info").update(payload).eq("id", existing.id).select("*");
-      const updatedDataRaw = (updateResp as any).data;
-      const updateErr = (updateResp as any).error;
+      console.log("[POST /api/admin/save-store] Updating existing row with id:", existingData.id);
+      
+      const { data: updatedData, error: updateErr } = await admin
+        .from("store_info")
+        .update(payload)
+        .eq("id", existingData.id)
+        .select("*")
+        .single();
 
       if (updateErr) {
         console.error("[POST /api/admin/save-store] update error:", updateErr);
-        return NextResponse.json({ error: "DB update error" }, { status: 500 });
+        return NextResponse.json({ error: "DB update error", details: updateErr }, { status: 500 });
       }
 
-      resultRow = Array.isArray(updatedDataRaw) && updatedDataRaw.length ? (updatedDataRaw[0] as StoreInfoRow) : null;
+      resultRow = updatedData as StoreInfoRow;
+      console.log("[POST /api/admin/save-store] Updated successfully:", resultRow);
     } else {
       // 2b) INSERT y devolver la fila insertada
-      const insertResp = await admin.from("store_info").insert(payload).select("*");
-      const insertedDataRaw = (insertResp as any).data;
-      const insertErr = (insertResp as any).error;
+      console.log("[POST /api/admin/save-store] Inserting new row");
+      
+      const { data: insertedData, error: insertErr } = await admin
+        .from("store_info")
+        .insert(payload)
+        .select("*")
+        .single();
 
       if (insertErr) {
         console.error("[POST /api/admin/save-store] insert error:", insertErr);
-        return NextResponse.json({ error: "DB insert error" }, { status: 500 });
+        return NextResponse.json({ error: "DB insert error", details: insertErr }, { status: 500 });
       }
 
-      resultRow = Array.isArray(insertedDataRaw) && insertedDataRaw.length ? (insertedDataRaw[0] as StoreInfoRow) : null;
+      resultRow = insertedData as StoreInfoRow;
+      console.log("[POST /api/admin/save-store] Inserted successfully:", resultRow);
     }
+
+    // Revalidar las rutas que usan store-info
+    revalidatePath("/");
+    revalidatePath("/catalog");
+    revalidatePath("/api/store-info");
 
     return NextResponse.json(resultRow ?? {}, { status: 200 });
   } catch (err) {
     console.error("[POST /api/admin/save-store] unexpected:", err);
-    return NextResponse.json({ error: "unexpected" }, { status: 500 });
+    return NextResponse.json({ error: "unexpected", details: String(err) }, { status: 500 });
   }
 }

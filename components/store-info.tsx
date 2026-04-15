@@ -38,7 +38,15 @@ export default function StoreInfo() {
 
     const load = async () => {
       try {
-        const res = await fetch("/api/store-info");
+        // Agregar timestamp para evitar caché
+        const timestamp = new Date().getTime();
+        const res = await fetch(`/api/store-info?t=${timestamp}`, {
+          cache: 'no-store',
+          headers: {
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache'
+          }
+        });
         if (!mounted) return;
         if (!res.ok) {
           console.error("Failed to fetch /api/store-info:", res.status, await res.text());
@@ -203,30 +211,52 @@ export default function StoreInfo() {
     ) : null;
 
   const buildMapsLink = () => {
-    const label = store.label ?? "Dulces Sueños";
+    const label = encodeURIComponent(store.label ?? "Casa Ensueño");
+    
     if (platform === "ios") {
-      return `maps://?q=${encodeURIComponent(`${lat},${lng}`)}`;
+      // Apple Maps en iOS - usa el esquema maps://
+      // Formato: maps://?q=lat,lng o maps://?ll=lat,lng&q=nombre
+      return `maps://?ll=${lat},${lng}&q=${label}`;
     }
+    
     if (platform === "android") {
-      return `geo:${lat},${lng}?q=${lat},${lng}(${encodeURIComponent(label)})`;
+      // Google Maps en Android - usa el esquema geo:
+      // Formato: geo:lat,lng?q=lat,lng(nombre)
+      return `geo:${lat},${lng}?q=${lat},${lng}(${label})`;
     }
+    
+    // Desktop o fallback - abre Google Maps en el navegador
+    // Formato: https://www.google.com/maps/search/?api=1&query=lat,lng
     return `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`;
   };
 
   const openMaps = () => {
     const url = buildMapsLink();
 
-    try {
-      const a = document.createElement("a");
-      a.href = url;
-      a.target = "_blank";
-      a.rel = "noopener noreferrer";
-      a.style.display = "none";
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-    } catch {
-      window.location.href = url;
+    // Para iOS y Android, intentar abrir la app nativa
+    if (platform === "ios" || platform === "android") {
+      try {
+        // Crear un enlace temporal y hacer clic
+        const a = document.createElement("a");
+        a.href = url;
+        a.target = "_blank";
+        a.rel = "noopener noreferrer";
+        a.style.display = "none";
+        document.body.appendChild(a);
+        a.click();
+        
+        // Limpiar después de un momento
+        setTimeout(() => {
+          a.remove();
+        }, 100);
+      } catch (error) {
+        console.error("Error opening maps:", error);
+        // Fallback: abrir Google Maps en navegador
+        window.open(`https://www.google.com/maps/search/?api=1&query=${lat},${lng}`, "_blank", "noopener,noreferrer");
+      }
+    } else {
+      // Desktop: abrir en nueva pestaña
+      window.open(url, "_blank", "noopener,noreferrer");
     }
   };
 
@@ -304,12 +334,16 @@ export default function StoreInfo() {
                 onClick={openMaps}
                 variant="outline"
                 className="flex-1 inline-flex items-center justify-center gap-2 dark:bg-[#dc2626]/20"
-                aria-label="Abrir en la app de mapas"
+                aria-label="Abrir ubicación en la app de mapas"
               >
                 <Map className="w-5 h-5" />
 
                 <span className="font-medium">
-                  Abrir en {platform === null ? "Maps" : platform === "ios" ? "Apple Maps" : platform === "android" ? "Google Maps" : "Maps"}
+                  {platform === "ios" 
+                    ? "Abrir en Apple Maps" 
+                    : platform === "android" 
+                    ? "Abrir en Google Maps" 
+                    : "Ver en Google Maps"}
                 </span>
               </Button>
             </div>

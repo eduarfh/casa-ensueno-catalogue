@@ -14,7 +14,15 @@ export default function AdminStoreWhatsApp() {
   const load = async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/store-whatsapp");
+      // Agregar timestamp para evitar caché
+      const timestamp = new Date().getTime();
+      const res = await fetch(`/api/store-whatsapp?t=${timestamp}`, {
+        cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache'
+        }
+      });
       const data = await res.json();
       setList(Array.isArray(data) ? data : []);
     } catch (e) {
