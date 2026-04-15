@@ -132,7 +132,8 @@ export default async function ProductPage({ params }: ParamsShape) {
               alt={product.name ?? "Producto"}
               autoRotate={true}
               interval={4500}
-              minHeight={300}
+              className="rounded-lg overflow-hidden shadow-lg"
+              enableFullscreen={true}
             />
           </div>
 

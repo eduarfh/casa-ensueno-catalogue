@@ -4,7 +4,7 @@
 import { useState, useEffect } from "react";
 import Image from "next/image";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { ImageFullscreenModal } from "@/components/image-fullscreen-modal";
 
 /**
  * Si tienes el type Product en otro fichero, importa:
@@ -27,7 +27,8 @@ interface ImageCarouselProps {
   autoRotate?: boolean;
   interval?: number; // ms
   className?: string;
-  minHeight?: number; // opcional para controlar altura mínima (px)
+  variant?: "card" | "detail"; // para controlar el tamaño según el contexto
+  enableFullscreen?: boolean; // habilitar vista en pantalla completa al hacer clic
 }
 
 export function ImageCarousel({
@@ -36,12 +37,14 @@ export function ImageCarousel({
   autoRotate = true,
   interval = 3000,
   className = "",
-  minHeight = 160,
+  variant = "detail",
+  enableFullscreen = false,
 }: ImageCarouselProps) {
   // Normalize: images puede ser null | undefined | string[]
   const urls = (images ?? []).filter(Boolean);
 
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [isFullscreenOpen, setIsFullscreenOpen] = useState(false);
 
   // Mantener índice válido cuando cambia la cantidad de imágenes
   useEffect(() => {
@@ -73,13 +76,27 @@ export function ImageCarousel({
     setCurrentIndex((prev) => (prev + 1) % urls.length);
   };
 
+  const handleImageClick = () => {
+    if (enableFullscreen && urls.length > 0) {
+      setIsFullscreenOpen(true);
+    }
+  };
+
   const containerClass = `relative group ${className}`;
+  
+  // Definir altura mínima según el variant
+  const minHeightClass = variant === "card" 
+    ? "min-h-[200px] sm:min-h-[240px] md:min-h-[280px]" 
+    : "min-h-[400px] md:min-h-[500px] lg:min-h-[600px]";
+  
+  // Cursor pointer si fullscreen está habilitado
+  const cursorClass = enableFullscreen ? "cursor-pointer" : "";
 
   // Placeholder si no hay imágenes
   if (urls.length === 0) {
     return (
       <div className={containerClass}>
-        <div className="relative w-full h-full" style={{ minHeight }}>
+        <div className={`relative w-full aspect-square ${minHeightClass}`}>
           <Image
             src="/placeholder.svg"
             alt={alt}
@@ -94,31 +111,68 @@ export function ImageCarousel({
 
   if (urls.length === 1) {
     return (
-      <div className={containerClass}>
-        <div className="relative w-full h-full" style={{ minHeight }}>
-          <Image
-            src={urls[0] || "/placeholder.svg"}
-            alt={alt}
-            fill
-            className="object-cover transition-opacity duration-500"
-            priority={true}
-          />
+      <>
+        <div className={containerClass}>
+          <div 
+            className={`relative w-full aspect-square ${minHeightClass} ${cursorClass}`}
+            onClick={handleImageClick}
+            role={enableFullscreen ? "button" : undefined}
+            aria-label={enableFullscreen ? "Ver imagen en pantalla completa" : undefined}
+            tabIndex={enableFullscreen ? 0 : undefined}
+            onKeyDown={enableFullscreen ? (e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                handleImageClick();
+              }
+            } : undefined}
+          >
+            <Image
+              src={urls[0] || "/placeholder.svg"}
+              alt={alt}
+              fill
+              className="object-cover transition-opacity duration-500"
+              priority={true}
+            />
+          </div>
         </div>
-      </div>
+        
+        {enableFullscreen && (
+          <ImageFullscreenModal
+            images={urls}
+            initialIndex={0}
+            isOpen={isFullscreenOpen}
+            onClose={() => setIsFullscreenOpen(false)}
+            alt={alt}
+          />
+        )}
+      </>
     );
   }
 
   return (
-    <div className={containerClass}>
-      <div className="relative w-full h-full" style={{ minHeight }}>
-        <Image
-          src={urls[currentIndex] || "/placeholder.svg"}
-          alt={`${alt} - imagen ${currentIndex + 1}`}
-          fill
-          className="object-cover transition-opacity duration-500"
-          priority={currentIndex === 0}
-        />
-      </div>
+    <>
+      <div className={containerClass}>
+        <div 
+          className={`relative w-full aspect-square ${minHeightClass} ${cursorClass}`}
+          onClick={handleImageClick}
+          role={enableFullscreen ? "button" : undefined}
+          aria-label={enableFullscreen ? "Ver imagen en pantalla completa" : undefined}
+          tabIndex={enableFullscreen ? 0 : undefined}
+          onKeyDown={enableFullscreen ? (e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              handleImageClick();
+            }
+          } : undefined}
+        >
+          <Image
+            src={urls[currentIndex] || "/placeholder.svg"}
+            alt={`${alt} - imagen ${currentIndex + 1}`}
+            fill
+            className="object-cover transition-opacity duration-500"
+            priority={currentIndex === 0}
+          />
+        </div>
 
       {/* Botones de navegación */}
       <button
@@ -147,13 +201,27 @@ export function ImageCarousel({
                 ? "bg-white w-2 h-2" 
                 : "bg-white/60 hover:bg-white/80 w-2 h-2"
             }`}
-            onClick={() => setCurrentIndex(index)}
+            onClick={(e) => {
+              e.stopPropagation();
+              setCurrentIndex(index);
+            }}
             aria-label={`Ir a imagen ${index + 1}`}
             aria-current={index === currentIndex}
           />
         ))}
       </div>
     </div>
+    
+    {enableFullscreen && (
+      <ImageFullscreenModal
+        images={urls}
+        initialIndex={currentIndex}
+        isOpen={isFullscreenOpen}
+        onClose={() => setIsFullscreenOpen(false)}
+        alt={alt}
+      />
+    )}
+    </>
   );
 }
 
