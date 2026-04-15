@@ -230,7 +230,6 @@ export function ProductCard({
             autoRotate={showControls && !isInteracting}
             interval={AUTOPLAY_INTERVAL}
             className="w-full h-full"
-            variant="card"
           />
 
           <div className="absolute top-2 right-2 z-10">

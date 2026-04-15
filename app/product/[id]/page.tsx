@@ -134,6 +134,7 @@ export default async function ProductPage({ params }: ParamsShape) {
               interval={4500}
               className="rounded-lg overflow-hidden shadow-lg"
               enableFullscreen={true}
+              minHeight={400}
             />
           </div>
 

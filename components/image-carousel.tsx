@@ -27,8 +27,8 @@ interface ImageCarouselProps {
   autoRotate?: boolean;
   interval?: number; // ms
   className?: string;
-  variant?: "card" | "detail"; // para controlar el tamaño según el contexto
   enableFullscreen?: boolean; // habilitar vista en pantalla completa al hacer clic
+  minHeight?: number; // altura mínima en px (opcional)
 }
 
 export function ImageCarousel({
@@ -37,8 +37,8 @@ export function ImageCarousel({
   autoRotate = true,
   interval = 3000,
   className = "",
-  variant = "detail",
   enableFullscreen = false,
+  minHeight = 160,
 }: ImageCarouselProps) {
   // Normalize: images puede ser null | undefined | string[]
   const urls = (images ?? []).filter(Boolean);
@@ -59,12 +59,12 @@ export function ImageCarousel({
 
   // Auto-rotación
   useEffect(() => {
-    if (!autoRotate || urls.length <= 1) return;
+    if (!autoRotate || urls.length <= 1 || isFullscreenOpen) return;
     const timer = setInterval(() => {
       setCurrentIndex((prev) => (prev + 1) % urls.length);
     }, interval);
     return () => clearInterval(timer);
-  }, [autoRotate, urls.length, interval]);
+  }, [autoRotate, urls.length, interval, isFullscreenOpen]);
 
   const goToPrevious = () => {
     if (urls.length === 0) return;
@@ -84,11 +84,6 @@ export function ImageCarousel({
 
   const containerClass = `relative group ${className}`;
   
-  // Definir altura mínima según el variant
-  const minHeightClass = variant === "card" 
-    ? "min-h-[200px] sm:min-h-[240px] md:min-h-[280px]" 
-    : "min-h-[400px] md:min-h-[500px] lg:min-h-[600px]";
-  
   // Cursor pointer si fullscreen está habilitado
   const cursorClass = enableFullscreen ? "cursor-pointer" : "";
 
@@ -96,7 +91,7 @@ export function ImageCarousel({
   if (urls.length === 0) {
     return (
       <div className={containerClass}>
-        <div className={`relative w-full aspect-square ${minHeightClass}`}>
+        <div className="relative w-full h-full" style={{ minHeight }}>
           <Image
             src="/placeholder.svg"
             alt={alt}
@@ -114,7 +109,8 @@ export function ImageCarousel({
       <>
         <div className={containerClass}>
           <div 
-            className={`relative w-full aspect-square ${minHeightClass} ${cursorClass}`}
+            className={`relative w-full h-full ${cursorClass}`}
+            style={{ minHeight }}
             onClick={handleImageClick}
             role={enableFullscreen ? "button" : undefined}
             aria-label={enableFullscreen ? "Ver imagen en pantalla completa" : undefined}
@@ -153,7 +149,8 @@ export function ImageCarousel({
     <>
       <div className={containerClass}>
         <div 
-          className={`relative w-full aspect-square ${minHeightClass} ${cursorClass}`}
+          className={`relative w-full h-full ${cursorClass}`}
+          style={{ minHeight }}
           onClick={handleImageClick}
           role={enableFullscreen ? "button" : undefined}
           aria-label={enableFullscreen ? "Ver imagen en pantalla completa" : undefined}
