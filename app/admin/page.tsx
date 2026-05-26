@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import AdminGuard from "@/components/admin-guard";
 import { AdminHeader } from "@/components/admin-header";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { query } from "@/lib/db";
 import { cookies } from "next/headers";
 import StorageUsageCard from "@/components/storage-usage-card";
 import { AdminProductsWithSearch } from "@/components/admin-products-with-search";
@@ -37,56 +37,60 @@ export default async function AdminDashboard() {
       return redirect("/auth/login");
     }
 
-    // Usar el admin client para las queries
-    const admin = createAdminClient();
+    // Obtener productos con product_images usando PostgreSQL
+    const result = await query(`
+      SELECT p.*, 
+        json_agg(
+          json_build_object(
+            'id', pi.id,
+            'image_url', pi.image_url,
+            'display_order', pi.display_order
+          ) ORDER BY pi.display_order
+        ) FILTER (WHERE pi.id IS NOT NULL) as product_images
+      FROM products p
+      LEFT JOIN product_images pi ON p.id = pi.product_id
+      GROUP BY p.id
+      ORDER BY p.created_at DESC
+    `);
 
-    // Obtener productos con product_images
-    const { data: productsRaw, error: productsError } = await admin
-      .from("products")
-      .select(`
-        id,
-        name,
-        description,
-        price,
-        available,
-        category,
-        product_images(id, image_url, display_order)
-      `)
-      .order("created_at", { ascending: false });
+    const productsRaw = result.rows;
 
-    console.log("[AdminDashboard] productsError:", productsError);
-    console.log("[AdminDashboard] productsRaw length:", Array.isArray(productsRaw) ? productsRaw.length : productsRaw);
+    console.log("[AdminDashboard] products length:", productsRaw.length);
 
-    if (productsError) {
-      return renderWithError(productsError);
-    }
-
-    const productsArray = Array.isArray(productsRaw) ? productsRaw : [];
-
-    if (productsArray.length === 0) {
+    if (productsRaw.length === 0) {
       return renderPage([]);
     }
 
-    // Fetch product_categories
-    const productIds = productsArray.map((p: any) => p.id).filter(Boolean);
+    // Obtener product_categories si la tabla existe
+    const productIds = productsRaw.map((p: any) => p.id).filter(Boolean);
     let productCategoriesRaw: Array<{ product_id: string; category_id: string | number }> = [];
-    try {
-      const { data: pcData, error: pcErr } = await admin
-        .from("product_categories")
-        .select("product_id, category_id")
-        .in("product_id", productIds);
-
-      if (pcErr) {
-        console.warn("[AdminDashboard] product_categories fetch warning:", pcErr);
-      } else {
-        productCategoriesRaw = Array.isArray(pcData) ? pcData : [];
+    
+    if (productIds.length > 0) {
+      try {
+        // Verificar si la tabla existe
+        const tableCheck = await query(`
+          SELECT EXISTS (
+            SELECT FROM information_schema.tables 
+            WHERE table_schema = 'public' 
+            AND table_name = 'product_categories'
+          ) as exists
+        `);
+        
+        if (tableCheck.rows[0]?.exists) {
+          const pcResult = await query(
+            'SELECT product_id, category_id FROM product_categories WHERE product_id = ANY($1)',
+            [productIds]
+          );
+          productCategoriesRaw = pcResult.rows;
+        }
+      } catch (e) {
+        // Tabla no existe o error, continuar sin product_categories
+        console.log("[AdminDashboard] product_categories not available, skipping");
       }
-    } catch (e) {
-      console.warn("[AdminDashboard] product_categories fetch failed:", e);
     }
 
     // Normalizar productos
-    const products: ProductItemLocal[] = productsArray.map((p: any) => {
+    const products: ProductItemLocal[] = productsRaw.map((p: any) => {
       const images: ProductImage[] = Array.isArray(p.product_images)
         ? p.product_images.map((img: any) => ({
           id: String(img?.id ?? ""),

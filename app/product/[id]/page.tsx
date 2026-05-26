@@ -1,11 +1,9 @@
 // app/product/[id]/page.tsx
-import { createPublicServerClient, createServerClient } from "@/lib/supabase/server";
+import { query } from "@/lib/db";
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { ChevronLeft, ShoppingCart } from "lucide-react";
-// import { ProductImageGallery } from "@/components/product-image-gallery";
 import ImageCarousel from "@/components/image-carousel";
 import ProductShareButtons from "@/components/product-share-buttons";
 import SiteHeader from "@/components/site-header";
@@ -22,21 +20,22 @@ interface ParamsShape {
 export async function generateMetadata({ params }: ParamsShape): Promise<Metadata> {
   const { id } = await params;
 
-  const supabase = createPublicServerClient();
+  const result = await query(`
+    SELECT p.*, 
+      json_agg(
+        json_build_object(
+          'id', pi.id,
+          'image_url', pi.image_url,
+          'display_order', pi.display_order
+        ) ORDER BY pi.display_order
+      ) FILTER (WHERE pi.id IS NOT NULL) as product_images
+    FROM products p
+    LEFT JOIN product_images pi ON p.id = pi.product_id
+    WHERE p.id = $1
+    GROUP BY p.id
+  `, [id]);
 
-  const { data: product } = await supabase
-    .from("products")
-    .select(`
-      id,
-      name,
-      description,
-      price,
-      available,
-      product_images(id, image_url, display_order),
-      category
-    `)
-    .eq("id", id)
-    .single();
+  const product = result.rows[0];
 
   if (!product) {
     return {
@@ -47,68 +46,63 @@ export async function generateMetadata({ params }: ParamsShape): Promise<Metadat
   // elegir la primera imagen ordenada por display_order (si existe)
   const firstImage =
     Array.isArray(product.product_images) && product.product_images.length > 0
-      ? product.product_images
-          .slice()
-          .sort((a: any, b: any) => (a.display_order || 0) - (b.display_order || 0))[0]
+      ? product.product_images[0]
       : undefined;
 
   const firstImageUrl = getStoragePublicUrl(firstImage?.image_url ?? undefined);
 
   return {
     title: product.name,
-    description: product.description || `${product.name} - $${product.price ?? 0}`,
+    description: product.description || `${product.name} - ${product.price ?? 0}`,
     openGraph: {
       title: product.name,
-      description: product.description || `${product.name} - $${product.price ?? 0}`,
+      description: product.description || `${product.name} - ${product.price ?? 0}`,
       type: "website",
       images: firstImageUrl ? [firstImageUrl] : undefined,
     },
     twitter: {
       card: firstImageUrl ? "summary_large_image" : "summary",
       title: product.name,
-      description: product.description || `${product.name} - $${product.price ?? 0}`,
+      description: product.description || `${product.name} - ${product.price ?? 0}`,
     },
   };
 }
 
 export default async function ProductPage({ params }: ParamsShape) {
   const { id } = await params;
-  const supabase = await createServerClient();
 
-  const { data: product } = await supabase
-    .from("products")
-    .select(`
-      id,
-      name,
-      description,
-      price,
-      available,
-      category,
-      product_images(id, image_url, display_order)
-    `)
-    .eq("id", id)
-    .single();
+  const result = await query(`
+    SELECT p.*, 
+      json_agg(
+        json_build_object(
+          'id', pi.id,
+          'image_url', pi.image_url,
+          'display_order', pi.display_order
+        ) ORDER BY pi.display_order
+      ) FILTER (WHERE pi.id IS NOT NULL) as product_images
+    FROM products p
+    LEFT JOIN product_images pi ON p.id = pi.product_id
+    WHERE p.id = $1
+    GROUP BY p.id
+  `, [id]);
+
+  const product = result.rows[0];
 
   if (!product) {
     notFound();
   }
 
-  // URL absoluta de la página del producto (no es la URL de supabase/storage)
+  // URL absoluta de la página del producto
   const baseUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
   const productUrl = `${baseUrl.replace(/\/$/, "")}/product/${id}`;
 
   // obtener la primera imagen (si hay) y construir su URL absoluta
-  const firstImage = (product.product_images || [])
-    .slice()
-    .sort((a: any, b: any) => (a.display_order || 0) - (b.display_order || 0))[0];
-
+  const firstImage = (product.product_images || [])[0];
   const firstImageUrl = getStoragePublicUrl(firstImage?.image_url);
 
   // Mapear product_images a string[] de URLs absolutas para ImageCarousel
   const imageUrls: string[] =
     (product.product_images || [])
-      .slice()
-      .sort((a: any, b: any) => (a.display_order || 0) - (b.display_order || 0))
       .map((img: any) => getStoragePublicUrl(img.image_url) ?? "")
       .filter(Boolean) || [];
 

@@ -6,7 +6,7 @@ import { ProductForm } from "@/components/product-form";
 import { ChevronLeft } from "lucide-react";
 import AdminGuard from "@/components/admin-guard";
 import { AdminHeader } from "@/components/admin-header";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { query } from "@/lib/db";
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 
@@ -19,11 +19,22 @@ export default async function NewProductPage() {
     return redirect("/auth/login");
   }
 
-  const supabase = createAdminClient();
+  // Obtener categorías únicas desde los productos existentes
+  let categories: any[] = [];
+  try {
+    const result = await query('SELECT DISTINCT category FROM products WHERE category IS NOT NULL ORDER BY category');
+    categories = result.rows.map((row, index) => ({
+      id_int: index + 1,
+      name: row.category
+    }));
+  } catch (err) {
+    console.error('[NewProductPage] Error fetching categories:', err);
+  }
 
-  const { data: categories } = await supabase.from("categories").select("id_int, name").order("name");
-
-  const categoriesForClient = (categories || []).map((c: any) => ({ id: String(c?.id_int ?? ""), name: c?.name ?? "" }));
+  const categoriesForClient = categories.map((c: any) => ({ 
+    id: String(c?.id_int ?? ""), 
+    name: c?.name ?? "" 
+  }));
 
   return (
     <div className="min-h-screen bg-background">

@@ -1,6 +1,6 @@
 // lib/admin-auth.ts
 import * as crypto from 'crypto';
-import { createAdminClient } from '@/lib/supabase/admin';
+import { query } from '@/lib/db';
 
 interface AdminCredentials {
   username: string;
@@ -16,40 +16,28 @@ function hashPassword(password: string): string {
 }
 
 /**
- * Obtiene las credenciales desde Supabase
+ * Obtiene las credenciales desde PostgreSQL
  */
 async function getCredentials(): Promise<AdminCredentials> {
   try {
-    const supabase = createAdminClient();
-    
-    const { data, error } = await supabase
-      .from('admin_credentials')
-      .select('username, password_hash')
-      .single();
+    const result = await query(
+      'SELECT username, password_hash FROM admin_credentials LIMIT 1'
+    );
 
-    if (error) {
-      console.error('[admin-auth] Error fetching credentials from Supabase:', error);
-      // Si no existe la tabla o no hay datos, usar credenciales por defecto
+    if (result.rows.length === 0) {
+      console.log('[admin-auth] No credentials found in database, using defaults');
       return {
         username: DEFAULT_USERNAME,
         passwordHash: hashPassword(DEFAULT_PASSWORD),
       };
     }
 
-    if (data) {
-      return {
-        username: data.username,
-        passwordHash: data.password_hash,
-      };
-    }
-
-    // Si no hay datos, retornar credenciales por defecto
     return {
-      username: DEFAULT_USERNAME,
-      passwordHash: hashPassword(DEFAULT_PASSWORD),
+      username: result.rows[0].username,
+      passwordHash: result.rows[0].password_hash,
     };
   } catch (error) {
-    console.error('[admin-auth] Unexpected error getting credentials:', error);
+    console.error('[admin-auth] Error fetching credentials from database:', error);
     return {
       username: DEFAULT_USERNAME,
       passwordHash: hashPassword(DEFAULT_PASSWORD),
@@ -88,26 +76,20 @@ export async function updateCredentials(
     }
 
     const newPasswordHash = hashPassword(newPassword);
-    const supabase = createAdminClient();
 
-    // Actualizar en Supabase
-    const { error } = await supabase
-      .from('admin_credentials')
-      .update({
-        username: newUsername,
-        password_hash: newPasswordHash,
-        updated_at: new Date().toISOString(),
-      })
-      .eq('username', credentials.username);
+    // Actualizar en PostgreSQL
+    const result = await query(
+      'UPDATE admin_credentials SET username = $1, password_hash = $2, updated_at = NOW() WHERE username = $3',
+      [newUsername, newPasswordHash, credentials.username]
+    );
 
-    if (error) {
-      console.error('[admin-auth] Error updating credentials in Supabase:', error);
+    if (result.rowCount === 0) {
       return { success: false, error: 'Error al actualizar las credenciales en la base de datos' };
     }
 
     return { success: true };
   } catch (error) {
-    console.error('[admin-auth] Unexpected error updating credentials:', error);
+    console.error('[admin-auth] Error updating credentials:', error);
     return { success: false, error: 'Error inesperado al actualizar las credenciales' };
   }
 }
@@ -118,38 +100,26 @@ export async function getCurrentUsername(): Promise<string> {
 }
 
 /**
- * Inicializa las credenciales por defecto en Supabase si no existen
+ * Inicializa las credenciales por defecto en PostgreSQL si no existen
  */
 export async function initializeCredentials(): Promise<{ success: boolean; error?: string }> {
   try {
-    const supabase = createAdminClient();
-    
     // Verificar si ya existen credenciales
-    const { data: existing } = await supabase
-      .from('admin_credentials')
-      .select('id')
-      .single();
+    const result = await query('SELECT id FROM admin_credentials LIMIT 1');
 
-    if (existing) {
+    if (result.rows.length > 0) {
       return { success: true }; // Ya existen credenciales
     }
 
     // Insertar credenciales por defecto
-    const { error } = await supabase
-      .from('admin_credentials')
-      .insert({
-        username: DEFAULT_USERNAME,
-        password_hash: hashPassword(DEFAULT_PASSWORD),
-      });
-
-    if (error) {
-      console.error('[admin-auth] Error initializing credentials:', error);
-      return { success: false, error: 'Error al inicializar credenciales' };
-    }
+    await query(
+      'INSERT INTO admin_credentials (username, password_hash) VALUES ($1, $2)',
+      [DEFAULT_USERNAME, hashPassword(DEFAULT_PASSWORD)]
+    );
 
     return { success: true };
   } catch (error) {
-    console.error('[admin-auth] Unexpected error initializing credentials:', error);
-    return { success: false, error: 'Error inesperado al inicializar credenciales' };
+    console.error('[admin-auth] Error initializing credentials:', error);
+    return { success: false, error: 'Error al inicializar credenciales' };
   }
 }

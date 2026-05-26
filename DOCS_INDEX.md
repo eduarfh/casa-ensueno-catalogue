@@ -1,23 +1,49 @@
-# 📚 Índice de Documentación - Sistema de Autenticación Admin
+# 📚 Índice de Documentación - Casa Ensueño Catalogue
 
-Guía completa del sistema de autenticación para el panel de administración.
+Guía completa del sistema de catálogo y administración.
 
 ## 🚀 Inicio Rápido
 
 **¿Primera vez?** Empieza aquí:
-- [`README_ADMIN_AUTH.md`](README_ADMIN_AUTH.md) - Resumen ejecutivo y inicio rápido
+- [`RESUMEN_CAMBIOS.md`](RESUMEN_CAMBIOS.md) - Estado actual del proyecto y migración
+- [`RAILWAY_SETUP.md`](RAILWAY_SETUP.md) - Configuración de base de datos
 
 ## 📖 Documentación por Tema
 
-### Para Usuarios
+### Migración a PostgreSQL (Railway)
 
-1. **Guía Rápida en Español**
+1. **Resumen de Cambios**
+   - [`RESUMEN_CAMBIOS.md`](RESUMEN_CAMBIOS.md)
+   - Estado de la migración
+   - Archivos actualizados y pendientes
+   - Próximos pasos
+
+2. **Configuración de Railway**
+   - [`RAILWAY_SETUP.md`](RAILWAY_SETUP.md)
+   - Variables de entorno
+   - Scripts SQL para crear tablas
+   - Troubleshooting
+
+3. **Guía de Migración**
+   - [`MIGRACION_POSTGRESQL.md`](MIGRACION_POSTGRESQL.md)
+   - Archivos pendientes de migrar
+   - Patrones de conversión
+   - Estado detallado
+
+4. **Helpers de Migración**
+   - [`scripts/migration-helpers.md`](scripts/migration-helpers.md)
+   - Ejemplos de conversión Supabase → PostgreSQL
+   - Patrones comunes (SELECT, INSERT, UPDATE, DELETE)
+
+### Autenticación Admin
+
+5. **Guía Rápida en Español**
    - [`AUTENTICACION_ADMIN.md`](AUTENTICACION_ADMIN.md)
    - Cómo usar el sistema
    - Cambiar credenciales
    - Solución de problemas comunes
 
-2. **Guía de Deploy**
+6. **Guía de Deploy**
    - [`DEPLOY_GUIDE.md`](DEPLOY_GUIDE.md)
    - Configuración en Vercel, Railway, Netlify
    - Paso a paso para producción
@@ -25,13 +51,13 @@ Guía completa del sistema de autenticación para el panel de administración.
 
 ### Para Desarrolladores
 
-3. **Documentación Técnica**
+7. **Documentación Técnica**
    - [`ADMIN_AUTH_README.md`](ADMIN_AUTH_README.md)
    - Arquitectura del sistema
    - Archivos importantes
    - Seguridad y mejores prácticas
 
-4. **Flujo del Sistema**
+8. **Flujo del Sistema**
    - [`FLUJO_AUTENTICACION.md`](FLUJO_AUTENTICACION.md)
    - Diagramas visuales
    - Flujo de datos
@@ -39,17 +65,50 @@ Guía completa del sistema de autenticación para el panel de administración.
 
 ## 🎯 Guías por Caso de Uso
 
+### Setup Inicial
+
+```
+1. Configurar Base de Datos
+   → RAILWAY_SETUP.md (Variables de Entorno)
+   → RAILWAY_SETUP.md (Estructura de Base de Datos)
+
+2. Verificar Conexión
+   → npm run test-db
+
+3. Crear Tablas
+   → RAILWAY_SETUP.md (Scripts SQL)
+
+4. Insertar Admin
+   → RAILWAY_SETUP.md (Datos Iniciales)
+```
+
 ### Desarrollo Local
 
 ```
-1. Instalación
-   → README_ADMIN_AUTH.md (Inicio Rápido)
+1. Configurar .env.local
+   → .env.example
 
-2. Cambiar credenciales
-   → AUTENTICACION_ADMIN.md (Sección: En Desarrollo)
+2. Verificar conexión
+   → npm run test-db
 
-3. Resetear credenciales
-   → AUTENTICACION_ADMIN.md (Sección: Restablecer)
+3. Iniciar desarrollo
+   → npm run dev
+```
+
+### Migración de Archivos
+
+```
+1. Ver archivos pendientes
+   → MIGRACION_POSTGRESQL.md
+
+2. Consultar patrones
+   → scripts/migration-helpers.md
+
+3. Actualizar archivo
+   → Seguir ejemplos de conversión
+
+4. Probar cambios
+   → npm run dev
 ```
 
 ### Deploy a Producción
@@ -58,122 +117,154 @@ Guía completa del sistema de autenticación para el panel de administración.
 1. Preparación
    → DEPLOY_GUIDE.md (Antes de Hacer Deploy)
 
-2. Configuración
-   → DEPLOY_GUIDE.md (Configuración por Plataforma)
+2. Configuración Railway
+   → RAILWAY_SETUP.md (Para producción en Railway)
 
 3. Verificación
    → DEPLOY_GUIDE.md (Checklist de Deploy)
-```
-
-### Solución de Problemas
-
-```
-1. No puedo acceder
-   → AUTENTICACION_ADMIN.md (Restablecer Credenciales)
-   → DEPLOY_GUIDE.md (Problemas Comunes)
-
-2. Entender el sistema
-   → FLUJO_AUTENTICACION.md (Diagramas)
-   → ADMIN_AUTH_README.md (Arquitectura)
 ```
 
 ## 📁 Estructura de Archivos
 
 ```
 Documentación:
-├── README_ADMIN_AUTH.md          ⭐ Inicio rápido
+├── RESUMEN_CAMBIOS.md            ⭐ Estado actual
+├── RAILWAY_SETUP.md              🗄️ Setup de base de datos
+├── MIGRACION_POSTGRESQL.md       🔄 Guía de migración
+├── scripts/migration-helpers.md  📝 Ejemplos de conversión
 ├── AUTENTICACION_ADMIN.md        📱 Guía de usuario
 ├── DEPLOY_GUIDE.md               🚀 Guía de deploy
 ├── ADMIN_AUTH_README.md          🔧 Documentación técnica
 ├── FLUJO_AUTENTICACION.md        📊 Diagramas de flujo
 └── DOCS_INDEX.md                 📚 Este archivo
 
-Código:
+Código - Base de Datos:
 ├── lib/
-│   └── admin-auth.ts             🔐 Lógica principal
-├── app/
-│   ├── auth/login/page.tsx       🔑 Página de login
-│   ├── admin/settings/page.tsx   ⚙️ Configuración
-│   └── api/auth/
-│       ├── admin-login/          📡 Endpoint login
-│       ├── admin-logout/         📡 Endpoint logout
-│       ├── admin-check/          📡 Verificación
-│       └── admin-credentials/    📡 Gestión credenciales
-├── components/
-│   ├── admin-guard.tsx           🛡️ Protección de rutas
-│   └── admin-header.tsx          🎨 Header con botón config
-└── scripts/
-    ├── init-admin-credentials.js      🔧 Inicialización
-    └── generate-password-hash.js      🔧 Generar hash
+│   ├── db.ts                     🗄️ Pool de conexiones PostgreSQL
+│   ├── db-helpers.ts             🛠️ Helpers para queries
+│   └── admin-auth.ts             🔐 Autenticación (migrado)
+
+Código - APIs (Migradas):
+├── app/api/
+│   └── products/route.ts         ✅ Migrado a PostgreSQL
+
+Código - APIs (Pendientes):
+├── app/api/
+│   ├── products/[id]/route.ts    🔄 Pendiente
+│   ├── products/search/route.ts  🔄 Pendiente
+│   ├── admin/*                   🔄 Pendiente
+│   ├── auth/*                    🔄 Pendiente
+│   └── ...                       🔄 Ver MIGRACION_POSTGRESQL.md
+
+Scripts:
+├── scripts/
+│   ├── test-db-connection.mjs    🧪 Verificar conexión
+│   ├── generate-password-hash.js 🔧 Generar hash
+│   └── migration-helpers.md      📖 Guía de conversión
 
 Configuración:
-├── .admin-credentials.json       💾 Credenciales locales (no en git)
 ├── .env.local                    🔐 Variables de entorno
 ├── .env.example                  📝 Ejemplo de variables
-└── .gitignore                    🚫 Excluye credenciales
+└── package.json                  📦 Scripts npm
 ```
 
 ## 🔍 Búsqueda Rápida
 
 ### ¿Cómo...?
 
-**...instalar el sistema?**
-→ `README_ADMIN_AUTH.md` → Inicio Rápido
+**...configurar la base de datos?**
+→ `RAILWAY_SETUP.md` → Variables de Entorno
 
-**...cambiar credenciales en desarrollo?**
-→ `AUTENTICACION_ADMIN.md` → En Desarrollo
+**...verificar la conexión?**
+→ `npm run test-db`
 
-**...cambiar credenciales en producción?**
-→ `AUTENTICACION_ADMIN.md` → En Producción
-→ `DEPLOY_GUIDE.md` → Configuración por Plataforma
+**...crear las tablas?**
+→ `RAILWAY_SETUP.md` → Estructura de Base de Datos
+
+**...migrar un archivo de Supabase a PostgreSQL?**
+→ `scripts/migration-helpers.md` → Ejemplos
+→ `MIGRACION_POSTGRESQL.md` → Archivos pendientes
+
+**...ver el estado de la migración?**
+→ `RESUMEN_CAMBIOS.md`
+
+**...cambiar credenciales de admin?**
+→ `AUTENTICACION_ADMIN.md` → En Desarrollo/Producción
 
 **...hacer deploy?**
 → `DEPLOY_GUIDE.md` → Completo
 
 **...generar un hash de contraseña?**
-→ `DEPLOY_GUIDE.md` → Obtener el Hash de Contraseña
+→ `npm run generate-hash`
 
-**...resetear credenciales?**
-→ `AUTENTICACION_ADMIN.md` → Restablecer Credenciales
-
-**...entender el flujo del sistema?**
-→ `FLUJO_AUTENTICACION.md` → Diagramas completos
-
-**...configurar variables de entorno?**
-→ `.env.example` → Plantilla
-→ `DEPLOY_GUIDE.md` → Configuración por Plataforma
+**...hacer backup de la base de datos?**
+→ `RAILWAY_SETUP.md` → Backup y Restore
 
 ## 🎓 Niveles de Documentación
 
-### Nivel 1: Usuario Básico
-- `README_ADMIN_AUTH.md` - Resumen
-- `AUTENTICACION_ADMIN.md` - Guía de uso
+### Nivel 1: Setup Inicial
+- `RESUMEN_CAMBIOS.md` - Estado actual
+- `RAILWAY_SETUP.md` - Configuración DB
+- `npm run test-db` - Verificación
 
-### Nivel 2: Usuario Avanzado
-- `DEPLOY_GUIDE.md` - Deploy y configuración
-- `.env.example` - Variables de entorno
+### Nivel 2: Desarrollo
+- `MIGRACION_POSTGRESQL.md` - Archivos pendientes
+- `scripts/migration-helpers.md` - Patrones de conversión
+- `AUTENTICACION_ADMIN.md` - Uso del sistema
 
-### Nivel 3: Desarrollador
+### Nivel 3: Deploy y Producción
+- `DEPLOY_GUIDE.md` - Deploy completo
+- `RAILWAY_SETUP.md` - Configuración producción
+
+### Nivel 4: Arquitectura
 - `ADMIN_AUTH_README.md` - Documentación técnica
-- `FLUJO_AUTENTICACION.md` - Arquitectura
+- `FLUJO_AUTENTICACION.md` - Diagramas
 - Código fuente en `lib/` y `app/`
+
+## 🚀 Comandos Útiles
+
+```bash
+# Verificar conexión a base de datos
+npm run test-db
+
+# Generar hash de contraseña
+npm run generate-hash
+
+# Desarrollo
+npm run dev
+
+# Build
+npm run build
+
+# Buscar archivos que usan Supabase
+grep -r "from '@/lib/supabase" app/ lib/ --include="*.ts" --include="*.tsx"
+```
+
+## 📊 Estado del Proyecto
+
+**Progreso de Migración: ~15%**
+
+- ✅ Infraestructura base (db, helpers, auth)
+- ✅ 1 API migrada (products route)
+- 🔄 ~30 archivos pendientes
+
+Ver detalles en [`RESUMEN_CAMBIOS.md`](RESUMEN_CAMBIOS.md)
 
 ## 📞 Soporte
 
 Si no encuentras lo que buscas:
 
 1. **Revisa el índice de búsqueda rápida** arriba
-2. **Consulta los diagramas** en `FLUJO_AUTENTICACION.md`
-3. **Lee la sección de problemas comunes** en `DEPLOY_GUIDE.md`
-4. **Revisa el código** en los archivos mencionados
+2. **Consulta RESUMEN_CAMBIOS.md** para el estado actual
+3. **Lee RAILWAY_SETUP.md** para troubleshooting de DB
+4. **Revisa los ejemplos** en `scripts/migration-helpers.md`
 
-## 🔄 Actualizaciones
+## 🔄 Próximos Pasos
 
-Este sistema de documentación está organizado para:
-- ✅ Encontrar información rápidamente
-- ✅ Entender el sistema paso a paso
-- ✅ Resolver problemas comunes
-- ✅ Aprender la arquitectura
+1. ✅ Verificar conexión: `npm run test-db`
+2. ✅ Crear tablas en Railway (ver RAILWAY_SETUP.md)
+3. 🔄 Decidir solución de almacenamiento de imágenes
+4. 🔄 Continuar migración de APIs (ver MIGRACION_POSTGRESQL.md)
 
 ---
 

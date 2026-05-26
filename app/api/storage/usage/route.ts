@@ -1,17 +1,5 @@
 import { NextResponse } from "next/server"
-import { createClient } from "@supabase/supabase-js"
-import { getStoragePublicUrl } from "@/lib/storage-utils"
-
-function getSupabaseAdminClient() {
-  const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY
-
-  if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
-    throw new Error("Missing SUPABASE env vars. Ensure NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are set.")
-  }
-
-  return createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
-}
+import { query } from "@/lib/db"
 
 function formatBytes(bytes: number) {
   if (bytes === 0) return "0 B"
@@ -22,68 +10,29 @@ function formatBytes(bytes: number) {
   return `${v.toFixed(2)} ${sizes[i]}`
 }
 
-async function fetchSizesFromUrls(urls: string[]) {
-  const sizes: number[] = []
-  const batchSize = 8
-  for (let i = 0; i < urls.length; i += batchSize) {
-    const batch = urls.slice(i, i + batchSize)
-    const promises = batch.map(async (url) => {
-      try {
-        const res = await fetch(url, { method: "HEAD" })
-        if (!res.ok) return 0
-        const len = res.headers.get("content-length")
-        if (!len) return 0
-        const n = parseInt(len, 10)
-        return Number.isFinite(n) ? n : 0
-      } catch (err) {
-        return 0
-      }
-    })
-    const results = await Promise.all(promises)
-    sizes.push(...results)
-  }
-  return sizes
-}
-
 export async function GET() {
   try {
-    const supabase = getSupabaseAdminClient()
+    // Obtener todas las imágenes con sus tamaños desde la base de datos
+    const result = await query('SELECT image_url, size FROM product_images');
+    const rows = result.rows;
 
-    const { data: rows, error } = await supabase.from("product_images").select("image_url,size")
-    if (error) {
-      console.error("Supabase error fetching product_images:", error)
-      throw error
-    }
+    // Sumar tamaños que ya están en la BD
+    let usedBytes = 0;
+    let filesWithSize = 0;
+    let filesWithoutSize = 0;
 
-    const items: Array<{ image_url: string; size?: number | null }> = (rows || []).map((r: any) => ({
-      image_url: r.image_url,
-      size: r.size ?? null,
-    }))
-
-    // sum sizes present in DB
-    let usedBytes = 0
-    const urlsToHead: string[] = []
-
-    for (const it of items) {
-      if (it.size && Number.isFinite(it.size) && it.size > 0) {
-        usedBytes += Number(it.size)
-      } else if (it.image_url) {
-        // Convert path to full URL for HEAD request
-        const fullUrl = getStoragePublicUrl(it.image_url);
-        if (fullUrl) {
-          urlsToHead.push(fullUrl);
-        }
+    for (const row of rows) {
+      if (row.size && Number.isFinite(row.size) && row.size > 0) {
+        usedBytes += Number(row.size);
+        filesWithSize++;
+      } else {
+        filesWithoutSize++;
       }
     }
 
-    if (urlsToHead.length > 0) {
-      const sizes = await fetchSizesFromUrls(urlsToHead)
-      usedBytes += sizes.reduce((s, v) => s + (v || 0), 0)
-    }
-
-    // <-- capacidad ajustada a 1 GB (Supabase free bucket)
-    const capacityBytes = 1 * 1024 * 1024 * 1024 // 1 GB
-    const percent = Math.min(100, (usedBytes / capacityBytes) * 100)
+    // Capacidad del volumen Railway (50GB)
+    const capacityBytes = 50 * 1024 * 1024 * 1024; // 50 GB
+    const percent = Math.min(100, (usedBytes / capacityBytes) * 100);
 
     return NextResponse.json({
       usedBytes,
@@ -91,7 +40,12 @@ export async function GET() {
       usedFormatted: formatBytes(usedBytes),
       capacityFormatted: formatBytes(capacityBytes),
       percent: Number(percent.toFixed(2)),
-      filesCount: items.length,
+      filesCount: rows.length,
+      filesWithSize,
+      filesWithoutSize,
+      note: filesWithoutSize > 0 
+        ? `${filesWithoutSize} archivos sin tamaño registrado. El tamaño real puede ser mayor.`
+        : undefined
     })
   } catch (err: any) {
     console.error("Storage usage error:", err)

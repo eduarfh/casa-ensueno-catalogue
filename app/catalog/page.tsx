@@ -1,5 +1,5 @@
 import SiteHeader from "@/components/site-header";
-import { createServerClient } from "@/lib/supabase/server";
+import { query } from "@/lib/db";
 import CatalogClient from "@/components/catalog-client";
 import StoreInfo from "@/components/store-info";
 import CatalogLoading from "./loading";
@@ -8,33 +8,16 @@ import { getStoragePublicUrl } from "@/lib/storage-utils";
 export const dynamic = "force-dynamic";
 
 export default async function CatalogPage() {
-  const supabase = await createServerClient();
-
   // Traer productos + imágenes (servidor)
   let products: any[] = [];
   try {
-    const { data: dbProducts, error: productsError } = await supabase
-      .from("products")
-      .select("*")
-      .order("created_at", { ascending: false });
+    // Obtener productos
+    const productsResult = await query('SELECT * FROM products ORDER BY created_at DESC');
+    const dbProducts = productsResult.rows;
 
-    if (productsError) {
-      console.error("[catalog] Error fetching products:", productsError);
-      return <CatalogLoading />;
-    }
-
-    const { data: dbImages, error: imagesError } = await supabase
-      .from("product_images")
-      .select("*")
-      .order("display_order", { ascending: true });
-
-    if (imagesError) {
-      console.error("[catalog] Error fetching product images:", imagesError);
-    }
-
-    if (!dbProducts) {
-      return <CatalogLoading />;
-    }
+    // Obtener imágenes
+    const imagesResult = await query('SELECT * FROM product_images ORDER BY display_order ASC');
+    const dbImages = imagesResult.rows;
 
     products = (dbProducts || []).map((product: any) => {
       const productImages = (dbImages || [])
@@ -76,17 +59,6 @@ export default async function CatalogPage() {
     console.error("[catalog] Failed to load products:", err);
     return <CatalogLoading />;
   }
-
-  // Derivar lista única de categorías desde los productos
-  const derivedCategories = Array.from(
-    new Map(
-      products
-        .map((p) => {
-          const name = (p.category ?? "Sin categoría").toString().trim() || "Sin categoría";
-          return [name, { id: name, name }] as const;
-        })
-    ).values()
-  );
 
   return (
     <div className="min-h-screen bg-background">

@@ -1,6 +1,6 @@
 // app/api/products/route.ts
 import { NextResponse } from "next/server";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { query } from "@/lib/db";
 import { cookies } from "next/headers";
 
 const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -34,31 +34,17 @@ export async function GET(request: Request) {
     const url = new URL(request.url);
     const onlyCategories = url.searchParams.get("onlyCategories");
 
-    const admin = createAdminClient();
-
     if (onlyCategories) {
       // Obtener categorías únicas desde products (global)
-      const { data, error } = await admin.from("products").select("category");
-      if (error) {
-        console.error("[products-get] error fetching categories:", error);
-        return NextResponse.json({ error: "Error fetching categories", details: error.message }, { status: 500 });
-      }
-      const cats = Array.isArray(data) ? data.map((r: any) => String(r.category || "").trim()).filter(Boolean) : [];
+      const result = await query('SELECT DISTINCT category FROM products WHERE category IS NOT NULL');
+      const cats = result.rows.map((r: any) => String(r.category || "").trim()).filter(Boolean);
       const unique = Array.from(new Set(cats));
       return NextResponse.json({ categories: unique }, { status: 200 });
     }
 
     // Devolver todos los productos (sin filtrar por usuario)
-    const { data: products, error: pErr } = await admin
-      .from("products")
-      .select("*")
-      .order("created_at", { ascending: false });
-
-    if (pErr) {
-      console.error("[products-get] error fetching products:", pErr);
-      return NextResponse.json({ error: "Error fetching products", details: pErr.message }, { status: 500 });
-    }
-    return NextResponse.json(products ?? [], { status: 200 });
+    const result = await query('SELECT * FROM products ORDER BY created_at DESC');
+    return NextResponse.json(result.rows ?? [], { status: 200 });
   } catch (err: unknown) {
     console.error("[products-get] unexpected error:", err);
     const message = err instanceof Error ? err.message : "Failed to fetch products";
@@ -86,46 +72,20 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Missing required fields: name y category" }, { status: 400 });
     }
 
-    const admin = createAdminClient();
-
     const rawCat = String(category).trim();
     let categoryName: string | null = null;
-    if (uuidRegex.test(rawCat)) {
-      const { data: found, error: fErr } = await admin.from("categories").select("name").eq("id", rawCat).maybeSingle();
-      if (fErr) {
-        console.error("[product-create] lookup category by uuid error:", fErr);
-        return NextResponse.json({ error: "Error resolving category", details: fErr.message }, { status: 500 });
-      }
-      if (!found?.name) return NextResponse.json({ error: "Category UUID not found" }, { status: 404 });
-      categoryName = found.name;
-    } else if (/^\d+$/.test(rawCat)) {
-      const idInt = Number(rawCat);
-      const { data: found, error: fErr } = await admin.from("categories").select("name").eq("id_int", idInt).maybeSingle();
-      if (fErr) {
-        console.error("[product-create] lookup category by id_int error:", fErr);
-        return NextResponse.json({ error: "Error resolving category", details: fErr.message }, { status: 500 });
-      }
-      if (!found?.name) return NextResponse.json({ error: `No se encontró categoría con id_int ${idInt}` }, { status: 404 });
-      categoryName = found.name;
-    } else {
-      categoryName = rawCat;
-    }
+    
+    // Usar el nombre de categoría directamente (no hay tabla categories)
+    categoryName = rawCat;
 
     if (!categoryName) return NextResponse.json({ error: "Invalid category" }, { status: 400 });
 
-    const { data: product, error: productError } = await admin
-      .from("products")
-      .insert({
-        name,
-        description,
-        price: Number.parseFloat(price ?? 0),
-        available: !!available,
-        category: categoryName,
-      })
-      .select()
-      .single();
+    const productResult = await query(
+      'INSERT INTO products (name, description, price, available, category) VALUES ($1, $2, $3, $4, $5) RETURNING *',
+      [name, description, Number.parseFloat(price ?? 0), !!available, categoryName]
+    );
 
-    if (productError) throw productError;
+    const product = productResult.rows[0];
 
     // manejar imágenes
     if (Array.isArray(images) && images.length) {
@@ -141,8 +101,12 @@ export async function POST(request: Request) {
       }
 
       if (imageRecords.length) {
-        const { error: imgError } = await admin.from("product_images").insert(imageRecords);
-        if (imgError) console.error("[product-create] image insert error:", imgError);
+        for (const img of imageRecords) {
+          await query(
+            'INSERT INTO product_images (product_id, image_url, display_order) VALUES ($1, $2, $3)',
+            [img.product_id, img.image_url, img.display_order]
+          );
+        }
       }
     }
 

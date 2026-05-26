@@ -1,7 +1,7 @@
 // app/admin/products/[id]/page.tsx
 export const dynamic = "force-dynamic";
 
-import { createAdminClient } from "@/lib/supabase/admin";
+import { query } from "@/lib/db";
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import Link from "next/link";
@@ -9,7 +9,6 @@ import { ProductForm } from "@/components/product-form";
 import { ChevronLeft } from "lucide-react";
 import AdminGuard from "@/components/admin-guard";
 import { AdminHeader } from "@/components/admin-header";
-import { getStoragePublicUrl } from "@/lib/storage-utils";
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -25,40 +24,50 @@ export default async function EditProductPage({ params }: Props) {
   }
 
   const { id } = await params;
-  const supabase = createAdminClient();
-
   const isNewProduct = id === "new";
 
   let product: any = null;
 
   if (!isNewProduct) {
-    const { data } = await supabase
-      .from("products")
-      .select(
-        `
-        id,
-        name,
-        description,
-        price,
-        available,
-        category,
-        product_images(id, image_url, display_order)
-      `,
-      )
-      .eq("id", id)
-      .single();
+    // Obtener producto con imágenes
+    const result = await query(`
+      SELECT p.*, 
+        json_agg(
+          json_build_object(
+            'id', pi.id,
+            'image_url', pi.image_url,
+            'display_order', pi.display_order
+          ) ORDER BY pi.display_order
+        ) FILTER (WHERE pi.id IS NOT NULL) as product_images
+      FROM products p
+      LEFT JOIN product_images pi ON p.id = pi.product_id
+      WHERE p.id = $1
+      GROUP BY p.id
+    `, [id]);
 
-    product = data;
+    product = result.rows[0];
 
     if (!product) {
       redirect("/admin");
     }
   }
 
-  // Traemos categorías usando id_int y las mapeamos a {id: string, name}
-  const { data: categories } = await supabase.from("categories").select("id_int, name").order("name");
+  // Obtener categorías únicas desde los productos existentes
+  let categories: any[] = [];
+  try {
+    const result = await query('SELECT DISTINCT category FROM products WHERE category IS NOT NULL ORDER BY category');
+    categories = result.rows.map((row, index) => ({
+      id_int: index + 1,
+      name: row.category
+    }));
+  } catch (err) {
+    console.error('[EditProductPage] Error fetching categories:', err);
+  }
 
-  const categoriesForClient = (categories || []).map((c: any) => ({ id: String(c?.id_int ?? ""), name: c?.name ?? "" }));
+  const categoriesForClient = categories.map((c: any) => ({ 
+    id: String(c?.id_int ?? ""), 
+    name: c?.name ?? "" 
+  }));
 
   return (
     <div className="min-h-screen bg-background">

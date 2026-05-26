@@ -1,6 +1,11 @@
 // app/api/upload/route.ts
 import { NextResponse } from "next/server";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { writeFile, mkdir } from "fs/promises";
+import { join } from "path";
+import { query } from "@/lib/db";
+import { getStoragePublicUrl } from "@/lib/storage-utils";
+
+const STORAGE_ROOT = process.env.STORAGE_PATH || '/app/storage';
 
 export async function POST(request: Request) {
   try {
@@ -13,87 +18,68 @@ export async function POST(request: Request) {
     if (!file) return NextResponse.json({ error: "No file provided" }, { status: 400 });
 
     // Límite (opcional)
-    const MAX_BYTES = 2 * 1024 * 1024; // 2MB, ajusta si quieres
+    const MAX_BYTES = 10 * 1024 * 1024; // 10MB
     if (typeof file.size === "number" && file.size > MAX_BYTES) {
       return NextResponse.json(
-        { error: "Archivo demasiado grande", details: `Máximo ${Math.round(MAX_BYTES / 1024)} KB` },
+        { error: "Archivo demasiado grande", details: `Máximo ${Math.round(MAX_BYTES / (1024 * 1024))} MB` },
         { status: 413 },
       );
     }
-
-    
-    const BUCKET = "casaensueno files";
-    const admin = createAdminClient();
 
     const originalName = file.name || "upload";
     const timestamp = Date.now();
     const safeName = originalName.replace(/[^a-zA-Z0-9.\-_]/g, "-");
     const filename = `${timestamp}-${safeName}`;
-    const path = `products/${filename}`;
+    const relativePath = `products/${filename}`;
 
-    // ArrayBuffer -> Buffer
-    const arrayBuffer = await file.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
-
-    const { data: uploadData, error: uploadError } = await admin.storage
-      .from(BUCKET)
-      .upload(path, buffer, {
-        contentType: file.type || "application/octet-stream",
-        upsert: false,
-      });
-
-    if (uploadError) {
-      console.error("[upload] supabase storage error:", uploadError);
-      return NextResponse.json({ error: "Upload failed", details: uploadError.message || uploadError }, { status: 500 });
-    }
-
-    // Obtener public URL si bucket es público (mejor) o signed URL (fallback)
-    let publicUrl: string | null = null;
+    // Crear directorio si no existe
+    const productsDir = join(STORAGE_ROOT, 'products');
     try {
-      const { data: pub } = admin.storage.from(BUCKET).getPublicUrl(path);
-      publicUrl = pub?.publicUrl ?? null;
-    } catch (e) {
-      console.warn("[upload] getPublicUrl failed:", e);
+      await mkdir(productsDir, { recursive: true });
+    } catch (err) {
+      // Directorio ya existe, continuar
     }
 
-    if (!publicUrl) {
-      try {
-        const { data: signed, error: signedErr } = await admin.storage.from(BUCKET).createSignedUrl(path, 60 * 60);
-        if (!signedErr && signed?.signedUrl) publicUrl = signed.signedUrl;
-      } catch (e) {
-        console.warn("[upload] createSignedUrl failed:", e);
-      }
-    }
+    // Guardar archivo en el volumen
+    const filePath = join(STORAGE_ROOT, relativePath);
+    const arrayBuffer = await file.arrayBuffer();
+    const buffer = new Uint8Array(arrayBuffer);
+    
+    await writeFile(filePath, buffer);
 
-    // Si nos pasan productId, insertar registro en product_images (guardamos path en image_url)
+    // Obtener URL pública
+    const publicUrl = getStoragePublicUrl(relativePath);
+
+    // Si nos pasan productId, insertar registro en product_images
     let productImage: any = null;
     if (productId) {
-      const { error: imgErr, data: imgData } = await admin
-        .from("product_images")
-        .insert([{ product_id: productId, image_url: path, display_order }])
-        .select()
-        .single();
-      if (imgErr) {
+      try {
+        const result = await query(
+          'INSERT INTO product_images (product_id, image_url, display_order, size) VALUES ($1, $2, $3, $4) RETURNING *',
+          [productId, relativePath, display_order, file.size]
+        );
+        productImage = result.rows[0];
+      } catch (imgErr) {
         console.error("[upload] product_images insert error:", imgErr);
-      } else {
-        productImage = imgData;
       }
     }
 
     return NextResponse.json(
       {
         url: publicUrl,
-        path,
+        path: relativePath,
         filename: originalName,
         size: file.size,
         type: file.type,
-        upload: uploadData ?? null,
         productImage,
       },
       { status: 200 },
     );
   } catch (error) {
     console.error("[upload] Upload error:", error);
-    return NextResponse.json({ error: "Upload failed", details: (error as Error).message ?? String(error) }, { status: 500 });
+    return NextResponse.json(
+      { error: "Upload failed", details: (error as Error).message ?? String(error) },
+      { status: 500 }
+    );
   }
 }
