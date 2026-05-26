@@ -12,14 +12,30 @@ interface CategoryBadgeProps {
 
 export default function CategoryBadge({ category, seed, className = "" }: CategoryBadgeProps) {
   const [color, setColor] = useState<{ background: string; textColor: string } | null>(null);
+  const [isDark, setIsDark] = useState(false);
 
   useEffect(() => {
     const s = seed ?? category ?? "";
     const c = getCategoryColor(s);
     setColor(c);
+    
+    // Detectar tema oscuro
+    const checkDarkMode = () => {
+      setIsDark(document.documentElement.classList.contains('dark'));
+    };
+    
+    checkDarkMode();
+    
+    // Observar cambios en el tema
+    const observer = new MutationObserver(checkDarkMode);
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+    
+    return () => observer.disconnect();
   }, [category, seed]);
 
-  const style = color ? { backgroundColor: color.background, color: color.textColor } : { backgroundColor: "var(--color-primary)", color: "var(--color-primary-foreground)" };
+  const style = color 
+    ? { backgroundColor: color.background, color: isDark ? '#ffffff' : '#1f2937' } 
+    : { backgroundColor: "var(--color-primary)", color: isDark ? '#ffffff' : '#1f2937' };
 
   return (
     <div

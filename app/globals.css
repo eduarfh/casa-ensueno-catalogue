@@ -60,24 +60,24 @@
 
 .dark {
   /* Dark mode with adapted natural palette */
-  --background: oklch(12% 0.002 120); /* Very dark warm background */
+  --background: oklch(22% 0.008 120); /* Softer dark warm background */
   --foreground: oklch(99.2% 0.002 120); /* Warm white text */
-  --card: oklch(15% 0.002 120); /* Dark warm card */
+  --card: oklch(25% 0.008 120); /* Lighter dark warm card */
   --card-foreground: oklch(99.2% 0.002 120);
-  --popover: oklch(15% 0.002 120);
+  --popover: oklch(25% 0.008 120);
   --popover-foreground: oklch(99.2% 0.002 120);
 
   /* Primary: Adjusted earthy green for dark mode */
   --primary: oklch(70% 0.05 130);
-  --primary-foreground: oklch(12% 0.002 120);
+  --primary-foreground: oklch(22% 0.008 120);
 
   /* Secondary: Adjusted warm beige */
   --secondary: oklch(75% 0.05 80);
-  --secondary-foreground: oklch(12% 0.002 120);
+  --secondary-foreground: oklch(22% 0.008 120);
 
   /* Accent: Adjusted soft blue */
   --accent: oklch(68% 0.1 220);
-  --accent-foreground: oklch(12% 0.002 120);
+  --accent-foreground: oklch(22% 0.008 120);
 
   /* Muted: Darker gray */
   --muted: oklch(35% 0 0);
@@ -85,13 +85,13 @@
 
   /* Warm rose brown adjusted */
   --tertiary: oklch(65% 0.08 40);
-  --tertiary-foreground: oklch(12% 0.002 120);
+  --tertiary-foreground: oklch(22% 0.008 120);
 
   --destructive: oklch(62% 0.2 30);
   --destructive-foreground: oklch(99.2% 0.002 120);
 
-  --border: oklch(28% 0.002 120); /* Subtle dark border */
-  --input: oklch(15% 0.002 120);
+  --border: oklch(35% 0.008 120); /* Lighter subtle dark border */
+  --input: oklch(25% 0.008 120);
   --ring: oklch(70% 0.05 130);
 
   --chart-1: oklch(70% 0.05 130);
@@ -100,13 +100,13 @@
   --chart-4: oklch(65% 0.08 40);
   --chart-5: oklch(72% 0 0);
 
-  --sidebar: oklch(15% 0.002 120);
+  --sidebar: oklch(25% 0.008 120);
   --sidebar-foreground: oklch(99.2% 0.002 120);
   --sidebar-primary: oklch(70% 0.05 130);
-  --sidebar-primary-foreground: oklch(12% 0.002 120);
+  --sidebar-primary-foreground: oklch(22% 0.008 120);
   --sidebar-accent: oklch(75% 0.05 80);
-  --sidebar-accent-foreground: oklch(12% 0.002 120);
-  --sidebar-border: oklch(28% 0.002 120);
+  --sidebar-accent-foreground: oklch(22% 0.008 120);
+  --sidebar-border: oklch(35% 0.008 120);
   --sidebar-ring: oklch(70% 0.05 130);
 }
 
@@ -221,7 +221,7 @@
 }
 
 .dark .scrollbar-custom::-webkit-scrollbar-track {
-  background: oklch(15% 0.002 120);
+  background: oklch(25% 0.008 120);
 }
 
 .dark .scrollbar-custom::-webkit-scrollbar-thumb {
