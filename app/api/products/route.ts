@@ -89,12 +89,17 @@ export async function POST(request: Request) {
 
     // manejar imágenes
     if (Array.isArray(images) && images.length) {
-      const imageRecords: { product_id: string; image_url: string; display_order?: number }[] = [];
+      const imageRecords: { product_id: string; image_url: string; display_order?: number; size?: number }[] = [];
 
       for (const img of images) {
         if (!img) continue;
         if (img.path && typeof img.path === "string") {
-          imageRecords.push({ product_id: product.id, image_url: img.path, display_order: img.display_order ?? 0 });
+          imageRecords.push({ 
+            product_id: product.id, 
+            image_url: img.path, 
+            display_order: img.display_order ?? 0,
+            size: img.size ?? null
+          });
         } else if (typeof img === "string") {
           imageRecords.push({ product_id: product.id, image_url: img, display_order: 0 });
         }
@@ -103,8 +108,8 @@ export async function POST(request: Request) {
       if (imageRecords.length) {
         for (const img of imageRecords) {
           await query(
-            'INSERT INTO product_images (product_id, image_url, display_order) VALUES ($1, $2, $3)',
-            [img.product_id, img.image_url, img.display_order]
+            'INSERT INTO product_images (product_id, image_url, display_order, size) VALUES ($1, $2, $3, $4)',
+            [img.product_id, img.image_url, img.display_order, img.size]
           );
         }
       }

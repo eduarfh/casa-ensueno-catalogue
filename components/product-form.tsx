@@ -293,7 +293,7 @@ export function ProductForm({ product, categories: initialCategories = [] }: Pro
     e.preventDefault();
     setIsSubmitting(true);
     try {
-      const uploadedImages: { url?: string; path?: string; display_order: number }[] = [];
+      const uploadedImages: { url?: string; path?: string; display_order: number; size?: number }[] = [];
       for (let i = 0; i < images.length; i++) {
         const image = images[i];
         if (image.id && !image.file) {
@@ -326,8 +326,20 @@ export function ProductForm({ product, categories: initialCategories = [] }: Pro
             setUploadingImages((prev) => prev.filter((idx) => idx !== i));
             throw new Error(serverMsg);
           }
-          // Store the path instead of the full URL for consistency with storage deletion
-          uploadedImages.push({ path: data.path, display_order: i });
+          // Store the path and size
+          uploadedImages.push({ path: data.path, display_order: i, size: data.size });
+          
+          // Update the image preview with the URL returned from the server
+          setImages((prev) => {
+            const updated = [...prev];
+            updated[i] = {
+              ...updated[i],
+              path: data.path,
+              url: data.url || data.path // Use the URL from server response
+            };
+            return updated;
+          });
+          
           setUploadingImages((prev) => prev.filter((idx) => idx !== i));
         }
       }
