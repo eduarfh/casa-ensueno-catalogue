@@ -16,24 +16,23 @@ function getKeyFromEnv(): Buffer {
 
 /** Convierte un Buffer a Uint8Array explícitamente (evita problemas de tipos). */
 function asUint8(b: Buffer): Uint8Array {
-  // new Uint8Array(buffer) crea una vista que satisface ArrayBufferView
-  return new Uint8Array(b);
+  // Buffer es un subtipo de Uint8Array en Node; crear una copia evita problemas de tipado
+  return Uint8Array.from(b);
 }
 
 export function encryptPassword(plain: string): string {
   const keyBuf = getKeyFromEnv();
-  const keyObj = crypto.createSecretKey(keyBuf); // KeyObject -> cumple las firmas
+  const keyObj = crypto.createSecretKey(keyBuf as any); // cast para evitar incompatibilidades de tipos
 
   const ivBuf = crypto.randomBytes(IV_LENGTH);
   const ivView = asUint8(ivBuf);
 
-  // Usar ivView (Uint8Array) en la llamada para que TS esté contento
-  const cipher = crypto.createCipheriv(ALGO, keyObj, ivView) as crypto.CipherGCM;
+  // Usar any en las llamadas a crypto para evitar errores de tipado entre Buffer/Uint8Array
+  const cipher = crypto.createCipheriv(ALGO, keyObj as any, ivView as any) as crypto.CipherGCM;
 
-  // cipher.update con input string devuelve Buffer, no lo pasamos a APIs que pidan ArrayBufferView
-  const ciphertextBuf = Buffer.concat([cipher.update(plain, "utf8"), cipher.final()]);
+  const ciphertextBuf = Buffer.concat([cipher.update(plain, "utf8") as any, cipher.final() as any]);
 
-  const tagBuf = cipher.getAuthTag();
+  const tagBuf = cipher.getAuthTag() as any;
 
   const payload = {
     v: ivBuf.toString("base64"),
@@ -46,7 +45,7 @@ export function encryptPassword(plain: string): string {
 
 export function decryptPassword(b64payload: string): string {
   const keyBuf = getKeyFromEnv();
-  const keyObj = crypto.createSecretKey(keyBuf);
+  const keyObj = crypto.createSecretKey(keyBuf as any);
 
   let jsonStr: string;
   try {
@@ -66,14 +65,13 @@ export function decryptPassword(b64payload: string): string {
   const ciphertextBuf = Buffer.from(payload.c, "base64");
   const tagBuf = Buffer.from(payload.t, "base64");
 
-  // Convertir explícitamente a Uint8Array antes de pasarlo a las APIs que TypeScript tipa como ArrayBufferView
   const ivView = asUint8(ivBuf);
   const tagView = asUint8(tagBuf);
   const ciphertextView = asUint8(ciphertextBuf);
 
-  const decipher = crypto.createDecipheriv(ALGO, keyObj, ivView) as crypto.DecipherGCM;
-  decipher.setAuthTag(tagView);
+  const decipher = crypto.createDecipheriv(ALGO, keyObj as any, ivView as any) as crypto.DecipherGCM;
+  decipher.setAuthTag(tagView as any);
 
-  const decryptedBuf = Buffer.concat([decipher.update(ciphertextView), decipher.final()]);
+  const decryptedBuf = Buffer.concat([decipher.update(ciphertextView as any) as any, decipher.final() as any]);
   return decryptedBuf.toString("utf8");
 }

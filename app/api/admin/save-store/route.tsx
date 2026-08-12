@@ -1,6 +1,6 @@
 // app/api/admin/save-store/route.ts
 import { NextResponse } from "next/server";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { query } from "@/lib/db";
 import { revalidatePath } from "next/cache";
 
 type StoreInfoRow = {
@@ -20,32 +20,15 @@ export async function POST(request: Request) {
   try {
     const body = await request.json().catch(() => ({}));
     
-    // Preparar payload con updated_at explícito
-    const payload: Partial<StoreInfoRow> = {
-      label: body.label ?? null,
-      phone_display: body.phone_display ?? null,
-      whatsapp_number: body.whatsapp_number ?? null,
-      address: body.address ?? null,
-      lat: body.lat ?? null,
-      lng: body.lng ?? null,
-      hours: body.hours ?? null,
-      updated_at: new Date().toISOString(), // Forzar actualización del timestamp
-    };
-
-    const admin = createAdminClient();
-
     // 1) Leer la fila existente (si existe)
-    const { data: existingData, error: readErr } = await admin
-      .from("store_info")
-      .select("*")
-      .order("updated_at", { ascending: false })
-      .limit(1)
-      .single();
-
-    if (readErr && readErr.code !== 'PGRST116') { // PGRST116 = no rows returned
-      console.error("[POST /api/admin/save-store] read error:", readErr);
-      return NextResponse.json({ error: "DB read error", details: readErr }, { status: 500 });
-    }
+    const selectSql = `
+      SELECT * FROM store_info 
+      ORDER BY updated_at DESC 
+      LIMIT 1
+    `;
+    
+    const selectResult = await query(selectSql);
+    const existingData = selectResult.rows[0];
 
     let resultRow: StoreInfoRow | null = null;
 
@@ -53,36 +36,55 @@ export async function POST(request: Request) {
       // 2a) UPDATE por id y devolver la fila actualizada
       console.log("[POST /api/admin/save-store] Updating existing row with id:", existingData.id);
       
-      const { data: updatedData, error: updateErr } = await admin
-        .from("store_info")
-        .update(payload)
-        .eq("id", existingData.id)
-        .select("*")
-        .single();
+      const updateSql = `
+        UPDATE store_info 
+        SET 
+          label = $1,
+          phone_display = $2,
+          whatsapp_number = $3,
+          address = $4,
+          lat = $5,
+          lng = $6,
+          hours = $7,
+          updated_at = NOW()
+        WHERE id = $8
+        RETURNING *
+      `;
+      
+      const updateResult = await query(updateSql, [
+        body.label ?? null,
+        body.phone_display ?? null,
+        body.whatsapp_number ?? null,
+        body.address ?? null,
+        body.lat ?? null,
+        body.lng ?? null,
+        body.hours ?? null,
+        existingData.id
+      ]);
 
-      if (updateErr) {
-        console.error("[POST /api/admin/save-store] update error:", updateErr);
-        return NextResponse.json({ error: "DB update error", details: updateErr }, { status: 500 });
-      }
-
-      resultRow = updatedData as StoreInfoRow;
+      resultRow = updateResult.rows[0] as StoreInfoRow;
       console.log("[POST /api/admin/save-store] Updated successfully:", resultRow);
     } else {
       // 2b) INSERT y devolver la fila insertada
       console.log("[POST /api/admin/save-store] Inserting new row");
       
-      const { data: insertedData, error: insertErr } = await admin
-        .from("store_info")
-        .insert(payload)
-        .select("*")
-        .single();
+      const insertSql = `
+        INSERT INTO store_info (label, phone_display, whatsapp_number, address, lat, lng, hours)
+        VALUES ($1, $2, $3, $4, $5, $6, $7)
+        RETURNING *
+      `;
+      
+      const insertResult = await query(insertSql, [
+        body.label ?? null,
+        body.phone_display ?? null,
+        body.whatsapp_number ?? null,
+        body.address ?? null,
+        body.lat ?? null,
+        body.lng ?? null,
+        body.hours ?? null
+      ]);
 
-      if (insertErr) {
-        console.error("[POST /api/admin/save-store] insert error:", insertErr);
-        return NextResponse.json({ error: "DB insert error", details: insertErr }, { status: 500 });
-      }
-
-      resultRow = insertedData as StoreInfoRow;
+      resultRow = insertResult.rows[0] as StoreInfoRow;
       console.log("[POST /api/admin/save-store] Inserted successfully:", resultRow);
     }
 

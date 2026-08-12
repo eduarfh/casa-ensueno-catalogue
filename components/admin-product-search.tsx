@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { Search, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -8,10 +8,20 @@ import { Button } from "@/components/ui/button";
 interface AdminProductSearchProps {
   onSearch: (query: string) => void;
   placeholder?: string;
+  initialValue?: string;
 }
 
-export function AdminProductSearch({ onSearch, placeholder = "Buscar productos..." }: AdminProductSearchProps) {
-  const [query, setQuery] = useState("");
+export function AdminProductSearch({ 
+  onSearch, 
+  placeholder = "Buscar productos...",
+  initialValue = ""
+}: AdminProductSearchProps) {
+  const [query, setQuery] = useState(initialValue);
+
+  // Sincronizar con initialValue cuando cambie (ej. navegación del navegador)
+  useEffect(() => {
+    setQuery(initialValue);
+  }, [initialValue]);
 
   const handleSearch = (value: string) => {
     setQuery(value);

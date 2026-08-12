@@ -134,7 +134,7 @@ export function AdminHeader() {
             <div className="relative flex-shrink-0 rounded-2xl overflow-hidden w-20 h-20 sm:w-20 sm:h-20 md:w-24 md:h-24">
               <Link href="/" aria-label="Casa Ensueño - Inicio">
                 <Image
-                  src="https://zvdwytdadegzwjxgvspz.supabase.co/storage/v1/object/public/casaensueno%20files/logo%20con%20fondo%20recortado%20baja%20calidad.jpg"
+                  src="https://yzjvywcplllhsqqcfsyb.supabase.co/storage/v1/object/public/Fotos%20Catalogo/logo%20con%20fondo%20recortado%20baja%20calidad.jpg"
                   alt="Logo Casa Ensueño"
                   fill
                   className="object-contain"
@@ -146,10 +146,10 @@ export function AdminHeader() {
             <div className="leading-tight">
               <Link href="/" className="block">
                 <h1 className="text-lg sm:text-2xl font-bold text-primary hover:text-primary/80 transition-colors">
-                  Casa Ensueño • Admin
+                  Casa Ensueño
                 </h1>
-                <p className="text-[11px] sm:text-sm text-muted-foreground hidden sm:block">
-                  Panel de administración
+                <p className="text-[11px] sm:text-sm text-muted-foreground sm:block">
+                  Administración
                 </p>
               </Link>
             </div>
@@ -276,7 +276,7 @@ export function AdminHeader() {
 
 
             {/* Links centrados */}
-            <div className="flex items-center gap-2">
+            <div className="flex w-full max-w-[420px] items-center justify-between gap-1.5 overflow-hidden">
 
               {/* Botón de registrations deshabilitado */}
               {/* <Link
@@ -294,12 +294,12 @@ export function AdminHeader() {
 
               <Link
                 href="/admin/settings"
-                className="text-xs sm:text-sm font-medium hover:text-primary transition-colors px-2 py-1"
+                className="text-xs sm:text-sm font-medium hover:text-primary transition-colors px-1 py-1"
               >
                 <Button
                   variant="outline"
                   size="sm"
-                  className="bg-transparent"
+                  className="bg-transparent min-w-[38px] shrink-0"
                 >
                   <Key className="h-4 w-4" />
                 </Button>
@@ -307,36 +307,38 @@ export function AdminHeader() {
 
               <Link
                 href="/admin/store"
-                className="text-xs sm:text-sm font-medium hover:text-primary transition-colors px-2 py-1"
+                className="text-xs sm:text-sm font-medium hover:text-primary transition-colors px-1 py-1"
               >
                 <Button
                   variant="outline"
                   size="sm"
-                  className="bg-transparent"
+                  className="bg-transparent min-w-[38px] shrink-0"
                 >
                   <Settings className="h-4 w-4" />
                 </Button>
               </Link>
 
               {checking ? (
-                <div className="text-sm text-muted-foreground px-3 py-2 rounded-md">Cargando...</div>
+                <div className="text-sm text-muted-foreground px-2 py-2 rounded-md shrink-0">Cargando...</div>
               ) : username ? (
-                <>
-                  <div className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-muted/50 border border-border/50">
-                    <span className="text-[10px] font-medium text-muted-foreground">Admin:</span>
-                    <span className="text-xs font-semibold">{username}</span>
-                  </div>
-                </>
+                <div className="flex min-w-0 max-w-[120px] items-center justify-center gap-1 px-2 py-1 rounded-md bg-muted/50 border border-border/50 min-h-[40px] shrink-0 overflow-hidden">
+                  <span className="text-[9px] font-medium text-muted-foreground truncate">Admin:</span>
+                  <span className="text-[10px] font-semibold truncate">{username}</span>
+                </div>
               ) : (
                 <Link
                   href="/auth/login"
-                  className="text-sm font-medium hover:text-primary transition-colors px-3 py-2 rounded-md"
+                  className="text-sm font-medium hover:text-primary transition-colors px-2 py-2 rounded-md min-h-[40px] flex items-center justify-center shrink-0"
                   onClick={closeMenu}
                 >
                   Iniciar sesión
                 </Link>
               )}
-              <ThemeToggle />
+
+              <div className="flex items-center justify-center min-w-[38px] min-h-[40px] shrink-0">
+                <ThemeToggle />
+              </div>
+
               <Button
                 variant="outline"
                 size="sm"
@@ -344,11 +346,10 @@ export function AdminHeader() {
                   closeMenu();
                   handleLogout();
                 }}
-                className="text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 bg-transparent"
+                className="text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 bg-transparent min-w-[38px] shrink-0"
               >
                 <LogOut className="h-4 w-4" />
               </Button>
-
 
               <div
                 role="button"

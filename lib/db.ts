@@ -1,7 +1,8 @@
 // lib/db.ts
 import { Pool } from 'pg';
 
-let pool: Pool | null = null;
+// Usar any en el tipo del pool para evitar problema con las declaraciones faltantes
+let pool: any | null = null;
 
 export function getPool() {
   if (!pool) {

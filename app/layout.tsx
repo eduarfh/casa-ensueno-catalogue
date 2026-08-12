@@ -7,15 +7,16 @@ import { Suspense } from "react";
 import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
 import WhatsAppContactsModal from "@/components/whatsapp-contacts-modal";
+import { env } from "node:process";
 
 const _geist = Geist({ subsets: ["latin"], variable: "--font-geist" });
 const _geistMono = Geist_Mono({ subsets: ["latin"], variable: "--font-geist-mono" });
 
-const SITE_URL = "https://casaensueno-catalogue.vercel.app";
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';;
 
 // URL única para favicon y OG image
 const SHARED_IMAGE =
-  "https://jgxqopmrwuxyfirpvbhz.supabase.co/storage/v1/object/public/casaensueno%20files/logo.jpg";
+  "https://yzjvywcplllhsqqcfsyb.supabase.co/storage/v1/object/public/Fotos%20Catalogo/logo%20con%20fondo%20recortado%20baja%20calidad.jpg";
 
 export const metadata: Metadata = {
   title: "Catálogo de Productos - Hogar y Decoración",

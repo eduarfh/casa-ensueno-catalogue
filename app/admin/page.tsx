@@ -138,8 +138,8 @@ function renderPage(products: ProductItemLocal[]) {
       <main className="container mx-auto px-1 py-8">
         <div className="flex items-start justify-between mb-8">
           <div>
-            <h1 className="text-3xl font-bold mb-2">Dashboard de Administración</h1>
-            <p className="text-muted-foreground">Gestiona los productos e información del catálogo</p>
+            <h1 className="text-3xl font-bold mb-2">Administración</h1>
+            <p className="text-muted-foreground">Gestiona tu catálogo</p>
           </div>
 
         </div>
@@ -171,8 +171,8 @@ function renderWithError(error: unknown) {
       <main className="container mx-auto px-4 py-8">
         <div className="flex items-center justify-between mb-8">
           <div>
-            <h1 className="text-3xl font-bold mb-2">Dashboard de Administración</h1>
-            <p className="text-muted-foreground">Gestiona tus productos y catálogo</p>
+            <h1 className="text-3xl font-bold mb-2">Administración</h1>
+            <p className="text-muted-foreground">Gestiona tus catálogo</p>
           </div>
         </div>
 

@@ -1,36 +1,29 @@
 // app/api/admin/store-whatsapp/route.ts
 import { NextResponse } from "next/server";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { query } from "@/lib/db";
 import { revalidatePath } from "next/cache";
 
 export async function POST(request: Request) {
   try {
     const body = await request.json().catch(() => ({}));
-    const payload = {
-      store_id: body.store_id ?? null,
-      name: (body.name ?? "").toString().trim(),
-      phone: (body.phone ?? "").toString().replace(/\D/g, ""),
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    };
-    if (!payload.name || !payload.phone) {
+    const name = (body.name ?? "").toString().trim();
+    const phone = (body.phone ?? "").toString().replace(/\D/g, "");
+    const store_id = body.store_id ?? null;
+    
+    if (!name || !phone) {
       return NextResponse.json({ error: "name & phone required" }, { status: 400 });
     }
-
-    const admin = createAdminClient();
     
-    console.log("[POST /api/admin/store-whatsapp] Creating contact:", payload);
+    console.log("[POST /api/admin/store-whatsapp] Creating contact:", { name, phone, store_id });
     
-    const { data, error } = await admin
-      .from("store_whatsapp_contacts")
-      .insert(payload)
-      .select("*")
-      .single();
-
-    if (error) {
-      console.error("[POST /api/admin/store-whatsapp] insert error:", error);
-      return NextResponse.json({ error: "DB insert error", details: error }, { status: 500 });
-    }
+    const insertSql = `
+      INSERT INTO store_whatsapp_contacts (store_id, name, phone)
+      VALUES ($1, $2, $3)
+      RETURNING *
+    `;
+    
+    const result = await query(insertSql, [store_id, name, phone]);
+    const data = result.rows[0];
     
     console.log("[POST /api/admin/store-whatsapp] Created successfully:", data);
     
@@ -52,31 +45,40 @@ export async function PATCH(request: Request) {
     const id = body.id;
     if (!id) return NextResponse.json({ error: "id required" }, { status: 400 });
 
-    const payload: any = {
-      updated_at: new Date().toISOString(), // Forzar actualización del timestamp
-    };
+    const updates: string[] = [];
+    const values: any[] = [];
+    let paramIndex = 1;
     
-    if (body.name !== undefined) payload.name = String(body.name).trim();
-    if (body.phone !== undefined) payload.phone = String(body.phone).replace(/\D/g, "");
+    if (body.name !== undefined) {
+      updates.push(`name = $${paramIndex++}`);
+      values.push(String(body.name).trim());
+    }
+    if (body.phone !== undefined) {
+      updates.push(`phone = $${paramIndex++}`);
+      values.push(String(body.phone).replace(/\D/g, ""));
+    }
     
-    if (!payload.name && !payload.phone) {
+    if (updates.length === 0) {
       return NextResponse.json({ error: "nothing to update" }, { status: 400 });
     }
-
-    const admin = createAdminClient();
     
-    console.log("[PATCH /api/admin/store-whatsapp] Updating contact:", id, payload);
+    updates.push(`updated_at = NOW()`);
+    values.push(id);
     
-    const { data, error } = await admin
-      .from("store_whatsapp_contacts")
-      .update(payload)
-      .eq("id", id)
-      .select("*")
-      .single();
-
-    if (error) {
-      console.error("[PATCH /api/admin/store-whatsapp] update error:", error);
-      return NextResponse.json({ error: "DB update error", details: error }, { status: 500 });
+    console.log("[PATCH /api/admin/store-whatsapp] Updating contact:", id);
+    
+    const updateSql = `
+      UPDATE store_whatsapp_contacts 
+      SET ${updates.join(', ')}
+      WHERE id = $${paramIndex}
+      RETURNING *
+    `;
+    
+    const result = await query(updateSql, values);
+    const data = result.rows[0];
+    
+    if (!data) {
+      return NextResponse.json({ error: "Contact not found" }, { status: 404 });
     }
     
     console.log("[PATCH /api/admin/store-whatsapp] Updated successfully:", data);
@@ -93,16 +95,19 @@ export async function DELETE(request: Request) {
     const body = await request.json().catch(() => ({}));
     const id = body.id;
     if (!id) return NextResponse.json({ error: "id required" }, { status: 400 });
-
-    const admin = createAdminClient();
     
     console.log("[DELETE /api/admin/store-whatsapp] Deleting contact:", id);
     
-    const { error } = await admin.from("store_whatsapp_contacts").delete().eq("id", id);
-
-    if (error) {
-      console.error("[DELETE /api/admin/store-whatsapp] delete error:", error);
-      return NextResponse.json({ error: "DB delete error", details: error }, { status: 500 });
+    const deleteSql = `
+      DELETE FROM store_whatsapp_contacts 
+      WHERE id = $1
+      RETURNING *
+    `;
+    
+    const result = await query(deleteSql, [id]);
+    
+    if (result.rows.length === 0) {
+      return NextResponse.json({ error: "Contact not found" }, { status: 404 });
     }
     
     console.log("[DELETE /api/admin/store-whatsapp] Deleted successfully");

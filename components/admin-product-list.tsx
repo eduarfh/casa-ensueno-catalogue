@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
+import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import {
   AlertDialog,
@@ -15,7 +16,6 @@ import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
 import { Edit, Trash2, ChevronLeft, ChevronRight } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { useRouter } from "next/navigation";
 import AvailabilityFilter from "@/components/availability-filter";
 
 interface ProductItem {
@@ -24,26 +24,226 @@ interface ProductItem {
   price?: number | string | null;
   stock?: number;
   available?: boolean | number | string | null;
-  // Preferimos product.category: string | null
   category?: string | null;
-  // Backwards compatibility shapes
   categories?: { name?: string } | null;
   product_images?: Array<{ id: string; image_url: string }>;
-  product_categories?: any; // legacy relational shape (optional)
+  product_categories?: any;
 }
 
 interface ProductListProps {
   products: ProductItem[];
 }
 
+const STORAGE_KEY = 'admin-list-state';
+
+type AdminListState = {
+  search: string;
+  page: number;
+  perPage: number;
+  available: boolean;
+  scrollY: number;
+};
+
+function readAdminListState(): AdminListState | null {
+  try {
+    const saved = sessionStorage.getItem(STORAGE_KEY);
+    if (!saved) return null;
+    const parsed = JSON.parse(saved) as Partial<AdminListState>;
+    if (!parsed || typeof parsed !== "object") return null;
+
+    return {
+      search: typeof parsed.search === "string" ? parsed.search : "",
+      page: Number.isFinite(parsed.page) ? Number(parsed.page) : 1,
+      perPage: Number.isFinite(parsed.perPage) ? Number(parsed.perPage) : 10,
+      available: Boolean(parsed.available),
+      scrollY: Number.isFinite(parsed.scrollY) ? Number(parsed.scrollY) : 0,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function writeAdminListState(search: string, page: number, perPage: number, available: boolean) {
+  try {
+    const state: AdminListState = {
+      search,
+      page,
+      perPage,
+      available,
+      scrollY: window.scrollY,
+    };
+    sessionStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  } catch {
+    // Ignorar errores de sessionStorage en navegadores restringidos
+  }
+}
+
 export function AdminProductList({ products }: ProductListProps) {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const hasRestoredState = useRef(false);
+  
   const [productToDelete, setProductToDelete] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(10);
-  const [availableOnly, setAvailableOnly] = useState(false);
+  
+  // Leer desde URL params (se actualizará cuando cambien los params)
+  const urlPage = parseInt(searchParams.get("page") || "1");
+  const urlPerPage = parseInt(searchParams.get("perPage") || "10");
+  const urlAvailable = searchParams.get("available") === "true";
+  const urlSearch = searchParams.get("search") || "";
+  
+  const [currentPage, setCurrentPage] = useState(urlPage);
+  const [itemsPerPage, setItemsPerPage] = useState(urlPerPage);
+  const [availableOnly, setAvailableOnly] = useState(urlAvailable);
+  
   const { toast } = useToast();
-  const router = useRouter();
+
+  // Restaurar estado al montar si venimos del detalle del producto
+  useEffect(() => {
+    if (hasRestoredState.current) return;
+    hasRestoredState.current = true;
+
+    if (typeof window === "undefined") return;
+
+    const savedState = readAdminListState();
+    if (!savedState) {
+      if ("scrollRestoration" in window.history) {
+        window.history.scrollRestoration = "manual";
+      }
+      return;
+    }
+
+    const nextParams = new URLSearchParams(window.location.search);
+
+    if (savedState.search) {
+      nextParams.set("search", savedState.search);
+    } else {
+      nextParams.delete("search");
+    }
+
+    if (savedState.page > 1) {
+      nextParams.set("page", String(savedState.page));
+    } else {
+      nextParams.delete("page");
+    }
+
+    if (savedState.perPage !== 10) {
+      nextParams.set("perPage", String(savedState.perPage));
+    } else {
+      nextParams.delete("perPage");
+    }
+
+    if (savedState.available) {
+      nextParams.set("available", "true");
+    } else {
+      nextParams.delete("available");
+    }
+
+    const finalUrl = nextParams.toString() ? `${pathname}?${nextParams.toString()}` : pathname;
+    const currentUrl = `${pathname}${window.location.search ? `?${window.location.search.slice(1)}` : ""}`;
+
+    if (finalUrl !== currentUrl) {
+      router.replace(finalUrl, { scroll: false });
+    }
+
+    setCurrentPage(savedState.page);
+    setItemsPerPage(savedState.perPage);
+    setAvailableOnly(savedState.available);
+
+    setTimeout(() => {
+      window.scrollTo({ top: savedState.scrollY, behavior: "auto" });
+      sessionStorage.removeItem(STORAGE_KEY);
+    }, 120);
+  }, [pathname, router]);
+
+  // Sincronizar estado con URL cuando cambian los searchParams (ej. navegación del navegador)
+  useEffect(() => {
+    const urlPage = parseInt(searchParams.get("page") || "1");
+    const urlPerPage = parseInt(searchParams.get("perPage") || "10");
+    const urlAvailable = searchParams.get("available") === "true";
+    
+    console.log('[AdminProductList] Syncing from URL:', { urlPage, urlPerPage, urlAvailable, currentPage, itemsPerPage, availableOnly });
+    
+    if (urlPage !== currentPage) setCurrentPage(urlPage);
+    if (urlPerPage !== itemsPerPage) setItemsPerPage(urlPerPage);
+    if (urlAvailable !== availableOnly) setAvailableOnly(urlAvailable);
+  }, [searchParams]); // Omitimos los estados intencionalmente para evitar loops
+
+  // Actualizar URL cuando cambien los filtros
+  useEffect(() => {
+    // Limpiar timeout anterior
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+    }
+
+    // Pequeño delay para evitar múltiples actualizaciones
+    timeoutRef.current = setTimeout(() => {
+      const currentParams = new URLSearchParams(window.location.search);
+      
+      // Mantener el search param si existe
+      const currentSearch = currentParams.get("search");
+      if (currentSearch) {
+        currentParams.set("search", currentSearch);
+      }
+      
+      // Leer valores actuales de la URL
+      const urlPage = parseInt(currentParams.get("page") || "1");
+      const urlPerPage = parseInt(currentParams.get("perPage") || "10");
+      const urlAvailable = currentParams.get("available") === "true";
+      
+      // Solo actualizar si realmente cambió
+      let needsUpdate = false;
+      
+      if (currentPage !== urlPage) {
+        if (currentPage > 1) {
+          currentParams.set("page", currentPage.toString());
+        } else {
+          currentParams.delete("page");
+        }
+        needsUpdate = true;
+      }
+      
+      if (itemsPerPage !== urlPerPage) {
+        if (itemsPerPage !== 10) {
+          currentParams.set("perPage", itemsPerPage.toString());
+        } else {
+          currentParams.delete("perPage");
+        }
+        needsUpdate = true;
+      }
+      
+      if (availableOnly !== urlAvailable) {
+        if (availableOnly) {
+          currentParams.set("available", "true");
+        } else {
+          currentParams.delete("available");
+        }
+        needsUpdate = true;
+      }
+      
+      if (needsUpdate) {
+        const newUrl = currentParams.toString() 
+          ? `${pathname}?${currentParams.toString()}` 
+          : pathname;
+        
+        router.replace(newUrl, { scroll: false });
+      }
+    }, 100);
+
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+    };
+  }, [currentPage, itemsPerPage, availableOnly, pathname, router]);
+
+  // Función para guardar scroll antes de navegar
+  const handleNavigateToProduct = (productId: string) => {
+    writeAdminListState(urlSearch, currentPage, itemsPerPage, availableOnly);
+    router.push(`/admin/products/${productId}`);
+  };
 
   const handleDeleteProduct = async () => {
     if (!productToDelete) return;
@@ -68,15 +268,7 @@ export function AdminProductList({ products }: ProductListProps) {
         description: "El producto ha sido eliminado exitosamente",
       });
 
-      // Refresh the current route so the list updates
-      try {
-        router.refresh();
-      } catch (err) {
-        // fallback: navigate to admin root
-        console.warn("[AdminProductList] router.refresh failed, fallback to /admin", err);
-        router.push("/admin");
-      }
-
+      router.refresh();
       setProductToDelete(null);
     } catch (error) {
       toast({
@@ -96,10 +288,6 @@ export function AdminProductList({ products }: ProductListProps) {
   }, [products, availableOnly]);
 
   const renderCategory = (product: ProductItem) => {
-    // Prioridad:
-    // 1) product.category (string)
-    // 2) product.categories?.name (legacy)
-    // 3) product.product_categories[0]?.categories?.name (legacy join)
     const catFromCategoryField = typeof product.category === "string" && product.category.trim() ? product.category.trim() : null;
     const catFromCategoriesObj = product.categories && (product.categories as any).name ? (product.categories as any).name : null;
 
@@ -153,7 +341,7 @@ export function AdminProductList({ products }: ProductListProps) {
 
   const handleItemsPerPageChange = (value: number) => {
     setItemsPerPage(value);
-    setCurrentPage(1); // Reset a la primera página
+    setCurrentPage(1);
   };
 
   const handlePreviousPage = () => {
@@ -254,10 +442,12 @@ export function AdminProductList({ products }: ProductListProps) {
 
                       <TableCell className="whitespace-nowrap text-center">
                         <div className="flex gap-2 justify-center">
-                          <Button asChild size="sm" variant="outline">
-                            <Link href={`/admin/products/${product.id}`}>
-                              <Edit className="w-4 h-4" />
-                            </Link>
+                          <Button 
+                            size="sm" 
+                            variant="outline"
+                            onClick={() => handleNavigateToProduct(product.id)}
+                          >
+                            <Edit className="w-4 h-4" />
                           </Button>
 
                           <Button

@@ -3,9 +3,9 @@ export const dynamic = "force-dynamic";
 
 import Link from "next/link";
 import { ProductForm } from "@/components/product-form";
-import { ChevronLeft } from "lucide-react";
 import AdminGuard from "@/components/admin-guard";
 import { AdminHeader } from "@/components/admin-header";
+import { AdminBackToDashboard } from "@/components/admin-back-to-dashboard";
 import { query } from "@/lib/db";
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
@@ -23,7 +23,7 @@ export default async function NewProductPage() {
   let categories: any[] = [];
   try {
     const result = await query('SELECT DISTINCT category FROM products WHERE category IS NOT NULL ORDER BY category');
-    categories = result.rows.map((row, index) => ({
+    categories = result.rows.map((row: any, index: number) => ({
       id_int: index + 1,
       name: row.category
     }));
@@ -42,13 +42,7 @@ export default async function NewProductPage() {
 
       <main className="flex items-center justify-center min-h-[calc(100vh-80px)] px-4">
         <div className="w-full max-w-2xl">
-          <Link
-            href="/admin"
-            className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-6 transition-colors"
-          >
-            <ChevronLeft className="w-4 h-4" />
-            Volver al dashboard
-          </Link>
+          <AdminBackToDashboard />
 
           <AdminGuard>
             <div>
