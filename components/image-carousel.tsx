@@ -45,26 +45,38 @@ export function ImageCarousel({
 
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isFullscreenOpen, setIsFullscreenOpen] = useState(false);
+  const [loadedImages, setLoadedImages] = useState<Set<number>>(new Set());
+  const [allImagesLoaded, setAllImagesLoaded] = useState(false);
+
+  // Resetear el estado de carga cuando cambian las imágenes
+  useEffect(() => {
+    setLoadedImages(new Set());
+    setAllImagesLoaded(false);
+    setCurrentIndex(0);
+  }, [urls.length]);
+
+  // Comprobar si todas las imágenes están cargadas
+  useEffect(() => {
+    if (urls.length > 0 && loadedImages.size === urls.length) {
+      setAllImagesLoaded(true);
+    }
+  }, [loadedImages, urls.length]);
 
   // Mantener índice válido cuando cambia la cantidad de imágenes
   useEffect(() => {
     if (currentIndex >= urls.length) {
       setCurrentIndex(Math.max(0, urls.length - 1));
     }
-    // si urls cambia normalmente queremos resetear a 0 (opcional)
-    // comentar la siguiente línea si prefieres mantener el índice relativo
-    // setCurrentIndex(0);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [urls.length]);
+  }, [currentIndex, urls.length]);
 
-  // Auto-rotación
+  // Auto-rotación (solo si todas las imágenes están cargadas)
   useEffect(() => {
-    if (!autoRotate || urls.length <= 1 || isFullscreenOpen) return;
+    if (!autoRotate || urls.length <= 1 || isFullscreenOpen || !allImagesLoaded) return;
     const timer = setInterval(() => {
       setCurrentIndex((prev) => (prev + 1) % urls.length);
     }, interval);
     return () => clearInterval(timer);
-  }, [autoRotate, urls.length, interval, isFullscreenOpen]);
+  }, [autoRotate, urls.length, interval, isFullscreenOpen, allImagesLoaded]);
 
   const goToPrevious = () => {
     if (urls.length === 0) return;
@@ -82,10 +94,17 @@ export function ImageCarousel({
     }
   };
 
+  const handleImageLoad = (index: number) => {
+    setLoadedImages((prev) => new Set(prev).add(index));
+  };
+
   const containerClass = `relative group ${className}`;
   
   // Cursor pointer si fullscreen está habilitado
   const cursorClass = enableFullscreen ? "cursor-pointer" : "";
+  
+  // Clase de animación mientras se cargan las imágenes
+  const loadingAnimationClass = !allImagesLoaded ? "animate-bounce-subtle" : "";
 
   // Placeholder si no hay imágenes
   if (urls.length === 0) {
@@ -98,6 +117,7 @@ export function ImageCarousel({
             fill
             className="object-cover"
             priority={false}
+            onLoad={() => handleImageLoad(0)}
           />
         </div>
       </div>
@@ -109,7 +129,7 @@ export function ImageCarousel({
       <>
         <div className={containerClass}>
           <div 
-            className={`relative w-full h-full ${cursorClass}`}
+            className={`relative w-full h-full ${cursorClass} ${loadingAnimationClass}`}
             style={{ minHeight }}
             onClick={handleImageClick}
             role={enableFullscreen ? "button" : undefined}
@@ -128,6 +148,7 @@ export function ImageCarousel({
               fill
               className="object-cover transition-opacity duration-500"
               priority={true}
+              onLoad={() => handleImageLoad(0)}
             />
           </div>
         </div>
@@ -149,7 +170,7 @@ export function ImageCarousel({
     <>
       <div className={containerClass}>
         <div 
-          className={`relative w-full h-full ${cursorClass}`}
+          className={`relative w-full h-full ${cursorClass} ${loadingAnimationClass}`}
           style={{ minHeight }}
           onClick={handleImageClick}
           role={enableFullscreen ? "button" : undefined}
@@ -162,13 +183,18 @@ export function ImageCarousel({
             }
           } : undefined}
         >
-          <Image
-            src={urls[currentIndex] || "/placeholder.svg"}
-            alt={`${alt} - imagen ${currentIndex + 1}`}
-            fill
-            className="object-cover transition-opacity duration-500"
-            priority={currentIndex === 0}
-          />
+          {/* Precargar todas las imágenes de forma oculta */}
+          {urls.map((url, index) => (
+            <Image
+              key={`preload-${index}`}
+              src={url || "/placeholder.svg"}
+              alt={`${alt} - precarga ${index + 1}`}
+              fill
+              className={index === currentIndex ? "object-cover transition-opacity duration-500 z-10" : "object-cover opacity-0 pointer-events-none"}
+              priority={index === 0}
+              onLoad={() => handleImageLoad(index)}
+            />
+          ))}
         </div>
 
       {/* Botones de navegación */}

@@ -161,3 +161,17 @@
     @apply bg-background text-foreground transition-colors duration-300;
   }
 }
+
+/* Animación de bounce suave para carga de imágenes */
+@keyframes bounce-subtle {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-4px);
+  }
+}
+
+.animate-bounce-subtle {
+  animation: bounce-subtle 1.5s ease-in-out infinite;
+}

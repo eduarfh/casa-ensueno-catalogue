@@ -250,7 +250,10 @@ const colorFromHashPastel = (seed:string) => {
 
 // Mapa global para rastrear categorías y sus colores asignados
 const categoryColorMap = new Map<string, { background: string; textColor: string }>()
-let colorIndex = 0
+// Mapa para rastrear qué colores ya están en uso
+const usedColors = new Set<string>()
+// Array ordenado de categorías para mantener consistencia
+const categoryOrder: string[] = []
 
 /** Public API */
 export function getCategoryColor(category = ""): { background: string; textColor: string } {
@@ -312,22 +315,42 @@ export function getCategoryColor(category = ""): { background: string; textColor
     return { background: bg, textColor: getTextHexForBackground(bg) }
   }
 
+  // Registrar esta categoría en el orden si no existe
+  if (!categoryOrder.includes(category)) {
+    categoryOrder.push(category)
+  }
+
   // Asignar color secuencialmente para evitar repeticiones
   let candidate: string
   
   if (useHashFallback) {
-    candidate = colorFromHashPastel(String(category))
+    // Usar hash pero verificar que no esté en uso
+    let attempt = 0
+    do {
+      candidate = colorFromHashPastel(String(category) + attempt)
+      attempt++
+    } while (usedColors.has(candidate) && attempt < 50)
   } else {
-    // Usar índice secuencial en lugar de hash para evitar colisiones
-    const idx = colorIndex % normalized.length
+    // Usar el índice de esta categoría en el orden para consistencia
+    const categoryIndex = categoryOrder.indexOf(category)
+    const idx = categoryIndex % normalized.length
     candidate = normalized[idx] || normalized[0] || fallbackPalette[0]
-    colorIndex++
+    
+    // Si este color ya está en uso, buscar el siguiente disponible
+    let searchIdx = idx
+    let attempts = 0
+    while (usedColors.has(candidate) && attempts < normalized.length) {
+      searchIdx = (searchIdx + 1) % normalized.length
+      candidate = normalized[searchIdx] || normalized[0] || fallbackPalette[0]
+      attempts++
+    }
   }
 
   const result = { background: candidate, textColor: getTextHexForBackground(candidate) }
   
   // Guardar el color asignado para esta categoría
   categoryColorMap.set(category, result)
+  usedColors.add(candidate)
   
   return result
 }
@@ -337,5 +360,6 @@ export default getCategoryColor
 // Función para resetear el mapa de colores (útil para testing o reinicialización)
 export function resetCategoryColors() {
   categoryColorMap.clear()
-  colorIndex = 0
+  usedColors.clear()
+  categoryOrder.length = 0
 }
