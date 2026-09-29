@@ -63,6 +63,28 @@ Guía completa del sistema de catálogo y administración.
    - Flujo de datos
    - Endpoints API
 
+### Sistema de Monedas
+
+9. **Guía de Monedas**
+   - [`MONEDAS_README.md`](MONEDAS_README.md)
+   - Uso del sistema de múltiples monedas
+   - API de monedas
+   - Gestión desde el panel admin
+   - Solución de problemas
+
+10. **Implementación de Monedas**
+    - [`CAMBIOS_SISTEMA_MONEDAS.md`](CAMBIOS_SISTEMA_MONEDAS.md)
+    - Archivos modificados
+    - Estructura de datos
+    - Instrucciones de despliegue
+
+11. **Gestión de Catálogo**
+    - [`GESTION_CATALOGO_README.md`](GESTION_CATALOGO_README.md)
+    - Sistema de categorías y monedas
+    - Panel de configuración de tienda
+    - API de categorías
+    - Navegación y flujos de trabajo
+
 ## 🎯 Guías por Caso de Uso
 
 ### Setup Inicial
@@ -120,8 +142,30 @@ Guía completa del sistema de catálogo y administración.
 2. Configuración Railway
    → RAILWAY_SETUP.md (Para producción en Railway)
 
-3. Verificación
+3. Migración de Monedas
+   → MONEDAS_README.md (Instalación)
+   → scripts/add-currencies-schema.sql (Ejecutar)
+
+4. Verificación
    → DEPLOY_GUIDE.md (Checklist de Deploy)
+```
+
+### Gestión de Monedas
+
+```
+1. Configurar Sistema
+   → MONEDAS_README.md (Instalación)
+
+2. Crear monedas
+   → /admin/currencies (Panel de admin)
+   → API: POST /api/currencies
+
+3. Asignar a productos
+   → /admin/products/new o /admin/products/[id]
+   → Seleccionar monedas y precios
+
+4. Migrar productos existentes
+   → scripts/migrate-existing-products-to-currencies.sql
 ```
 
 ## 📁 Estructura de Archivos
@@ -136,6 +180,9 @@ Documentación:
 ├── DEPLOY_GUIDE.md               🚀 Guía de deploy
 ├── ADMIN_AUTH_README.md          🔧 Documentación técnica
 ├── FLUJO_AUTENTICACION.md        📊 Diagramas de flujo
+├── MONEDAS_README.md             💰 Sistema de monedas
+├── CAMBIOS_SISTEMA_MONEDAS.md    📋 Implementación de monedas
+├── GESTION_CATALOGO_README.md    🏪 Gestión de categorías y monedas
 └── DOCS_INDEX.md                 📚 Este archivo
 
 Código - Base de Datos:
@@ -158,9 +205,11 @@ Código - APIs (Pendientes):
 
 Scripts:
 ├── scripts/
-│   ├── test-db-connection.mjs    🧪 Verificar conexión
-│   ├── generate-password-hash.js 🔧 Generar hash
-│   └── migration-helpers.md      📖 Guía de conversión
+│   ├── test-db-connection.mjs                      🧪 Verificar conexión
+│   ├── generate-password-hash.js                   🔧 Generar hash
+│   ├── migration-helpers.md                        📖 Guía de conversión
+│   ├── add-currencies-schema.sql                   💰 Schema de monedas
+│   └── migrate-existing-products-to-currencies.sql 🔄 Migración de productos
 
 Configuración:
 ├── .env.local                    🔐 Variables de entorno
@@ -199,6 +248,25 @@ Configuración:
 
 **...hacer backup de la base de datos?**
 → `RAILWAY_SETUP.md` → Backup y Restore
+
+**...configurar el sistema de monedas?**
+→ `MONEDAS_README.md` → Instalación
+
+**...agregar monedas a productos?**
+→ `MONEDAS_README.md` → Uso en el Panel de Administración
+
+**...migrar productos existentes a monedas?**
+→ `scripts/migrate-existing-products-to-currencies.sql`
+
+**...gestionar monedas desde el panel admin?**
+→ `/admin/currencies` → Panel de gestión de monedas
+
+**...gestionar categorías?**
+→ `/admin/categories` → Panel de gestión de categorías
+→ `GESTION_CATALOGO_README.md` → Documentación completa
+
+**...acceder a la configuración de la tienda?**
+→ `/admin/store` → Configuración centralizada
 
 ## 🎓 Niveles de Documentación
 

@@ -41,7 +41,7 @@ export function AdminProductSearch({
         placeholder={placeholder}
         value={query}
         onChange={(e) => handleSearch(e.target.value)}
-        className="pl-10 pr-10"
+        className="pl-10 pr-10 border-#dfcfb4"
       />
       {query && (
         <Button

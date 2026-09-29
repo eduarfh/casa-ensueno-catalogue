@@ -27,7 +27,7 @@ export async function OPTIONS(request: Request) {
 
 /**
  * GET -> si ?onlyCategories=1 devuelve categorías únicas (sin exigir auth).
- * Si no hay onlyCategories, devuelve todos los productos.
+ * Si no hay onlyCategories, devuelve todos los productos con sus monedas.
  */
 export async function GET(request: Request) {
   try {
@@ -42,8 +42,25 @@ export async function GET(request: Request) {
       return NextResponse.json({ categories: unique }, { status: 200 });
     }
 
-    // Devolver todos los productos (sin filtrar por usuario)
-    const result = await query('SELECT * FROM products ORDER BY created_at DESC');
+    // Devolver todos los productos con sus monedas
+    const result = await query(`
+      SELECT 
+        p.*,
+        json_agg(
+          json_build_object(
+            'currency_id', c.id,
+            'currency_code', c.code,
+            'currency_symbol', c.symbol,
+            'currency_name', c.name,
+            'price', pc.price
+          ) ORDER BY c.display_order
+        ) FILTER (WHERE c.id IS NOT NULL) as currencies
+      FROM products p
+      LEFT JOIN product_currencies pc ON p.id = pc.product_id
+      LEFT JOIN currencies c ON pc.currency_id = c.id AND c.is_active = true
+      GROUP BY p.id
+      ORDER BY p.created_at DESC
+    `);
     return NextResponse.json(result.rows ?? [], { status: 200 });
   } catch (err: unknown) {
     console.error("[products-get] unexpected error:", err);
@@ -53,7 +70,7 @@ export async function GET(request: Request) {
 }
 
 /**
- * POST -> crear producto (igual que tu lógica previa).
+ * POST -> crear producto con monedas.
  */
 export async function POST(request: Request) {
   try {
@@ -66,10 +83,15 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json().catch(() => ({}));
-    const { name, description, price, available, category, images } = body ?? {};
+    const { name, description, price, available, category, images, currencies: productCurrencies } = body ?? {};
 
     if (!name || !category || typeof category !== "string" || !String(category).trim()) {
       return NextResponse.json({ error: "Missing required fields: name y category" }, { status: 400 });
+    }
+
+    // Validar que haya al menos una moneda
+    if (!productCurrencies || !Array.isArray(productCurrencies) || productCurrencies.length === 0) {
+      return NextResponse.json({ error: "Debes seleccionar al menos una moneda" }, { status: 400 });
     }
 
     const rawCat = String(category).trim();
@@ -86,6 +108,16 @@ export async function POST(request: Request) {
     );
 
     const product = productResult.rows[0];
+
+    // Insertar relaciones de monedas con precios
+    for (const curr of productCurrencies) {
+      if (!curr.currency_id || curr.price === undefined || curr.price === null) continue;
+      
+      await query(
+        'INSERT INTO product_currencies (product_id, currency_id, price) VALUES ($1, $2, $3)',
+        [product.id, curr.currency_id, Number.parseFloat(curr.price)]
+      );
+    }
 
     // manejar imágenes
     if (Array.isArray(images) && images.length) {

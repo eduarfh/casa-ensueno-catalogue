@@ -39,6 +39,8 @@ export default async function NewProductPage() {
   return (
     <div className="min-h-screen bg-background">
       <AdminHeader />
+      {/* Espaciador para compensar el header fixed */}
+      <div className="h-24 sm:h-28 md:h-32" />
 
       <main className="flex items-center justify-center min-h-[calc(100vh-80px)] px-4">
         <div className="w-full max-w-2xl">

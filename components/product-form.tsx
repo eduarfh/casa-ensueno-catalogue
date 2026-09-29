@@ -18,6 +18,18 @@ type Category = {
   name: string;
 };
 
+type Currency = {
+  id: string;
+  code: string;
+  symbol: string;
+  name: string;
+};
+
+type ProductCurrency = {
+  currency_id: string;
+  price: number;
+};
+
 interface ProductFormProps {
   product?: any; // server data (product.category: string)
   categories?: (Category | string)[]; // lista inicial desde server (opcional)
@@ -34,6 +46,15 @@ export function ProductForm({ product, categories: initialCategories = [] }: Pro
     available: product?.available ?? true,
     category: product?.category ?? "",
   });
+
+  // Estados para monedas
+  const [availableCurrencies, setAvailableCurrencies] = useState<Currency[]>([]);
+  const [productCurrencies, setProductCurrencies] = useState<ProductCurrency[]>(
+    product?.currencies?.map((c: any) => ({
+      currency_id: c.currency_id,
+      price: Number(c.price)
+    })) || []
+  );
 
   const normalizedFromProp = useMemo(() => {
     return (initialCategories || [])
@@ -147,6 +168,29 @@ export function ProductForm({ product, categories: initialCategories = [] }: Pro
     };
   }, []);
 
+  // Fetch monedas disponibles
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const res = await fetch("/api/currencies", { credentials: "same-origin" });
+        if (!res.ok) {
+          console.warn("[ProductForm] no se pudieron obtener monedas: ", await res.text().catch(() => ""));
+          return;
+        }
+        const data = await res.json().catch(() => ({}));
+        const currencies: Currency[] = Array.isArray(data?.currencies) ? data.currencies : [];
+        if (!mounted) return;
+        setAvailableCurrencies(currencies);
+      } catch (err) {
+        console.error("[ProductForm] fetch currencies error:", err);
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
   // cerrar combobox si clic fuera
   useEffect(() => {
     function onDocClick(e: MouseEvent) {
@@ -185,6 +229,24 @@ export function ProductForm({ product, categories: initialCategories = [] }: Pro
       ...prev,
       [name]: name === "price" ? Number(value) : name === "available" ? checked : value,
     }));
+  };
+
+  // Manejar cambios en las monedas
+  const handleCurrencyToggle = (currencyId: string) => {
+    const exists = productCurrencies.find(pc => pc.currency_id === currencyId);
+    if (exists) {
+      // Remover moneda
+      setProductCurrencies(prev => prev.filter(pc => pc.currency_id !== currencyId));
+    } else {
+      // Agregar moneda con precio por defecto
+      setProductCurrencies(prev => [...prev, { currency_id: currencyId, price: formData.price || 0 }]);
+    }
+  };
+
+  const handleCurrencyPriceChange = (currencyId: string, price: number) => {
+    setProductCurrencies(prev =>
+      prev.map(pc => pc.currency_id === currencyId ? { ...pc, price } : pc)
+    );
   };
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -347,6 +409,11 @@ export function ProductForm({ product, categories: initialCategories = [] }: Pro
       // Permitir tanto selectedCategoryId (id o synthetic) como texto en formData.category cuando se usa custom
       if (!selectedCategoryId && !formData.category) throw new Error("Selecciona o crea una categoría para el producto.");
 
+      // Validar que haya al menos una moneda seleccionada
+      if (productCurrencies.length === 0) {
+        throw new Error("Debes seleccionar al menos una moneda para el producto.");
+      }
+
       const categoryPayload = formData.category ? formData.category : selectedCategoryId ?? formData.category;
 
       const payload: any = {
@@ -356,6 +423,7 @@ export function ProductForm({ product, categories: initialCategories = [] }: Pro
         available: formData.available,
         category: categoryPayload,
         images: uploadedImages,
+        currencies: productCurrencies,
       };
 
       const url = product ? `/api/products/${product.id}` : "/api/products";
@@ -393,27 +461,73 @@ export function ProductForm({ product, categories: initialCategories = [] }: Pro
         <Card className="p-6 space-y-6">
         <div className="space-y-2">
           <Label htmlFor="name">Nombre del Producto</Label>
-          <Input id="name" name="name" value={formData.name} onChange={handleInputChange} placeholder="Ej: Lámpara" required disabled={isSubmitting} />
+          <Input className="border-#dfcfb4" id="name" name="name" value={formData.name} onChange={handleInputChange} placeholder="Ej: Lámpara" required disabled={isSubmitting} />
         </div>
 
         <div className="space-y-2">
           <Label htmlFor="description">Descripción</Label>
-          <Textarea id="description" name="description" value={formData.description} onChange={handleInputChange} placeholder="Describe el producto..." rows={4} disabled={isSubmitting} />
+          <Textarea className="border-#dfcfb4" id="description" name="description" value={formData.description} onChange={handleInputChange} placeholder="Describe el producto..." rows={4} disabled={isSubmitting} />
         </div>
 
-        <div className="grid grid-cols-2 gap-4 items-end">
-          <div className="space-y-2">
-            <Label htmlFor="price">Precio ($)</Label>
-            <Input id="price" name="price" type="number" step="0.01" value={String(formData.price)} onChange={handleInputChange} placeholder="0.00" required disabled={isSubmitting} />
+        <div className="space-y-2">
+          <Label htmlFor="available">Disponible</Label>
+          <div className="flex items-center gap-3">
+            <input id="available" name="available" type="checkbox" checked={formData.available} onChange={handleInputChange} disabled={isSubmitting} className="h-4 w-4" />
+            <span className="text-sm text-muted-foreground">Marcar si está disponible</span>
           </div>
+        </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="available">Disponible</Label>
-            <div className="flex items-center gap-3">
-              <input id="available" name="available" type="checkbox" checked={formData.available} onChange={handleInputChange} disabled={isSubmitting} className="h-4 w-4" />
-              <span className="text-sm text-muted-foreground">Marcar si está disponible</span>
-            </div>
+        {/* ====== SECCIÓN DE MONEDAS Y PRECIOS ====== */}
+        <div className="space-y-4">
+          <Label>Monedas y Precios</Label>
+          <p className="text-sm text-muted-foreground">Selecciona las monedas en las que se venderá el producto y define su precio para cada una.</p>
+          
+          <div className="space-y-3">
+            {availableCurrencies.length === 0 ? (
+              <p className="text-sm text-muted-foreground">Cargando monedas...</p>
+            ) : (
+              availableCurrencies.map((currency) => {
+                const isSelected = productCurrencies.some(pc => pc.currency_id === currency.id);
+                const currentPrice = productCurrencies.find(pc => pc.currency_id === currency.id)?.price || 0;
+
+                return (
+                  <div key={currency.id} className="flex items-center gap-3 p-3 border rounded-lg">
+                    <input
+                      type="checkbox"
+                      id={`currency-${currency.id}`}
+                      checked={isSelected}
+                      onChange={() => handleCurrencyToggle(currency.id)}
+                      disabled={isSubmitting}
+                      className="h-4 w-4"
+                    />
+                    <Label htmlFor={`currency-${currency.id}`} className="flex-1 cursor-pointer">
+                      <span className="font-medium">{currency.code}</span>
+                      <span className="text-sm text-muted-foreground ml-2">({currency.name})</span>
+                    </Label>
+                    {isSelected && (
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium">{currency.symbol}</span>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          value={String(currentPrice)}
+                          onChange={(e) => handleCurrencyPriceChange(currency.id, Number(e.target.value))}
+                          disabled={isSubmitting}
+                          className="w-32 border"
+                          placeholder="0.00"
+                        />
+                      </div>
+                    )}
+                  </div>
+                );
+              })
+            )}
           </div>
+          
+          {productCurrencies.length === 0 && availableCurrencies.length > 0 && (
+            <p className="text-sm text-destructive">⚠️ Debes seleccionar al menos una moneda</p>
+          )}
         </div>
 
         {/* ====== NUEVA SECCIÓN DE CATEGORÍA (combobox + crear inline LOCAL) ====== */}
@@ -422,7 +536,7 @@ export function ProductForm({ product, categories: initialCategories = [] }: Pro
             <Label htmlFor="category">Categoría</Label>
             <Button
               type="button"
-              variant="ghost"
+              variant="outline"
               size="sm"
               onClick={() => {
                 setIsCustomCategory((s) => !s);
@@ -463,13 +577,13 @@ export function ProductForm({ product, categories: initialCategories = [] }: Pro
                   placeholder="Selecciona una categoría"
                   aria-haspopup="listbox"
                   aria-expanded={comboOpen}
-                  className="cursor-pointer pr-10"
+                  className="cursor-pointer pr-10 border-#dfcfb4"
                 />
                 <button
                   type="button"
                   onClick={() => setComboOpen((s) => !s)}
                   aria-hidden
-                  className="absolute inset-y-0 right-0 flex items-center pr-3"
+                  className="absolute inset-y-0 right-0 flex items-center pr-3 "
                 >
                   <ChevronDown className="opacity-70" size={18} />
                 </button>
@@ -480,7 +594,7 @@ export function ProductForm({ product, categories: initialCategories = [] }: Pro
                   ref={listRef}
                   role="listbox"
                   aria-label="Categorías"
-                  className="absolute z-50 mt-2 w-full max-h-60 overflow-auto rounded-lg border bg-white dark:bg-slate-900 shadow-lg p-1 dark:border-slate-700"
+                  className="absolute z-50 mt-2 w-full max-h-60 overflow-auto rounded-lg border bg-white dark:bg-card shadow-lg p-1 dark:border-#dfcfb4"
                 >
                   {existingCategories.length === 0 ? (
                     <li className="px-3 py-2 text-sm text-slate-400 dark:text-slate-500">No hay categorías</li>
@@ -553,7 +667,7 @@ export function ProductForm({ product, categories: initialCategories = [] }: Pro
         <Button type="button" variant="outline" onClick={() => router.back()} disabled={isSubmitting}>
           Cancelar
         </Button>
-        <Button type="submit" disabled={isSubmitting || !formData.name || (!selectedCategoryId && !formData.category)}>
+        <Button type="submit" disabled={isSubmitting || !formData.name || (!selectedCategoryId && !formData.category) || productCurrencies.length === 0}>
           {isSubmitting ? "Guardando..." : product ? "Actualizar Producto" : "Crear Producto"}
         </Button>
       </div>

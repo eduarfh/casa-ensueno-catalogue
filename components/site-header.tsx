@@ -4,8 +4,9 @@ import Link from "next/link";
 import { ThemeToggle } from "@/components/theme-toggle";
 import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
-import { Boxes, GalleryHorizontal, Grid2X2, List, Menu, PackageSearch, X } from "lucide-react";
+import { Menu, PackageSearch, X } from "lucide-react";
 import { Button } from "./ui/button";
+import { useScrollDirection } from "@/hooks/use-scroll-direction";
 
 interface SiteHeaderProps {
   user?: {
@@ -16,6 +17,7 @@ interface SiteHeaderProps {
 
 export default function SiteHeader({ user = null }: SiteHeaderProps) {
   const [open, setOpen] = useState(false);
+  const isVisible = useScrollDirection();
 
   const prevThemeDark = useRef<boolean | null>(null);
 
@@ -61,8 +63,13 @@ export default function SiteHeader({ user = null }: SiteHeaderProps) {
   };
 
   return (
-    <header className="border-b border-border sticky top-0 z-50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-2">
+    <>
+      <header 
+        className={`border-b border-border fixed top-0 left-0 right-0 z-50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 transition-transform duration-300 ease-in-out ${
+          isVisible ? 'translate-y-0' : '-translate-y-full'
+        }`}
+      >
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-2">
         <div className="flex items-center justify-between gap-3 sm:gap-4">
           {/* Brand (logo + texto) */}
           <div className="flex items-center gap-3">
@@ -83,7 +90,7 @@ export default function SiteHeader({ user = null }: SiteHeaderProps) {
                 <h1 className="text-lg sm:text-2xl font-bold text-primary hover:text-primary/80 transition-colors">
                   Casa Ensueño
                 </h1>
-                <p className="text-[11px] sm:text-sm text-muted-foreground hidden sm:block">
+                <p className="text-[11px] sm:text-sm text-muted-foreground sm:block">
                   Catálogo
                 </p>
               </Link>
@@ -207,5 +214,6 @@ export default function SiteHeader({ user = null }: SiteHeaderProps) {
         </div>
       </div>
     </header>
+    </>
   );
 }

@@ -354,36 +354,7 @@ export function AdminProductList({ products }: ProductListProps) {
 
   return (
     <>
-      <div className="space-y-4">
-        {/* Controles de paginación superior */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 bg-muted/50 rounded-lg">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 flex-1">
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-medium">Mostrar:</span>
-              <div className="flex gap-2">
-                {[10, 15, 20, -1].map((value) => (
-                  <Button
-                    key={value}
-                    variant={itemsPerPage === value ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => handleItemsPerPageChange(value)}
-                    className="text-xs"
-                  >
-                    {value === -1 ? "Todos" : value}
-                  </Button>
-                ))}
-              </div>
-            </div>
-            <div className="flex-shrink-0">
-              <AvailabilityFilter active={availableOnly} onChange={setAvailableOnly} />
-            </div>
-          </div>
-          <div className="text-sm text-muted-foreground">
-            {itemsPerPage === -1 
-              ? `${filteredProducts.length} productos` 
-              : `${(currentPage - 1) * itemsPerPage + 1}-${Math.min(currentPage * itemsPerPage, filteredProducts.length)} de ${filteredProducts.length}`}
-          </div>
-        </div>
+      
 
         {/* Tabla */}
         <div className="border border-border rounded-lg overflow-hidden">
@@ -467,7 +438,36 @@ export function AdminProductList({ products }: ProductListProps) {
             </Table>
           </div>
         </div>
-
+<div className="space-y-4">
+        {/* Controles de paginación superior */}
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 bg-muted/50 rounded-lg">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 flex-1">
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium">Mostrar:</span>
+              <div className="flex gap-2">
+                {[10, 15, 20, -1].map((value) => (
+                  <Button
+                    key={value}
+                    variant={itemsPerPage === value ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => handleItemsPerPageChange(value)}
+                    className="text-xs"
+                  >
+                    {value === -1 ? "Todos" : value}
+                  </Button>
+                ))}
+              </div>
+            </div>
+            <div className="flex-shrink-0">
+              <AvailabilityFilter active={availableOnly} onChange={setAvailableOnly} />
+            </div>
+          </div>
+          <div className="text-sm text-muted-foreground">
+            {itemsPerPage === -1 
+              ? `${filteredProducts.length} productos` 
+              : `${(currentPage - 1) * itemsPerPage + 1}-${Math.min(currentPage * itemsPerPage, filteredProducts.length)} de ${filteredProducts.length}`}
+          </div>
+        </div>
         {/* Controles de paginación inferior */}
         {totalPages > 1 && (
           <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg">

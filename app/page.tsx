@@ -10,9 +10,11 @@ export default async function Home() {
 
   return (
     <div className="min-h-screen bg-background">
-      <SiteHeader user={user} />
+      {/* <SiteHeader user={user} /> */}
+      {/* Espaciador para compensar el header fixed */}
+      <div className="h-12 sm:h-28 md:h-32" />
 
-      <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16 lg:py-20">
+      <main className="container mx-auto px-2 sm:px-6 lg:px-8 py-12 sm:py-12 lg:py-20">
         <div className="text-center space-y-8 sm:space-y-12 max-w-3xl mx-auto">
           <div className="space-y-4 sm:space-y-6">
             <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-balance leading-tight">

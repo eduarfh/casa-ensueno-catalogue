@@ -25,7 +25,7 @@ export async function PUT(request: Request, context: { params: any }) {
     }
 
     const body = await request.json().catch(() => ({}));
-    const { name, description, price, available, category, images } = body ?? {};
+    const { name, description, price, available, category, images, currencies: productCurrencies } = body ?? {};
 
     console.log("[products/:id/PUT] Received body:", JSON.stringify({ name, description, price, available, category, imagesCount: images?.length }));
 
@@ -72,6 +72,24 @@ export async function PUT(request: Request, context: { params: any }) {
       paramCount++;
       updateFields.push(`category = $${paramCount}`);
       updateValues.push(raw);
+    }
+
+    // Manejo de monedas
+    if (productCurrencies !== undefined) {
+      // Eliminar todas las monedas existentes
+      await query('DELETE FROM product_currencies WHERE product_id = $1', [productId]);
+
+      // Insertar las nuevas monedas
+      if (Array.isArray(productCurrencies) && productCurrencies.length > 0) {
+        for (const curr of productCurrencies) {
+          if (!curr.currency_id || curr.price === undefined || curr.price === null) continue;
+          
+          await query(
+            'INSERT INTO product_currencies (product_id, currency_id, price) VALUES ($1, $2, $3)',
+            [productId, curr.currency_id, Number.parseFloat(curr.price)]
+          );
+        }
+      }
     }
 
     // Manejo de imágenes
@@ -210,6 +228,9 @@ export async function DELETE(request: Request, context: { params: any }) {
       
       // Eliminar imágenes
       await client.query('DELETE FROM product_images WHERE product_id = $1', [productId]);
+      
+      // Eliminar monedas del producto
+      await client.query('DELETE FROM product_currencies WHERE product_id = $1', [productId]);
       
       // Eliminar producto
       await client.query('DELETE FROM products WHERE id = $1', [productId]);

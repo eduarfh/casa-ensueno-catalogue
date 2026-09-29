@@ -1,55 +1,40 @@
 // components/admin-header.tsx
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { LogOut, Menu, Settings, X, Key } from "lucide-react";
 import { Button } from "./ui/button";
+import { useScrollDirection } from "@/hooks/use-scroll-direction";
 
 export function AdminHeader() {
   const [username, setUsername] = useState<string | null>(null);
   const [checking, setChecking] = useState(true);
   const [open, setOpen] = useState(false);
-
-  const prevThemeDark = useRef<boolean | null>(null);
+  const isVisible = useScrollDirection();
 
   const closeMenu = () => setOpen(false);
   const toggleMenu = () => setOpen((v) => !v);
 
-  // fetch admin session (client-side)
+  // Fetch admin session (client-side)
   useEffect(() => {
     let mounted = true;
+    
     async function fetchUser() {
       try {
         setChecking(true);
-        const res = await fetch("/api/auth/admin-check", {
+        const res = await fetch("/api/auth/admin-credentials", {
           method: "GET",
           credentials: "same-origin",
-          headers: { "Content-Type": "application/json" },
         });
 
         if (!mounted) return;
 
-        if (!res.ok) {
-          setUsername(null);
-          setChecking(false);
-          return;
-        }
-
-        const json = await res.json();
-        if (json?.isAdmin) {
-          // Obtener el nombre de usuario
-          const credRes = await fetch("/api/auth/admin-credentials", {
-            method: "GET",
-            credentials: "same-origin",
-          });
-          
-          if (credRes.ok) {
-            const credData = await credRes.json();
-            if (mounted) setUsername(credData.username || null);
-          }
+        if (res.ok) {
+          const data = await res.json();
+          if (mounted) setUsername(data.username || null);
         } else {
           if (mounted) setUsername(null);
         }
@@ -67,7 +52,7 @@ export function AdminHeader() {
     };
   }, []);
 
-  // keyboard: cerrar con Escape
+  // Cerrar menú con Escape
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") closeMenu();
@@ -76,308 +61,171 @@ export function AdminHeader() {
     return () => document.removeEventListener("keydown", onKey);
   }, []);
 
-  // Observa cambios en theme en <html> (clase 'dark' o atributo 'data-theme')
-  useEffect(() => {
-    if (typeof document === "undefined") return;
-
-    const el = document.documentElement;
-    const checkIsDark = () =>
-      el.classList.contains("dark") || el.getAttribute("data-theme") === "dark";
-
-    prevThemeDark.current = checkIsDark();
-
-    const mo = new MutationObserver(() => {
-      const nowDark = checkIsDark();
-      // si cambió el tema, cerramos el menú
-      if (prevThemeDark.current !== null && nowDark !== prevThemeDark.current) {
-        closeMenu();
-      }
-      prevThemeDark.current = nowDark;
-    });
-
-    mo.observe(el, { attributes: true, attributeFilter: ["class", "data-theme"] });
-
-    return () => mo.disconnect();
-  }, []);
-
-  const handleBackgroundClick = () => {
-    closeMenu();
-  };
-
   const handleLogout = async () => {
     try {
-      // Clear admin session
       await fetch("/api/auth/admin-logout", {
         method: "POST",
         credentials: "same-origin",
-      }).catch((e) => {
-        console.warn("[AdminHeader] admin-logout failed:", e);
       });
-
-      // reset local state so UI updates immediately
+      
       setUsername(null);
-
-      // full navigation to ensure SSR shows logged-out state
       window.location.href = "/auth/login";
     } catch (err) {
-      console.error("[AdminHeader] logout unexpected:", err);
+      console.error("[AdminHeader] logout error:", err);
       window.location.href = "/auth/login";
     }
   };
 
+  // Componente reutilizable para mostrar el estado de usuario
+  const UserStatus = () => {
+    if (checking) {
+      return (
+        <div className="text-sm text-muted-foreground px-2 py-1">
+          Cargando...
+        </div>
+      );
+    }
+    
+    if (username) {
+      return (
+        <div className="flex items-center gap-2 px-3 py-1.5 rounded-md bg-muted/50 border border-border/50">
+          <span className="text-xs font-medium text-muted-foreground">Admin:</span>
+          <span className="text-sm font-semibold">{username}</span>
+        </div>
+      );
+    }
+    
+    return (
+      <Link
+        href="/auth/login"
+        className="text-xs sm:text-sm font-medium hover:text-primary transition-colors px-2 py-1"
+        onClick={closeMenu}
+      >
+        Iniciar sesión
+      </Link>
+    );
+  };
+
+  // Componente reutilizable para los botones de acción
+  const ActionButtons = ({ isMobile = false }: { isMobile?: boolean }) => (
+    <>
+      <Link href="/admin/settings">
+        <Button
+          variant="outline"
+          size="sm"
+          className="bg-transparent transition-colors"
+          aria-label="Configuración de credenciales"
+        >
+          <Key className="h-4 w-4" />
+        </Button>
+      </Link>
+
+      <Link href="/admin/store">
+        <Button
+          variant="outline"
+          size="sm"
+          className="bg-transparent transition-colors"
+          aria-label="Configuración de la tienda"
+        >
+          <Settings className="h-4 w-4" />
+        </Button>
+      </Link>
+
+      <ThemeToggle />
+
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={() => {
+          if (isMobile) closeMenu();
+          handleLogout();
+        }}
+        className="text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 bg-transparent"
+        aria-label="Cerrar sesión"
+      >
+        <LogOut className="h-4 w-4" />
+      </Button>
+    </>
+  );
+
   return (
-    <header className="border-b border-border sticky top-0 z-50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+    <header 
+      className={`border-b border-border fixed top-0 left-0 right-0 z-50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 transition-transform duration-300 ease-in-out ${
+        isVisible ? 'translate-y-0' : '-translate-y-full'
+      }`}
+    >
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-2">
         <div className="flex items-center justify-between gap-3 sm:gap-4">
-          {/* Brand (logo + texto) */}
+          {/* Brand */}
           <div className="flex items-center gap-3">
-            <div className="relative flex-shrink-0 rounded-2xl overflow-hidden w-20 h-20 sm:w-20 sm:h-20 md:w-24 md:h-24">
-              <Link href="/" aria-label="Casa Ensueño - Inicio">
-                <Image
-                  src="https://yzjvywcplllhsqqcfsyb.supabase.co/storage/v1/object/public/Fotos%20Catalogo/logo%20con%20fondo%20recortado%20baja%20calidad.jpg"
-                  alt="Logo Casa Ensueño"
-                  fill
-                  className="object-contain"
-                  priority
-                />
-              </Link>
-            </div>
-
-            <div className="leading-tight">
-              <Link href="/" className="block">
-                <h1 className="text-lg sm:text-2xl font-bold text-primary hover:text-primary/80 transition-colors">
-                  Casa Ensueño
-                </h1>
-                <p className="text-[11px] sm:text-sm text-muted-foreground sm:block">
-                  Administración
-                </p>
-              </Link>
-            </div>
-          </div>
-
-          {/* Desktop nav (hidden en xs) + mobile menu button */}
-          <div className="flex items-center gap-2">
-            {/* Nav visible en sm+ */}
-            <nav className="hidden sm:flex items-center gap-2 sm:gap-4">
-              <div className="flex items-center gap-2">
-
-
-                {/* Mostrar usuario o link de login */}
-                {checking ? (
-                  <div className="text-sm text-muted-foreground px-2 py-1">Cargando...</div>
-                ) : username ? (
-                  <>
-                    <div className="flex items-center gap-2 px-3 py-1.5 rounded-md bg-muted/50 border border-border/50">
-                      <span className="text-xs font-medium text-muted-foreground">Admin:</span>
-                      <span className="text-sm font-semibold">{username}</span>
-                    </div>
-                  </>
-                ) : (
-                  <Link
-                    href="/auth/login"
-                    className="text-xs sm:text-sm font-medium hover:text-primary transition-colors px-2 py-1"
-                  >
-                    Iniciar sesión
-                  </Link>
-                )}
-                {/* Botón de registrations deshabilitado */}
-                {/* <Link
-                  href="/admin/registrations"
-                  className="text-xs sm:text-sm font-medium transition-colors px-2 py-1"
-                >
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="bg-transparent transition-colors"
-                  >
-                    <List className="h-4 w-4" />
-                  </Button>
-                </Link> */}
-
-                <Link
-                  href="/admin/settings"
-                  className="text-xs sm:text-sm font-medium transition-colors px-2 py-1"
-                >
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="bg-transparent transition-colors"
-                  >
-                    <Key className="h-4 w-4" />
-                  </Button>
-                </Link>
-
-                <Link
-                  href="/admin/store"
-                  className="text-xs sm:text-sm font-medium transition-colors px-2 py-1"
-                >
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="bg-transparent transition-colors"
-                  >
-                    <Settings className="h-4 w-4" />
-                  </Button>
-                </Link>
-                <div className="inline-flex items-center px-1">
-                  <ThemeToggle />
-                </div>
-
-
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleLogout}
-                  className="text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 bg-transparent"
-                >
-                  <LogOut className="h-4 w-4" />
-                </Button>
-              </div>
-            </nav>
-
-
-            {/* Mobile menu toggle */}
-            <button
-              aria-label={open ? "Cerrar menú" : "Abrir menú"}
-              onClick={toggleMenu}
-              className="sm:hidden p-2 rounded-md hover:bg-muted/10 active:scale-95 transition"
+            <Link 
+              href="/" 
+              aria-label="Casa Ensueño - Inicio"
+              className="relative flex-shrink-0 rounded-2xl overflow-hidden w-20 h-20 sm:w-20 sm:h-20 md:w-24 md:h-24"
             >
-              <Menu size={18} />
-            </button>
+              <Image
+                src="https://yzjvywcplllhsqqcfsyb.supabase.co/storage/v1/object/public/Fotos%20Catalogo/logo%20con%20fondo%20recortado%20baja%20calidad.jpg"
+                alt="Logo Casa Ensueño"
+                fill
+                className="object-contain"
+                priority
+              />
+            </Link>
+
+            <Link href="/" className="leading-tight">
+              <h1 className="text-lg sm:text-2xl font-bold text-primary hover:text-primary/80 transition-colors">
+                Casa Ensueño
+              </h1>
+              <p className="text-[11px] sm:text-sm text-muted-foreground">
+                Administración
+              </p>
+            </Link>
           </div>
+
+          {/* Desktop Navigation */}
+          <nav className="hidden sm:flex items-center gap-2">
+            <UserStatus />
+            <ActionButtons />
+          </nav>
+
+          {/* Mobile Menu Toggle */}
+          <button
+            aria-label={open ? "Cerrar menú" : "Abrir menú"}
+            onClick={toggleMenu}
+            className="sm:hidden p-2 rounded-md hover:bg-muted/10 active:scale-95 transition"
+          >
+            <Menu size={18} />
+          </button>
         </div>
       </div>
 
-      {/* OVERLAY móvil */}
-      <div className={`sm:hidden absolute inset-x-0 top-0 h-full z-50 pointer-events-none`} aria-hidden={!open}>
-        {/* capa de fondo que capta clicks */}
-        <div
-          onClick={handleBackgroundClick}
-          className={`absolute inset-0 transition-opacity duration-200 ${open ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
-            }`}
-          aria-hidden="true"
-        />
-
-        {/* panel que ocupa todo el espacio del header */}
-        <div
-          className={`w-full h-full px-1 py-2 flex items-center transition-all duration-300 ease-out origin-top
-            ${open ? "opacity-100 translate-y-0 pointer-events-auto" : "opacity-0 -translate-y-3 pointer-events-none"}`}
-          role={open ? "dialog" : undefined}
-          aria-modal={open ? "true" : undefined}
+      {/* Mobile Menu Overlay */}
+      {open && (
+        <div 
+          className="sm:hidden fixed inset-0 top-[100px] z-50 bg-black/20 backdrop-blur-sm"
+          onClick={closeMenu}
         >
-          <div
-            className="relative w-full h-full flex items-center justify-center gap-3 px-4 py-1 rounded-2xl
-             bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80
-             border border-white/30 
-             shadow-2xl"
+          <div 
+            className="absolute right-4 top-4 bg-background border border-border rounded-lg shadow-xl p-4 min-w-[200px]"
             onClick={(e) => e.stopPropagation()}
           >
-
-
-
-            {/* Links centrados */}
-            <div className="flex w-full max-w-[420px] items-center justify-between gap-1.5 overflow-hidden">
-
-              {/* Botón de registrations deshabilitado */}
-              {/* <Link
-                href="/admin/registrations"
-                className="text-xs sm:text-sm font-medium hover:text-primary transition-colors px-2 py-1"
-              >
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="bg-transparent"
-                >
-                  <List className="h-4 w-4" />
-                </Button>
-              </Link> */}
-
-              <Link
-                href="/admin/settings"
-                className="text-xs sm:text-sm font-medium hover:text-primary transition-colors px-1 py-1"
-              >
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="bg-transparent min-w-[38px] shrink-0"
-                >
-                  <Key className="h-4 w-4" />
-                </Button>
-              </Link>
-
-              <Link
-                href="/admin/store"
-                className="text-xs sm:text-sm font-medium hover:text-primary transition-colors px-1 py-1"
-              >
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="bg-transparent min-w-[38px] shrink-0"
-                >
-                  <Settings className="h-4 w-4" />
-                </Button>
-              </Link>
-
-              {checking ? (
-                <div className="text-sm text-muted-foreground px-2 py-2 rounded-md shrink-0">Cargando...</div>
-              ) : username ? (
-                <div className="flex min-w-0 max-w-[120px] items-center justify-center gap-1 px-2 py-1 rounded-md bg-muted/50 border border-border/50 min-h-[40px] shrink-0 overflow-hidden">
-                  <span className="text-[9px] font-medium text-muted-foreground truncate">Admin:</span>
-                  <span className="text-[10px] font-semibold truncate">{username}</span>
-                </div>
-              ) : (
-                <Link
-                  href="/auth/login"
-                  className="text-sm font-medium hover:text-primary transition-colors px-2 py-2 rounded-md min-h-[40px] flex items-center justify-center shrink-0"
-                  onClick={closeMenu}
-                >
-                  Iniciar sesión
-                </Link>
-              )}
-
-              <div className="flex items-center justify-center min-w-[38px] min-h-[40px] shrink-0">
-                <ThemeToggle />
-              </div>
-
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  closeMenu();
-                  handleLogout();
-                }}
-                className="text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 bg-transparent min-w-[38px] shrink-0"
-              >
-                <LogOut className="h-4 w-4" />
-              </Button>
-
-              <div
-                role="button"
-                tabIndex={0}
-                onClick={closeMenu}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" || e.key === " ") {
-                    e.preventDefault();
-                    closeMenu();
-                  }
-                }}
-                className="inline-flex items-center px-1"
-                aria-label="Cambiar tema y cerrar menú"
-              >
-              </div>
-            </div>
-
-            {/* Botón X dentro del panel */}
             <button
               onClick={closeMenu}
               aria-label="Cerrar menú"
-              className="absolute right-3 top-1/2 -translate-y-1/2 p-2 rounded-md hover:bg-muted/10 transition"
+              className="absolute right-2 top-2 p-1 rounded-md hover:bg-muted/50 transition"
             >
-              <X size={18} />
+              <X size={16} />
             </button>
+
+            <div className="flex flex-col gap-3 pt-6">
+              <UserStatus />
+              <div className="flex items-center justify-between gap-2 pt-2 border-t border-border">
+                <ActionButtons isMobile />
+              </div>
+            </div>
           </div>
         </div>
-      </div>
+      )}
     </header>
   );
 }

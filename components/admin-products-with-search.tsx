@@ -110,24 +110,9 @@ export function AdminProductsWithSearch({ products }: AdminProductsWithSearchPro
 
         <Button variant="outline" size="sm">
           <Link href="/admin/products/new" className="text-xs sm:text-sm font-medium transition-colors px-2 py-1">
-            Crear Producto
+            + Producto
           </Link>
         </Button>
-      </div>
-
-      <div className="text-sm text-muted-foreground">
-        {searchQuery ? (
-          <>
-            Mostrando {filteredProducts.length} de {products.length} productos
-            {filteredProducts.length === 0 && (
-              <span className="ml-2 text-destructive">
-                - No se encontraron resultados para "{searchQuery}"
-              </span>
-            )}
-          </>
-        ) : (
-          `Total de productos: ${products.length}`
-        )}
       </div>
 
       <AdminProductList products={filteredProducts} />

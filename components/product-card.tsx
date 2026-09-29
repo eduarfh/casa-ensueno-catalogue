@@ -29,6 +29,11 @@ interface ProductCardProps {
   category?: string | null;
   categorySeed?: string | null;
   compact?: boolean;
+  currencies?: Array<{
+    currency_code?: string;
+    currency_symbol?: string;
+    price?: number | string;
+  }> | null;
 }
 
 export function ProductCard({
@@ -41,6 +46,7 @@ export function ProductCard({
   category,
   categorySeed,
   compact = false,
+  currencies = [],
 }: ProductCardProps) {
   const [isSharing, setIsSharing] = useState(false);
   const { toast } = useToast();
@@ -53,6 +59,15 @@ export function ProductCard({
       : Number(price ?? 0);
   const displayPrice = Number.isFinite(rawPrice) ? rawPrice : 0;
   const priceString = displayPrice % 1 === 0 ? displayPrice.toString() : displayPrice.toFixed(2);
+
+  // Formatear monedas para mostrar
+  const formattedCurrencies = (Array.isArray(currencies) && currencies.length > 0)
+    ? currencies.map(c => {
+        const price = typeof c.price === "number" ? c.price : Number(c.price || 0);
+        const priceStr = price % 1 === 0 ? price.toString() : price.toFixed(2);
+        return `'$'}${priceStr} ${c.currency_code || ''}`;
+      }).join(' / ')
+    : `${priceString} CUP`; // Fallback al precio antiguo
 
   const productUrl =
     typeof window !== "undefined" ? `${window.location.origin}/product/${id}` : `/product/${id}`;
@@ -140,7 +155,7 @@ export function ProductCard({
             <h4 className="text-sm font-medium line-clamp-2">{name}</h4>
             <div className="mt-1 flex items-center justify-between gap-2">
               <span className="text-xs text-muted-foreground line-clamp-1">{displayName ?? "Sin categoría"}</span>
-              <span className="text-sm font-semibold text-primary">${priceString}</span>
+              <span className="text-sm font-semibold text-primary">{formattedCurrencies}</span>
             </div>
           </div>
         </Link>
@@ -254,7 +269,7 @@ export function ProductCard({
         </div>
 
         <div className="flex items-center justify-between">
-          <span className="text-lg md:text-xl font-semibold text-primary">{priceString} CUP</span>
+          <span className="text-lg md:text-xl font-semibold text-primary">{formattedCurrencies}</span>
         </div>
 
         <div className="flex gap-2 mt-2">

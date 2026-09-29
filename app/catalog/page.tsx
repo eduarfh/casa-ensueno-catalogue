@@ -8,11 +8,28 @@ import { getStoragePublicUrl } from "@/lib/storage-utils";
 export const dynamic = "force-dynamic";
 
 export default async function CatalogPage() {
-  // Traer productos + imágenes (servidor)
+  // Traer productos + imágenes + monedas (servidor)
   let products: any[] = [];
   try {
-    // Obtener productos
-    const productsResult = await query('SELECT * FROM products ORDER BY created_at DESC');
+    // Obtener productos con monedas
+    const productsResult = await query(`
+      SELECT 
+        p.*,
+        json_agg(
+          json_build_object(
+            'currency_id', c.id,
+            'currency_code', c.code,
+            'currency_symbol', c.symbol,
+            'currency_name', c.name,
+            'price', pc.price
+          ) ORDER BY c.display_order
+        ) FILTER (WHERE c.id IS NOT NULL) as currencies
+      FROM products p
+      LEFT JOIN product_currencies pc ON p.id = pc.product_id
+      LEFT JOIN currencies c ON pc.currency_id = c.id AND c.is_active = true
+      GROUP BY p.id
+      ORDER BY p.created_at DESC
+    `);
     const dbProducts = productsResult.rows;
 
     // Obtener imágenes
@@ -53,6 +70,7 @@ export default async function CatalogPage() {
         created_at: product.created_at,
         updated_at: product.updated_at,
         available,
+        currencies: product.currencies || [],
       };
     });
   } catch (err) {
@@ -63,6 +81,8 @@ export default async function CatalogPage() {
   return (
     <div className="min-h-screen bg-background">
       <SiteHeader />
+      {/* Espaciador para compensar el header fixed */}
+      <div className="h-24 sm:h-28 md:h-32" />
       <main className="container mx-auto px-1 sm:px-1 lg:px-1 py-8 sm:py-8">
         <CatalogClient products={products} />
         <footer className="mt-8">

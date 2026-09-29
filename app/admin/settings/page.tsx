@@ -120,14 +120,16 @@ export default function AdminSettingsPage() {
     <AdminGuard>
       <div className="min-h-screen bg-background">
         <AdminHeader />
+        {/* Espaciador para compensar el header fixed */}
+        <div className="h-24 sm:h-28 md:h-32" />
 
         <main className="container mx-auto px-4 py-8">
           <div className="max-w-2xl mx-auto">
             <div className="mb-6">
               <Link href="/admin">
-                <Button variant="ghost" size="sm" className="gap-2">
+                <Button variant="outline" size="sm" className="gap-2">
                   <ArrowLeft className="h-4 w-4" />
-                  Volver al panel
+                  Atrás
                 </Button>
               </Link>
             </div>

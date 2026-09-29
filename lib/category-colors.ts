@@ -248,8 +248,17 @@ const colorFromHashPastel = (seed:string) => {
   return hslToHexLocal(cl.h, cl.s, cl.l)
 }
 
+// Mapa global para rastrear categorías y sus colores asignados
+const categoryColorMap = new Map<string, { background: string; textColor: string }>()
+let colorIndex = 0
+
 /** Public API */
 export function getCategoryColor(category = ""): { background: string; textColor: string } {
+  // Si la categoría ya tiene un color asignado, retornarlo
+  if (category && categoryColorMap.has(category)) {
+    return categoryColorMap.get(category)!
+  }
+
   let resolvedPalette = fallbackPalette.slice()
 
   try {
@@ -303,14 +312,30 @@ export function getCategoryColor(category = ""): { background: string; textColor
     return { background: bg, textColor: getTextHexForBackground(bg) }
   }
 
+  // Asignar color secuencialmente para evitar repeticiones
+  let candidate: string
+  
   if (useHashFallback) {
-    const bg = colorFromHashPastel(String(category))
-    return { background: bg, textColor: getTextHexForBackground(bg) }
+    candidate = colorFromHashPastel(String(category))
+  } else {
+    // Usar índice secuencial en lugar de hash para evitar colisiones
+    const idx = colorIndex % normalized.length
+    candidate = normalized[idx] || normalized[0] || fallbackPalette[0]
+    colorIndex++
   }
 
-  const idx = hashString(String(category)) % normalized.length
-  const candidate = normalized[idx] || normalized[0] || fallbackPalette[0]
-  return { background: candidate, textColor: getTextHexForBackground(candidate) }
+  const result = { background: candidate, textColor: getTextHexForBackground(candidate) }
+  
+  // Guardar el color asignado para esta categoría
+  categoryColorMap.set(category, result)
+  
+  return result
 }
 
 export default getCategoryColor
+
+// Función para resetear el mapa de colores (útil para testing o reinicialización)
+export function resetCategoryColors() {
+  categoryColorMap.clear()
+  colorIndex = 0
+}

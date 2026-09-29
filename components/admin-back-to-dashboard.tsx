@@ -47,7 +47,7 @@ export function AdminBackToDashboard() {
     <button
       type="button"
       onClick={handleBack}
-      className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-6 transition-colors"
+      className="inline-flex border-#dfcfb4 items-center gap-2 text-sm text-muted-foreground mb-6 transition-colors"
     >
       <ChevronLeft className="w-4 h-4" />
       Volver al dashboard

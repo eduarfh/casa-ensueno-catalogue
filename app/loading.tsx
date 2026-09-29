@@ -8,6 +8,8 @@ export default function AppLoading() {
   return (
     <div className="min-h-screen bg-background">
       <SiteHeader />
+      {/* Espaciador para compensar el header fixed */}
+      <div className="h-24 sm:h-28 md:h-32" />
       <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
         <div className="text-center mb-8">
           <div className="h-8 w-48 mx-auto rounded bg-gray-200 dark:bg-gray-700 animate-pulse" />

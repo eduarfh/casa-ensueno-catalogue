@@ -35,7 +35,7 @@
   --destructive: oklch(62% 0.2 30);
   --destructive-foreground: oklch(100% 0 0);
 
-  --border: oklch(86% 0.04 80); /* Using secondary for borders */
+  --border: #dfcfb4; /* Using secondary for borders */
   --input: oklch(99.2% 0.002 120);
   --ring: oklch(84% 0.04 130);
 

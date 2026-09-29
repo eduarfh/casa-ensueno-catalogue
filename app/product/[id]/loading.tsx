@@ -7,6 +7,8 @@ export default function Loading() {
   return (
     <div className="min-h-screen bg-background">
       <SiteHeader />
+      {/* Espaciador para compensar el header fixed */}
+      <div className="h-24 sm:h-28 md:h-32" />
 
       <main className="container mx-auto px-4 py-8" role="status" aria-busy="true">
         {/* Back link skeleton */}

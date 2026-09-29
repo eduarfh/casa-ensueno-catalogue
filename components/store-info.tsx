@@ -1,13 +1,11 @@
 "use client";
 
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Clock, Phone, MapPin, Map } from "lucide-react";
-import { MessageCircle } from "lucide-react";
 import { FacebookIcon, GmailIcon, InstagramIcon } from "./icons";
 import { WhatsAppSVG } from "./svgs";
-import { createPortal } from "react-dom";
 
 type StoreInfoRow = {
   id?: string | null;
@@ -22,13 +20,13 @@ type StoreInfoRow = {
 
 export default function StoreInfo() {
   const [store, setStore] = useState<StoreInfoRow>({
-    label: "Casa Ensueño",
-    phone_display: "+53 59158599",
-    whatsapp_number: "5359158599",
-    address: "Calle 68 entre 9na y 11na, Miramar, Playa",
+    label: "",
+    phone_display: "",
+    whatsapp_number: "",
+    address: "",
     lat: "",
     lng: "",
-    hours: "Lun / Sáb • 10:00 am / 6:00 pm",
+    hours: "",
   });
 
   const [platform, setPlatform] = useState<"ios" | "android" | "desktop" | null>(null);
@@ -67,7 +65,7 @@ export default function StoreInfo() {
     window.addEventListener("store-info:updated", onUpdated);
 
     try {
-      const ua = navigator.userAgent || navigator.vendor || (window as any).opera || "";
+      const ua = navigator.userAgent || (window as any).opera || "";
       const isiOS = /iPhone|iPad|iPod/.test(ua);
       const isAndroid = /Android/.test(ua);
       if (isiOS) setPlatform("ios");
@@ -83,132 +81,18 @@ export default function StoreInfo() {
     };
   }, []);
 
-  const phoneDisplay = store.phone_display ?? "+53 59158599";
-  const whatsappNumberClean = (store.whatsapp_number ?? "5359158599").replace(/\D/g, "");
-  const whatsappLink = `https://wa.me/${whatsappNumberClean}?text=${encodeURIComponent(
-    "Hola Gabriela, quiero consultar sobre un producto del catálogo"
-  )}`;
-
-  const telLink = `tel:${(phoneDisplay || "").replace(/\s+/g, "")}`;
-
   const address = store.address ?? "Calle 68 entre 9na y 11na, Miramar, Playa";
   const lat = store.lat ?? "23.106806";
   const lng = store.lng ?? "-82.431900";
 
   // --- Developer credit UI ---
-  const devName = "Eduardo Enrique Fonseca Heredia";
+  const devName = "Ing. Eduardo Fonseca";
   const devWhatsRaw = "5355550301";
   const devWhatsDisplay = "+53 55550301";
   const devWhatsLink = `https://wa.me/${devWhatsRaw}?text=${encodeURIComponent("Hola Eduardo, te contacto desde la web.")}`;
   const instagramLink = "https://instagram.com/eduar_fh";
   const facebookLink = "https://www.facebook.com/eduardoenrique.fonsecaheredia?mibextid=wwXIfr&mibextid=wwXIfr";
   const mailLink = "mailto:fonsecaeduar136@gmail.com";
-
-  const [showDevContact, setShowDevContact] = useState(false);
-  const devButtonRef = useRef<HTMLButtonElement | null>(null);
-  const [popoverCoords, setPopoverCoords] = useState<{ top: number; left: number } | null>(null);
-
-  const calculateCoords = () => {
-    const btn = devButtonRef.current;
-    if (!btn) return;
-    const rect = btn.getBoundingClientRect();
-    const scrollY = window.scrollY || window.pageYOffset;
-    const scrollX = window.scrollX || window.pageXOffset;
-    const top = rect.bottom + scrollY + 8;
-    const preferredLeft = rect.left + scrollX;
-    const menuWidth = 260;
-    let left = preferredLeft;
-    if (left + menuWidth > window.innerWidth - 8) {
-      left = Math.max(8, window.innerWidth - menuWidth - 8);
-    }
-    setPopoverCoords({ top, left });
-  };
-
-  const toggleDevPopover = (e?: React.MouseEvent) => {
-    if (e) {
-      e.stopPropagation();
-      e.preventDefault();
-    }
-    setShowDevContact((prev) => {
-      const next = !prev;
-      if (next) setTimeout(() => calculateCoords(), 0);
-      return next;
-    });
-  };
-
-  useEffect(() => {
-    if (!showDevContact) return;
-
-    const onOutsideClick = (ev: MouseEvent) => {
-      const portalEl = document.getElementById("dev-contact-popover");
-      if (!portalEl) {
-        setShowDevContact(false);
-        return;
-      }
-      if (devButtonRef.current && devButtonRef.current.contains(ev.target as Node)) return;
-      if (!portalEl.contains(ev.target as Node)) {
-        setShowDevContact(false);
-      }
-    };
-
-    const onKey = (ev: KeyboardEvent) => {
-      if (ev.key === "Escape") setShowDevContact(false);
-    };
-
-    const onScrollOrResize = () => calculateCoords();
-
-    document.addEventListener("click", onOutsideClick);
-    document.addEventListener("keydown", onKey);
-    window.addEventListener("scroll", onScrollOrResize, { passive: true });
-    window.addEventListener("resize", onScrollOrResize);
-    return () => {
-      document.removeEventListener("click", onOutsideClick);
-      document.removeEventListener("keydown", onKey);
-      window.removeEventListener("scroll", onScrollOrResize);
-      window.removeEventListener("resize", onScrollOrResize);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [showDevContact]);
-
-  const devPortal =
-    popoverCoords && showDevContact ? (
-      <div
-        id="dev-contact-popover"
-        style={{
-          position: "absolute",
-          top: popoverCoords.top,
-          left: popoverCoords.left,
-          zIndex: 99999,
-          minWidth: 200,
-        }}
-        onClick={(e) => e.stopPropagation()}
-        role="dialog"
-        aria-modal="false"
-      >
-        <div
-          className="inline-flex items-center gap-3 rounded-md px-3 py-2 text-sm"
-          style={{
-            background: "var(--color-popover, var(--color-card, #fff))",
-            color: "var(--color-popover-foreground, var(--color-foreground, #111))",
-            border: "1px solid var(--color-border, rgba(0,0,0,0.06))",
-            boxShadow: "0 8px 24px rgba(2,6,23,0.08)",
-          }}
-        >
-          <span className="inline-flex items-center justify-center w-6 h-6" aria-hidden>
-            {WhatsAppSVG}
-          </span>
-
-          <a
-            href={devWhatsLink}
-            target="_blank"
-            rel="noreferrer noopener"
-            className="font-medium hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-ring,rgba(34,197,94,0.3))] rounded"
-          >
-            {devWhatsDisplay}
-          </a>
-        </div>
-      </div>
-    ) : null;
 
   const buildMapsLink = () => {
     const label = encodeURIComponent(store.label ?? "Casa Ensueño");
@@ -349,42 +233,63 @@ export default function StoreInfo() {
             </div>
           </div>
 
-          {/* Footer / Créditos */}
-          <div className="col-span-full mt-6 pt-4 border-t border-muted/20">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-              <div className="flex items-center gap-3 min-w-0">
-                <div className="text-sm text-[var(--color-muted-foreground,rgba(0,0,0,0.6))]">Desarrollado por</div>
-
-                <button
-                  ref={devButtonRef}
-                  onClick={toggleDevPopover}
-                  aria-expanded={showDevContact}
-                  aria-controls="dev-contact-popover"
-                  className="font-medium text-[var(--color-foreground,#111)] hover:text-[var(--color-foreground,#111)] underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-ring,rgba(34,197,94,0.2))] rounded"
-                  title="Contactar al desarrollador"
-                >
-                  {devName}
-                </button>
-
-                {typeof document !== "undefined" && devPortal ? createPortal(devPortal, document.body) : null}
+          
+        </CardContent>
+      </Card>
+      {/* Footer / Créditos */}
+      <div className="container justify-center mx-auto px-1 py-4">
+        <div className="col-span-full mt-6 pt-4 border-t border-muted/20">
+            <div className="flex flex-col gap-4">
+              <div className="text-center">
+                <div className="text-sm text-muted-foreground mb-2">Desarrollado por</div>
+                <div className="font-semibold text-lg text-foreground mb-3">{devName}</div>
               </div>
 
-              <div className="flex items-center gap-3">
-                <a href={instagramLink} target="_blank" rel="noreferrer noopener" className="inline-flex items-center gap-2 text-sm text-[var(--color-muted-foreground,rgba(0,0,0,0.6))] hover:text-[var(--color-foreground,#111)] transition-colors">
+              <div className="flex flex-wrap items-center justify-center gap-4">
+                <a 
+                  href={devWhatsLink} 
+                  target="_blank" 
+                  rel="noreferrer noopener" 
+                  className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+                  title="WhatsApp"
+                >
+                  <span className="inline-flex items-center justify-center w-8 h-8 rounded-md" aria-hidden>
+                    {WhatsAppSVG}
+                  </span>
+                  <span>{devWhatsDisplay}</span>
+                </a>
+
+                <a 
+                  href={instagramLink} 
+                  target="_blank" 
+                  rel="noreferrer noopener" 
+                  className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+                  title="Instagram"
+                >
                   <span className="inline-flex items-center justify-center w-8 h-8 rounded-md" aria-hidden>
                     <InstagramIcon />
                   </span>
-                  <span className="hidden sm:inline">Instagram</span>
+                  <span className="hidden sm:inline">@eduar_fh</span>
                 </a>
 
-                <a href={facebookLink} target="_blank" rel="noreferrer noopener" className="inline-flex items-center gap-2 text-sm text-[var(--color-muted-foreground,rgba(0,0,0,0.6))] hover:text-[var(--color-foreground,#111)] transition-colors">
+                <a 
+                  href={facebookLink} 
+                  target="_blank" 
+                  rel="noreferrer noopener" 
+                  className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+                  title="Facebook"
+                >
                   <span className="inline-flex items-center justify-center w-8 h-8 rounded-md" aria-hidden>
                     <FacebookIcon />
                   </span>
                   <span className="hidden sm:inline">Facebook</span>
                 </a>
 
-                <a href={mailLink} className="inline-flex items-center gap-2 text-sm text-[var(--color-muted-foreground,rgba(0,0,0,0.6))] hover:text-[var(--color-foreground,#111)] transition-colors">
+                <a 
+                  href={mailLink} 
+                  className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+                  title="Email"
+                >
                   <span className="inline-flex items-center justify-center w-8 h-8 rounded-md" aria-hidden>
                     <GmailIcon />
                   </span>
@@ -393,10 +298,12 @@ export default function StoreInfo() {
               </div>
             </div>
 
-            <div className="mt-3 text-xs text-muted-foreground">© {new Date().getFullYear()} Casa Ensueño. Todos los derechos reservados.</div>
+            <div className="mt-4 text-center text-xs text-muted-foreground">
+              © {new Date().getFullYear()} Casa Ensueño. Todos los derechos reservados.
+            </div>
           </div>
-        </CardContent>
-      </Card>
+      </div>
+          
     </section>
   );
 }

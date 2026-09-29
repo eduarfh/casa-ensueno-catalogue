@@ -29,7 +29,7 @@ export default async function EditProductPage({ params }: Props) {
   let product: any = null;
 
   if (!isNewProduct) {
-    // Obtener producto con imágenes
+    // Obtener producto con imágenes y monedas
     const result = await query(`
       SELECT p.*, 
         json_agg(
@@ -38,7 +38,20 @@ export default async function EditProductPage({ params }: Props) {
             'image_url', pi.image_url,
             'display_order', pi.display_order
           ) ORDER BY pi.display_order
-        ) FILTER (WHERE pi.id IS NOT NULL) as product_images
+        ) FILTER (WHERE pi.id IS NOT NULL) as product_images,
+        (
+          SELECT json_agg(
+            json_build_object(
+              'currency_id', c.id,
+              'currency_code', c.code,
+              'currency_symbol', c.symbol,
+              'price', pc.price
+            ) ORDER BY c.display_order
+          )
+          FROM product_currencies pc
+          JOIN currencies c ON pc.currency_id = c.id AND c.is_active = true
+          WHERE pc.product_id = p.id
+        ) as currencies
       FROM products p
       LEFT JOIN product_images pi ON p.id = pi.product_id
       WHERE p.id = $1
@@ -72,13 +85,15 @@ export default async function EditProductPage({ params }: Props) {
   return (
     <div className="min-h-screen bg-background">
       <AdminHeader />
+      {/* Espaciador para compensar el header fixed */}
+      <div className="h-24 sm:h-28 md:h-32" />
 
-      <main className="flex items-center justify-center min-h-[calc(100vh-80px)] px-4">
+      <main className="flex items-center justify-center min-h-[calc(100vh-80px)] px-2 py-4">
         <div className="w-full max-w-2xl">
           <AdminBackToDashboard />
 
           <div>
-            <h1 className="text-3xl font-bold mb-2">{isNewProduct ? "Crear Producto" : "Editar Producto"}</h1>
+            <h2 className="text-3xl font-bold mb-3">{isNewProduct ? "Crear Producto" : "Editar Producto"}</h2>
             <p className="text-muted-foreground mb-8">
               {isNewProduct ? "Agrega un nuevo producto al catálogo" : "Actualiza la información del producto"}
             </p>
